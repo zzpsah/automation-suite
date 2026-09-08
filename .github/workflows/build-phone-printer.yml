@@ -44,8 +44,8 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
           pip install pyinstaller
-      - name: Build Windows EXE
-        run: pyinstaller --noconfirm --onefile --name PhonePrinterBridge print_server.py
+      - name: Build Windows GUI EXE
+        run: pyinstaller --noconfirm --onefile --noconsole --name PhonePrinterBridge admin_gui.py
       - uses: actions/upload-artifact@v4
         with:
           name: PhonePrinter-Windows
