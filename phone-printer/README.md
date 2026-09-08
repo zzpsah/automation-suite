@@ -19,11 +19,57 @@ Manual IP is available only under **Advanced** as a fallback.
 
 ### Windows hotspot / normal LAN mode
 
+The Windows app can also manage the hotspot when the Wi-Fi adapter supports Windows Hosted Network. On newer Windows 11 systems where that legacy API is disabled, the same command opens the official Mobile Hotspot settings as a safe fallback.
+
 Any phone, tablet or laptop on the same network can open the Windows Print Hub in a browser at:
 
 `http://<windows-ip>:8765`
 
 No Android app is required for browser printing.
+
+## Background / startup mode
+
+The Windows Print Hub can run at sign-in with no main window and remain available in the system tray.
+
+Enable startup:
+
+`PhonePrinterBridge.exe --install-startup`
+
+Disable startup:
+
+`PhonePrinterBridge.exe --remove-startup`
+
+Run minimized/background immediately:
+
+`PhonePrinterBridge.exe --background`
+
+Open the local Print Hub:
+
+`PhonePrinterBridge.exe --show`
+
+Show server/startup/hotspot status:
+
+`PhonePrinterBridge.exe --status`
+
+Start hotspot:
+
+`PhonePrinterBridge.exe --start-hotspot`
+
+Configure and start hotspot when Hosted Network is supported:
+
+`PhonePrinterBridge.exe --start-hotspot --ssid SchoolPrinter --password ChangeMe123`
+
+Stop hotspot:
+
+`PhonePrinterBridge.exe --stop-hotspot`
+
+Open Windows Mobile Hotspot settings:
+
+`PhonePrinterBridge.exe --hotspot-settings`
+
+The tray menu provides **Open Print Hub**, **Start hotspot**, **Stop hotspot**, **Windows hotspot settings**, and **Exit**.
+
+The app is intentionally not hidden from Task Manager or Windows security tools.
 
 ## Android app features
 
@@ -41,6 +87,10 @@ No Android app is required for browser printing.
 
 ## Windows Print Hub features
 
+- Runs in background/system tray.
+- Automatic startup option for the current Windows user.
+- CLI control commands.
+- Windows hotspot control where supported, with Mobile Hotspot settings fallback.
 - Browser print page.
 - Installed printer detection and basic online/status information.
 - Direct Windows printer-device rendering for PDF/images.
