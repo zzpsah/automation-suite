@@ -4,7 +4,7 @@ Independent cloud workflow for ingesting school documents from Telegram or a mon
 
 ## Status
 
-The resilient staging foundation is deployed. Supabase migrations are applied, the public archive is live, and the personal Apps Script project has a verified time-based Drive scan trigger. Telegram bot creation and webhook activation remain owner-controlled because the BotFather token must be generated in the owner's Telegram account and stored only in Apps Script Properties.
+The resilient staging foundation is deployed. Supabase migrations are applied, the public archive is live, the personal Apps Script project has a verified time-based Drive scan trigger, and the Telegram bot `@UMVLettersBot` has been created. Webhook activation remains owner-controlled because the BotFather token must be stored only in Apps Script Properties.
 
 ## Principles
 

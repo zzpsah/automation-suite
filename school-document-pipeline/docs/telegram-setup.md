@@ -4,6 +4,7 @@ This document records the Telegram portion of the School Document Pipeline. It i
 
 ## What is already prepared
 
+- Telegram bot: `@UMVLettersBot` (display name: `Edu. Dept. Letters Mgmt.`).
 - Apps Script contains `TelegramWebhook.gs` and the shared ingestion modules.
 - The private Drive Inbox and Processing folders are configured.
 - Supabase tables and RLS are deployed.
@@ -16,7 +17,7 @@ This document records the Telegram portion of the School Document Pipeline. It i
 3. Send `/newbot`.
 4. Choose a display name, for example `School Document Intake`.
 5. Choose an unused username ending in `bot`, for example `SchoolDocumentIntakeBot`.
-6. BotFather returns a token. Treat it as a password.
+6. BotFather returns a token. Treat it as a password. If a token is ever displayed in logs, screenshots, or an automation transcript, revoke it immediately and generate a replacement before using it.
 
 Never commit the token to GitHub, place it in the public portal, paste it into a chat, or store it in a normal Supabase table. The token belongs only in Apps Script Project Settings → Script Properties as `TELEGRAM_BOT_TOKEN`.
 
