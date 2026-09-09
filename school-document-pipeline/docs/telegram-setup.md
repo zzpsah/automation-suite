@@ -50,7 +50,7 @@ The webhook secret is an application secret, not a Supabase API key. Do not inve
 6. Send one synthetic test file.
 7. Verify that the file is saved in Drive, a Supabase metadata row is created, and the item remains private until review.
 
-The current deployment completed as version 1 on 10 September 2026. The live web-app URL is intentionally not committed to this public repository; keep it in Apps Script Properties as `TELEGRAM_WEBAPP_URL`.
+The current deployment completed as version 2 on 10 September 2026, and the webhook registration returned `ok: true`. The live web-app URL is intentionally not committed to this public repository; keep it in Apps Script Properties as `TELEGRAM_WEBAPP_URL`.
 
 ## Failure handling
 
