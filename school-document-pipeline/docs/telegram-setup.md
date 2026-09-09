@@ -40,6 +40,8 @@ DRIVE_SCAN_BATCH_SIZE=10
 
 The webhook secret is an application secret, not a Supabase API key. Do not invent a Supabase key. Use the project's real server secret only in Apps Script Properties.
 
+The sender allowlist is required. If both `AUTHORIZED_TELEGRAM_USER_IDS` and `AUTHORIZED_TELEGRAM_CHAT_IDS` are empty, the webhook intentionally rejects every Telegram upload. Use the numeric ID of the owner account or a permitted private chat, not a display name or username.
+
 ## Deploy and register the webhook
 
 1. Run `installDriveScanTrigger` once and verify the time-based `scanDriveInbox` trigger.
