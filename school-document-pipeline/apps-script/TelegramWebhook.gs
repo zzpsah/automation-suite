@@ -45,6 +45,23 @@ function doPost(e) {
   }
 }
 
+function registerTelegramWebhook() {
+  const config = getConfig();
+  requireConfig_(config, ['telegramToken', 'telegramWebhookSecret']);
+
+  const webAppUrl = PropertiesService.getScriptProperties().getProperty('TELEGRAM_WEBAPP_URL') || '';
+  requireConfig_({ webAppUrl: webAppUrl }, ['webAppUrl']);
+
+  const separator = webAppUrl.indexOf('?') >= 0 ? '&' : '?';
+  const webhookUrl = webAppUrl + separator + 'webhook_secret=' + encodeURIComponent(config.telegramWebhookSecret);
+  const result = telegramApi_('setWebhook', {
+    url: webhookUrl,
+    allowed_updates: ['message', 'channel_post']
+  });
+  console.log('Telegram webhook registered: ' + JSON.stringify(result));
+  return result;
+}
+
 function safeEqual_(left, right) {
   if (!left || !right || left.length !== right.length) return false;
   let difference = 0;

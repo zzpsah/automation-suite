@@ -45,9 +45,12 @@ The webhook secret is an application secret, not a Supabase API key. Do not inve
 1. Run `installDriveScanTrigger` once and verify the time-based `scanDriveInbox` trigger.
 2. Deploy Apps Script as a web app owned by the account that owns the private Drive folders.
 3. Keep the web app access as restrictive as the Telegram webhook design permits.
-4. Register the web-app URL with Telegram's `setWebhook` API using the bot token and webhook secret.
-5. Send one synthetic, non-sensitive test file.
-6. Verify that the file is saved in Drive, a Supabase metadata row is created, and the item remains private until review.
+4. Add `TELEGRAM_WEBAPP_URL` to Apps Script Properties using the deployed web-app URL.
+5. Run `registerTelegramWebhook` from the Apps Script editor. It reads the token and secret privately and calls Telegram's `setWebhook` API.
+6. Send one synthetic test file.
+7. Verify that the file is saved in Drive, a Supabase metadata row is created, and the item remains private until review.
+
+The current deployment completed as version 1 on 10 September 2026. The live web-app URL is intentionally not committed to this public repository; keep it in Apps Script Properties as `TELEGRAM_WEBAPP_URL`.
 
 ## Failure handling
 

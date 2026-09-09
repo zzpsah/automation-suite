@@ -23,6 +23,7 @@ assert.doesNotMatch(migration, /service_role\s*=/i);
 assert.match(config, /Math\.max\(1, Math\.min\(50/);
 assert.match(driveScanner, /moveToProcessing_\(file\)/);
 assert.match(telegramWebhook, /moveToProcessing_\(file\)/);
+assert.match(telegramWebhook, /function registerTelegramWebhook\(\)/);
 assert.match(extraction, /MANUAL_FIRST_PAGE_REQUIRED/);
 assert.match(extraction, /\^image\\\//);
 assert.match(extraction, /suggestCategory_/);
