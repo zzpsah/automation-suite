@@ -21,7 +21,10 @@ function registerDriveFile_(file, sourceApp, sourceMessageId, sourceLocation) {
     duplicate: false,
     sensitive: true,
     processing_status: 'Queued',
-    forwarding_status: 'Not Forwarded'
+    forwarding_status: 'Not Forwarded',
+    category_key: 'other',
+    category_source: 'import',
+    category_confidence: 'LOW'
   };
 
   const document = insertDocument_(record);
@@ -34,13 +37,17 @@ function processDocument_(document, file) {
   try {
     updateDocument_(document.id, { processing_status: 'Processing' });
     const extraction = extractDocument_(file);
+    const category = suggestCategory_(extraction);
     updateDocument_(document.id, {
       reference_number: extraction.reference_number,
       issue_date_as_printed: extraction.issue_date_as_printed,
       issuing_authority: extraction.issuing_authority,
       subject: extraction.subject,
       short_description: extraction.short_description,
-      category: extraction.category,
+      category: category.displayName,
+      category_key: category.key,
+      category_source: category.source,
+      category_confidence: category.confidence,
       priority: extraction.priority,
       required_action: extraction.required_action,
       deadline_as_printed: extraction.deadline_as_printed,
