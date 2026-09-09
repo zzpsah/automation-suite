@@ -1,108 +1,39 @@
-# PyPaint AI
+# Photo Prep Studio
 
-An MS Paint clone built with **PyQt6**, featuring local AI background removal
-(`rembg`) and an integrated **Google Gemini** (`gemini-2.5-flash`) chat side panel
-that can analyze your canvas.
+A Windows/PyQt6 desktop tool for quickly preparing passport photographs and signatures.
 
-## Features
-- Tool ribbon: Brush, Pencil, Eraser, Line, Rectangle, Ellipse, Select, Crop
-- Primary/secondary color swatches + stroke width
-- Undo (`Ctrl+Z`) / Redo (`Ctrl+Y`) history buffer
-- Clipboard paste (`Ctrl+V`) with a movable floating selection
-- Open/Save PNG, JPG, BMP
-- One-click **Remove Background** (local `rembg` / U2-Net, no internet required)
-- Crop, Rotate 90° CW/CCW, Flip H/V
-- Adjustments dialog: Brightness, Contrast, Saturation, Sharpness (live preview)
-- Auto-Enhance preset
-- Dockable Gemini AI panel with chat history and a "send canvas with message" toggle
+## Main workflow
 
-## 1. Install (Windows)
+1. Open a photo.
+2. Use **Select** to draw a rectangle around the required area.
+3. In the right-side **Photo Preparation** panel choose a preset:
+   - **Passport Photo — 35×45 mm (300 DPI)** → 413×531 px
+   - **Signature** → 140×60 px
+   - **Custom** → enter any width/height
+4. Click **One Click: Crop + White Background**.
+   - The selected region is used as the crop.
+   - `rembg` removes the original background locally.
+   - Transparency is flattened to white.
+   - The result is resized to the configured pixel dimensions.
+5. Set the maximum file size in KB and click **Export Prepared JPEG…**.
 
-Open **PowerShell** or **Command Prompt**:
+The output keeps the configured pixel dimensions and automatically chooses the highest JPEG quality that fits under the requested KB limit when possible.
+
+## Other tools
+
+Brush, pencil, eraser, line, rectangle, ellipse, copy/paste, undo/redo, crop, rotate, flip, auto-enhance, brightness/contrast/saturation/sharpness, zoom, PNG/JPEG save.
+
+## Run from source
 
 ```powershell
-# 1. Get Python 3.11+ if you don't have it: https://www.python.org/downloads/
-python --version
-
-# 2. Clone this repository, then enter this project folder
-cd path\to\automation-suite\paint-gemini-app
-
-# 3. Create and activate a virtual environment
 python -m venv venv
 venv\Scripts\activate
-
-# 4. Install dependencies
 pip install -r requirements.txt
-```
-
-> `rembg` will download its U2-Net model (~170 MB) automatically the first time
-> you click "Remove Background". This requires an internet connection once;
-> after that it's cached locally and works offline.
-
-## 2. Set your Gemini API key (optional but needed for the AI panel)
-
-Get a key from https://aistudio.google.com/apikey, then either:
-
-**Option A — environment variable (persists across runs):**
-```powershell
-setx GEMINI_API_KEY "your-api-key-here"
-# close and reopen your terminal for it to take effect
-```
-
-**Option B — paste it directly into the "API Key" field in the app's AI panel**
-(not persisted between runs).
-
-## 3. Run
-
-```powershell
-venv\Scripts\activate
 python main.py
 ```
 
-## Keyboard shortcuts
+`rembg` may download its background-removal model on first use.
 
-| Action              | Shortcut       |
-|---------------------|----------------|
-| Brush / Pencil / Eraser | B / P / E |
-| Line / Rect / Ellipse   | L / R / O |
-| Select / Crop           | S / C     |
-| Undo / Redo              | Ctrl+Z / Ctrl+Y |
-| Cut / Copy / Paste        | Ctrl+X / Ctrl+C / Ctrl+V |
-| Delete selection          | Del |
-| Crop to selection         | Ctrl+Shift+X |
-| Adjustments dialog        | Ctrl+M |
-| Auto-Enhance               | Ctrl+E |
-| Zoom In / Out / Reset     | Ctrl+= / Ctrl+- / Ctrl+0 |
-| New / Open / Save / Save As | Ctrl+N / Ctrl+O / Ctrl+S / Ctrl+Shift+S |
+## Windows build
 
-## Project layout
-
-```text
-paint-gemini-app/
-├── main.py
-├── canvas.py
-├── bg_remover.py
-├── gemini_panel.py
-├── adjustments_dialog.py
-├── requirements.txt
-└── README.md
-```
-
-## Building a standalone .exe (optional)
-
-```powershell
-pip install pyinstaller
-pyinstaller --noconsole --onefile --name PyPaintAI main.py
-```
-
-The executable will be in `dist\PyPaintAI.exe`. `rembg`'s ONNX model files are downloaded at runtime, so first use of background removal still needs internet access.
-
-## Repository location
-
-This project is maintained at:
-
-```text
-automation-suite/paint-gemini-app/
-```
-
-Repository: `zzpsah/automation-suite`
+The repository GitHub Action builds a portable Windows application. Open the latest **Build Photo Prep Studio Windows** workflow under GitHub Actions and download the `PhotoPrepStudio-Windows` artifact.
