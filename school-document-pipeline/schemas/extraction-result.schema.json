@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Document extraction result",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["category", "priority", "required_action", "confidence", "needs_manual_review"],
+  "properties": {
+    "reference_number": {"type": ["string", "null"]},
+    "issue_date_as_printed": {"type": ["string", "null"]},
+    "issuing_authority": {"type": ["string", "null"]},
+    "subject": {"type": ["string", "null"]},
+    "short_description": {"type": ["string", "null"]},
+    "detailed_summary": {"type": ["string", "null"]},
+    "category": {"type": "string"},
+    "priority": {"enum": ["URGENT", "HIGH", "NORMAL", "LOW", "IGNORE"]},
+    "required_action": {"type": "string"},
+    "deadline_as_printed": {"type": ["string", "null"]},
+    "affected_entities": {"type": "array", "items": {"type": "string"}},
+    "financial_amount": {"type": ["number", "null"]},
+    "confidence": {"enum": ["HIGH", "MEDIUM", "LOW"]},
+    "source_page": {"type": ["integer", "null"], "minimum": 1},
+    "needs_manual_review": {"type": "boolean"}
+  }
+}
