@@ -1,7 +1,7 @@
 function doPost(e) {
   try {
     const config = getConfig();
-    requireConfig_(config, ['telegramToken', 'telegramWebhookSecret', 'inboxFolderId']);
+    requireConfig_(config, ['telegramToken', 'telegramWebhookSecret', 'inboxFolderId', 'processingFolderId']);
 
     const suppliedSecret = String(e && e.parameter && e.parameter.webhook_secret || '');
     if (!safeEqual_(suppliedSecret, config.telegramWebhookSecret)) {
@@ -36,6 +36,7 @@ function doPost(e) {
     const blob = UrlFetchApp.fetch(downloadUrl).getBlob().setName(media.fileName);
     const file = DriveApp.getFolderById(config.inboxFolderId).createFile(blob);
     const result = registerDriveFile_(file, 'Telegram', sourceMessageId, 'Telegram chat ' + chatId);
+    moveToProcessing_(file);
     sendTelegramMessage_(chatId, 'Document registered: ' + result.document.id);
     return jsonResponse_({ ok: true });
   } catch (error) {

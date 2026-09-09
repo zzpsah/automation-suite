@@ -1,7 +1,14 @@
 function extractDocument_(file) {
   const mode = getConfig().extractionMode;
   if (mode === 'MANUAL_ONLY') return manualExtraction_();
-  if (mode === 'DRIVE_OCR') return driveOcrExtraction_(file);
+  if (mode === 'DRIVE_OCR') {
+    if (/^image\//i.test(file.getMimeType())) return driveOcrExtraction_(file);
+    const manual = manualExtraction_();
+    manual.method = file.getMimeType() === 'application/pdf'
+      ? 'MANUAL_FIRST_PAGE_REQUIRED'
+      : 'MANUAL_UNSUPPORTED_FILE_TYPE';
+    return manual;
+  }
   throw new Error('Unsupported extraction mode: ' + mode);
 }
 

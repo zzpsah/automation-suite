@@ -1,5 +1,9 @@
 function getConfig() {
   const properties = PropertiesService.getScriptProperties();
+  const requestedBatchSize = Number(properties.getProperty('DRIVE_SCAN_BATCH_SIZE') || '10');
+  const safeBatchSize = Number.isFinite(requestedBatchSize)
+    ? Math.max(1, Math.min(50, Math.floor(requestedBatchSize)))
+    : 10;
   return {
     telegramToken: properties.getProperty('TELEGRAM_BOT_TOKEN') || '',
     telegramWebhookSecret: properties.getProperty('TELEGRAM_WEBHOOK_SECRET') || '',
@@ -10,7 +14,7 @@ function getConfig() {
     supabaseUrl: properties.getProperty('SUPABASE_URL') || '',
     supabaseSecret: properties.getProperty('SUPABASE_SERVER_SECRET') || '',
     extractionMode: properties.getProperty('EXTRACTION_MODE') || 'MANUAL_ONLY',
-    batchSize: Number(properties.getProperty('DRIVE_SCAN_BATCH_SIZE') || '10')
+    batchSize: safeBatchSize
   };
 }
 

@@ -7,7 +7,7 @@ function scanDriveInbox() {
 
   try {
     const config = getConfig();
-    requireConfig_(config, ['inboxFolderId']);
+    requireConfig_(config, ['inboxFolderId', 'processingFolderId']);
     const files = DriveApp.getFolderById(config.inboxFolderId).getFiles();
     let processed = 0;
 
@@ -16,7 +16,9 @@ function scanDriveInbox() {
       const sourceMessageId = file.getId();
       try {
         const result = registerDriveFile_(file, 'Google Drive', sourceMessageId, 'Drive Inbox');
-        if (result.created) processed += 1;
+        moveToProcessing_(file);
+        processed += 1;
+        console.log((result.created ? 'Registered and moved: ' : 'Moved previously registered file: ') + file.getName());
       } catch (error) {
         console.error('Failed to process ' + file.getName() + ': ' + error.message);
       }

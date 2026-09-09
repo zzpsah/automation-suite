@@ -62,3 +62,10 @@ function processDocument_(document, file) {
     throw error;
   }
 }
+
+function moveToProcessing_(file) {
+  const config = getConfig();
+  requireConfig_(config, ['processingFolderId']);
+  const processingFolder = DriveApp.getFolderById(config.processingFolderId);
+  file.moveTo(processingFolder);
+}
