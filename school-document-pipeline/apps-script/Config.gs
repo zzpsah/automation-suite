@@ -2,6 +2,7 @@ function getConfig() {
   const properties = PropertiesService.getScriptProperties();
   return {
     telegramToken: properties.getProperty('TELEGRAM_BOT_TOKEN') || '',
+    telegramWebhookSecret: properties.getProperty('TELEGRAM_WEBHOOK_SECRET') || '',
     telegramUsers: parseIdList_(properties.getProperty('AUTHORIZED_TELEGRAM_USER_IDS')),
     telegramChats: parseIdList_(properties.getProperty('AUTHORIZED_TELEGRAM_CHAT_IDS')),
     inboxFolderId: properties.getProperty('DRIVE_INBOX_FOLDER_ID') || '',
