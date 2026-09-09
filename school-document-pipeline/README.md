@@ -4,7 +4,7 @@ Independent cloud workflow for ingesting school documents from Telegram or a mon
 
 ## Status
 
-Phase 1 scaffold only. No Telegram webhook, Drive trigger, Supabase migration, or production deployment has been activated.
+The resilient staging foundation is deployed. Supabase migrations are applied, the public archive is live, and the personal Apps Script project has a verified time-based Drive scan trigger. Telegram bot creation and webhook activation remain owner-controlled because the BotFather token must be generated in the owner's Telegram account and stored only in Apps Script Properties.
 
 ## Principles
 
@@ -14,6 +14,9 @@ Phase 1 scaffold only. No Telegram webhook, Drive trigger, Supabase migration, o
 - Every extracted value is reviewable and missing values remain null.
 - Public clients receive only approved, public-safe fields.
 - BrowserAct is a separate project and may later provide optional imports.
+- All source documents remain private in Drive; publication requires an explicit review decision.
+- Category keys are stable, while labels, aliases, office terms, and content terms are versioned.
+- Search is based on structured document fields, not on fixed page categories.
 
 ## Structure
 
@@ -25,3 +28,11 @@ Phase 1 scaffold only. No Telegram webhook, Drive trigger, Supabase migration, o
 - `docs/` architecture, security, and setup guidance
 
 See [docs/setup-guide.md](docs/setup-guide.md).
+
+## Operational resources
+
+- [Setup guide](docs/setup-guide.md) — staged activation checklist.
+- [Operations runbook](docs/operations-runbook.md) — repeatable ingest, review, retry, and archive workflow.
+- [Telegram setup](docs/telegram-setup.md) — BotFather, Apps Script properties, webhook, and testing steps.
+- [Taxonomy and search](docs/taxonomy-and-search.md) — durable categories and redesign-safe search.
+- [Security rules](SECURITY.md) — secret handling and publication boundaries.
