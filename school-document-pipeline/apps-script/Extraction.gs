@@ -70,3 +70,72 @@ function ruleBasedExtraction_(text) {
     confidence: 'LOW'
   };
 }
+
+function suggestCategory_(extraction) {
+  const definitions = listCurrentCategoryDefinitions_();
+  const officeText = normalizeSearchText_(extraction.issuing_authority || '');
+  const contentText = normalizeSearchText_([
+    extraction.subject,
+    extraction.short_description,
+    extraction.text ? extraction.text.slice(0, 5000) : ''
+  ].filter(String).join(' '));
+  let best = null;
+
+  definitions.forEach(function (definition) {
+    if (definition.category_key === 'other') return;
+    let score = 0;
+    let officeMatches = 0;
+
+    (definition.office_terms || []).forEach(function (term) {
+      if (containsTerm_(officeText, term)) {
+        score += 8;
+        officeMatches += 1;
+      }
+    });
+    (definition.content_terms || []).forEach(function (term) {
+      if (containsTerm_(contentText, term)) score += 3;
+    });
+    (definition.aliases || []).forEach(function (term) {
+      if (containsTerm_(officeText + ' ' + contentText, term)) score += 2;
+    });
+
+    if (score > 0 && (!best || score > best.score)) {
+      best = {
+        key: definition.category_key,
+        displayName: definition.display_name,
+        score: score,
+        officeMatches: officeMatches
+      };
+    }
+  });
+
+  if (!best) {
+    const other = definitions.filter(function (definition) {
+      return definition.category_key === 'other';
+    })[0];
+    return {
+      key: 'other',
+      displayName: other ? other.display_name : 'Other',
+      source: 'rule',
+      confidence: 'LOW'
+    };
+  }
+
+  return {
+    key: best.key,
+    displayName: best.displayName,
+    source: 'rule',
+    confidence: best.officeMatches > 0 || best.score >= 8
+      ? 'HIGH'
+      : (best.score >= 4 ? 'MEDIUM' : 'LOW')
+  };
+}
+
+function normalizeSearchText_(value) {
+  return String(value || '').toLocaleLowerCase().replace(/\s+/g, ' ').trim();
+}
+
+function containsTerm_(haystack, term) {
+  const needle = normalizeSearchText_(term);
+  return needle.length > 0 && haystack.indexOf(needle) >= 0;
+}

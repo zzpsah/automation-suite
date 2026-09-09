@@ -9,6 +9,10 @@ const config = fs.readFileSync(path.join(root, "apps-script", "Config.gs"), "utf
 const driveScanner = fs.readFileSync(path.join(root, "apps-script", "DriveScanner.gs"), "utf8");
 const telegramWebhook = fs.readFileSync(path.join(root, "apps-script", "TelegramWebhook.gs"), "utf8");
 const extraction = fs.readFileSync(path.join(root, "apps-script", "Extraction.gs"), "utf8");
+const taxonomyMigration = fs.readFileSync(
+  path.join(root, "supabase", "migrations", "20260909182635_resilient_document_taxonomy.sql"),
+  "utf8"
+);
 
 assert.equal(schema.additionalProperties, false);
 assert.ok(schema.properties.priority.enum.includes("URGENT"));
@@ -21,5 +25,10 @@ assert.match(driveScanner, /moveToProcessing_\(file\)/);
 assert.match(telegramWebhook, /moveToProcessing_\(file\)/);
 assert.match(extraction, /MANUAL_FIRST_PAGE_REQUIRED/);
 assert.match(extraction, /\^image\\\//);
+assert.match(extraction, /suggestCategory_/);
+assert.match(taxonomyMigration, /document_category_definitions/);
+assert.match(taxonomyMigration, /preserve_category_definition_history/);
+assert.match(taxonomyMigration, /search_vector/);
+assert.match(taxonomyMigration, /security_invoker/i);
 
 console.log("Pipeline validation passed: schema, migration safety, and queue movement markers are present.");

@@ -45,3 +45,9 @@ function addDocumentEvent_(documentId, eventType, details) {
     details: details || {}
   });
 }
+
+function listCurrentCategoryDefinitions_() {
+  const query = '?select=category_key,display_name,aliases,office_terms,content_terms,sort_order' +
+    '&active=eq.true&valid_to=is.null&order=sort_order.asc';
+  return supabaseRequest_('get', 'document_category_definitions', query);
+}
