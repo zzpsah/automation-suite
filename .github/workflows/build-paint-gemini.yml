@@ -1,0 +1,61 @@
+name: Build Paint Gemini Windows
+
+on:
+  push:
+    paths:
+      - 'paint-gemini-app/**'
+      - '.github/workflows/build-paint-gemini.yml'
+  workflow_dispatch:
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    defaults:
+      run:
+        working-directory: paint-gemini-app
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+          cache-dependency-path: paint-gemini-app/requirements.txt
+
+      - name: Install dependencies
+        shell: pwsh
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pyinstaller
+
+      - name: Build portable Windows app
+        shell: pwsh
+        run: |
+          pyinstaller `
+            --noconfirm `
+            --clean `
+            --windowed `
+            --onedir `
+            --name PyPaintAI `
+            --collect-all rembg `
+            --collect-all pymatting `
+            --collect-all onnxruntime `
+            --collect-all google.genai `
+            main.py
+
+      - name: Create downloadable ZIP
+        shell: pwsh
+        run: |
+          Compress-Archive -Path dist/PyPaintAI/* -DestinationPath dist/PyPaintAI-Windows.zip -Force
+
+      - name: Upload Windows app artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: PyPaintAI-Windows
+          path: paint-gemini-app/dist/PyPaintAI-Windows.zip
+          if-no-files-found: error
+          retention-days: 30
