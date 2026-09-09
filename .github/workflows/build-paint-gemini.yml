@@ -1,4 +1,4 @@
-name: Build Paint Gemini Windows
+name: Build Photo Prep Studio Windows
 
 on:
   push:
@@ -40,22 +40,21 @@ jobs:
             --clean `
             --windowed `
             --onedir `
-            --name PyPaintAI `
+            --name PhotoPrepStudio `
             --collect-all rembg `
             --collect-all pymatting `
             --collect-all onnxruntime `
-            --collect-all google.genai `
             main.py
 
       - name: Create downloadable ZIP
         shell: pwsh
         run: |
-          Compress-Archive -Path dist/PyPaintAI/* -DestinationPath dist/PyPaintAI-Windows.zip -Force
+          Compress-Archive -Path dist/PhotoPrepStudio/* -DestinationPath dist/PhotoPrepStudio-Windows.zip -Force
 
       - name: Upload Windows app artifact
         uses: actions/upload-artifact@v4
         with:
-          name: PyPaintAI-Windows
-          path: paint-gemini-app/dist/PyPaintAI-Windows.zip
+          name: PhotoPrepStudio-Windows
+          path: paint-gemini-app/dist/PhotoPrepStudio-Windows.zip
           if-no-files-found: error
           retention-days: 30
