@@ -1,17 +1,29 @@
 function doPost(e) {
   try {
+    const config = getConfig();
+    requireConfig_(config, ['telegramToken', 'telegramWebhookSecret', 'inboxFolderId']);
+
+    const suppliedSecret = String(e && e.parameter && e.parameter.webhook_secret || '');
+    if (!safeEqual_(suppliedSecret, config.telegramWebhookSecret)) {
+      return jsonResponse_({ ok: false, error: 'unauthorized webhook' });
+    }
+
     const update = JSON.parse((e && e.postData && e.postData.contents) || '{}');
     const message = update.message || update.channel_post;
     if (!message) return jsonResponse_({ ok: true, ignored: 'unsupported update' });
-
-    const config = getConfig();
-    requireConfig_(config, ['telegramToken', 'inboxFolderId']);
 
     const userId = String(message.from && message.from.id || '');
     const chatId = String(message.chat && message.chat.id || '');
     const userAllowed = config.telegramUsers.indexOf(userId) >= 0;
     const chatAllowed = config.telegramChats.indexOf(chatId) >= 0;
-    if (!userAllowed && !chatAllowed) return jsonResponse_({ ok: false, error: 'unauthorized' });
+    if (!userAllowed && !chatAllowed) return jsonResponse_({ ok: false, error: 'unauthorized sender' });
+
+    const sourceMessageId = chatId + ':' + String(message.message_id);
+    const existing = findDocumentBySource_('Telegram', sourceMessageId);
+    if (existing) {
+      sendTelegramMessage_(chatId, 'Document already registered.');
+      return jsonResponse_({ ok: true, duplicate: true });
+    }
 
     const media = telegramMedia_(message);
     if (!media) {
@@ -23,14 +35,22 @@ function doPost(e) {
     const downloadUrl = 'https://api.telegram.org/file/bot' + config.telegramToken + '/' + fileInfo.result.file_path;
     const blob = UrlFetchApp.fetch(downloadUrl).getBlob().setName(media.fileName);
     const file = DriveApp.getFolderById(config.inboxFolderId).createFile(blob);
-    const sourceMessageId = chatId + ':' + String(message.message_id);
     const result = registerDriveFile_(file, 'Telegram', sourceMessageId, 'Telegram chat ' + chatId);
-    sendTelegramMessage_(chatId, result.created ? 'Document registered: ' + result.document.id : 'Document already registered.');
+    sendTelegramMessage_(chatId, 'Document registered: ' + result.document.id);
     return jsonResponse_({ ok: true });
   } catch (error) {
     console.error('Telegram webhook failed: ' + error.message);
     return jsonResponse_({ ok: false, error: 'processing failed' });
   }
+}
+
+function safeEqual_(left, right) {
+  if (!left || !right || left.length !== right.length) return false;
+  let difference = 0;
+  for (let index = 0; index < left.length; index += 1) {
+    difference |= left.charCodeAt(index) ^ right.charCodeAt(index);
+  }
+  return difference === 0;
 }
 
 function telegramMedia_(message) {
