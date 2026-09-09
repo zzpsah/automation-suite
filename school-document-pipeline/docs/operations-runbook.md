@@ -9,6 +9,30 @@
 5. `MANUAL_ONLY` creates a review record without guessing document contents.
 6. Image OCR may be enabled for single images. PDFs follow the first-page/manual-review rule.
 
+## Portal-facing filename and description
+
+The original filename is source evidence. A reviewer may approve a separate `display_filename` and concise portal description after checking the first page.
+
+Suggested display filename:
+
+```text
+YYYY-MM-DD__Office__Reference__Short-Subject.pdf
+```
+
+If a date, office, reference, or subject is missing, keep the original filename and mark the suggestion `Needs Manual Review`. Never invent missing values.
+
+Example description:
+
+```text
+Official Education Department instruction regarding Class XI registration correction. The school must verify student details before the printed deadline.
+```
+
+The portal uses the approved display filename and description only after review; it never replaces the original private file.
+
+## Gemini review gate
+
+Gemini is optional. When enabled, it returns structured first-page suggestions. A reviewer must confirm them against the original page before updating metadata or renaming a display copy. Gemini must not submit forms, pay fees, forward documents, publish records, or delete files.
+
 ## Review
 
 Reviewers confirm the message date, sender, document title, issuing office, reference number, deadline, required action, related school/student/teacher, amount, category, priority, and duplicate status. Missing information stays null or is marked `Needs Manual Review`.

@@ -52,6 +52,20 @@ The sender allowlist is required. If both `AUTHORIZED_TELEGRAM_USER_IDS` and `AU
 6. Send one synthetic test file.
 7. Verify that the file is saved in Drive, a Supabase metadata row is created, and the item remains private until review.
 
+## Telegram confirmations
+
+The current webhook sends this confirmation after successful registration:
+
+```text
+Document registered: <Supabase document ID>
+```
+
+It also replies when a duplicate is detected or when no supported attachment is present. A future status command can report `Received`, `Processing`, `Needs Manual Review`, `Reviewed`, or `Archived`; the bot must not claim a later state before the database and Drive transition is verified.
+
+## Clean-start procedure
+
+Do not delete all history by default. Identify exact test message IDs and filenames, confirm the target rows and files, then remove only explicitly approved test items. Keep category definitions and audit history unless a separate database reset is approved.
+
 The current deployment completed as version 2 on 10 September 2026, and the webhook registration returned `ok: true`. The live web-app URL is intentionally not committed to this public repository; keep it in Apps Script Properties as `TELEGRAM_WEBAPP_URL`.
 
 ## Failure handling

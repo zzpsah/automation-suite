@@ -17,6 +17,9 @@ The resilient staging foundation is deployed. Supabase migrations are applied, t
 - All source documents remain private in Drive; publication requires an explicit review decision.
 - Category keys are stable, while labels, aliases, office terms, and content terms are versioned.
 - Search is based on structured document fields, not on fixed page categories.
+- The Drive layout is `All Education Department Letters/Automation System/` with Inbox, Processing, Reviewed Archive, and Manual Review subfolders.
+- Telegram confirms registration, while review and publication remain human-controlled.
+- Gemini is an optional server-side first-page suggestion layer; it never changes the original file or publishes automatically.
 
 ## Structure
 
@@ -33,6 +36,7 @@ See [docs/setup-guide.md](docs/setup-guide.md).
 
 - [Setup guide](docs/setup-guide.md) — staged activation checklist.
 - [Operations runbook](docs/operations-runbook.md) — repeatable ingest, review, retry, and archive workflow.
+- [Architecture](docs/architecture.md) — components, Drive tree, data movement, lifecycle, and Gemini boundary.
 - [Telegram setup](docs/telegram-setup.md) — BotFather, Apps Script properties, webhook, and testing steps.
 - [Taxonomy and search](docs/taxonomy-and-search.md) — durable categories and redesign-safe search.
 - [Security rules](SECURITY.md) — secret handling and publication boundaries.
