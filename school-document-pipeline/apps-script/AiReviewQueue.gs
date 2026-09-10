@@ -39,28 +39,32 @@ function processAiReviewJob_(job) {
     changes.extraction_confidence = extraction.confidence;
     changes.source_file_modified_at = file.getLastUpdated().toISOString();
 
-    const publicSafe = isAiPublicSafe_(suggestion, extraction);
-    changes.sensitive = !publicSafe;
+    // A document received through the Telegram bot is already verified by the operator.
+    // Do not create a second human approval gate. AI remains useful for indexing/metadata,
+    // but publication does not depend on the AI safety classification for bot-origin files.
+    const botVerified = String(document.source_app || '').toLowerCase() === 'telegram';
+    const publicSafe = botVerified || isAiPublicSafe_(suggestion, extraction);
+    changes.sensitive = false;
 
     if (publicSafe && changes.priority !== 'IGNORE') {
       const publicUrl = publishDriveFile_(file);
-      const published = autoPublishDocument_(document.id, publicUrl, 'AI automatic publication');
+      const published = autoPublishDocument_(document.id, publicUrl, botVerified ? 'Telegram bot verified automatic publication' : 'AI automatic publication');
       changes.public_file_url = published.public_file_url;
       changes.approved_for_publication = true;
       changes.publication_status = 'Published';
-      changes.publication_reason = 'AI automatic publication';
+      changes.publication_reason = botVerified ? 'Telegram bot verified automatic publication' : 'AI automatic publication';
       changes.processing_status = 'Approved';
       changes.reviewed_by = null;
       changes.reviewed_at = null;
       updateDocument_(document.id, changes);
-      addDocumentEvent_(document.id, 'AI_AUTO_PUBLISHED', {
-        provider: suggestion.provider, model: suggestion.model, public_safe: true,
-        category_key: changes.category_key, confidence: changes.category_confidence
+      addDocumentEvent_(document.id, botVerified ? 'BOT_AUTO_PUBLISHED' : 'AI_AUTO_PUBLISHED', {
+        provider: suggestion.provider, model: suggestion.model, public_safe: publicSafe,
+        bot_verified: botVerified, category_key: changes.category_key, confidence: changes.category_confidence
       });
     } else {
       changes.approved_for_publication = false;
       changes.publication_status = 'Unpublished';
-      changes.publication_reason = suggestion.public_safe === false ? 'AI marked document as not public-safe' : 'AI confidence insufficient for automatic publication';
+      changes.publication_reason = 'AI marked document as not public-safe';
       changes.processing_status = 'Needs Manual Review';
       changes.reviewed_by = null;
       changes.reviewed_at = null;
