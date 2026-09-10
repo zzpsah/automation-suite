@@ -90,4 +90,4 @@ To enable Gemini suggestions for a controlled test, set `GEMINI_ENABLED=true`, a
 
 ## Token rotation
 
-If the token is exposed, use BotFather `/revoke`, replace `TELEGRAM_BOT_TOKEN` in Apps Script Properties, and register the webhook again. Do not delete database history merely because a credential was rotated.
+If the token is exposed, use BotFather `/revoke` and replace `TELEGRAM_BOT_TOKEN` in Apps Script Properties. For the current polling deployment, do not register the webhook again. Preserve `TELEGRAM_POLL_OFFSET`, inspect delivery state, and send one controlled test upload. If restoring polling, `installTelegramPolling` disables the webhook without dropping pending updates. Do not delete database history merely because a credential was rotated. See the [README operator guide](../README.md#telegram-replies-and-token-rotation).
