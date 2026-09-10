@@ -3,7 +3,6 @@ import json
 import os
 import socket
 import sqlite3
-import subprocess
 import sys
 import tempfile
 import threading
@@ -224,52 +223,6 @@ def discovery_loop():
         time.sleep(1.2)
 
 
-def run_cmd(args):
-    return subprocess.run(args, capture_output=True, text=True, shell=False)
-
-
-def hotspot_status():
-    result = run_cmd(["netsh", "wlan", "show", "hostednetwork"])
-    text = (result.stdout or "") + (result.stderr or "")
-    active = "Status" in text and "Started" in text
-    supported = "not available" not in text.lower() and "not supported" not in text.lower()
-    return {"active": active, "supported": supported, "raw": text.strip()}
-
-
-def configure_hotspot(ssid=None, password=None):
-    args = ["netsh", "wlan", "set", "hostednetwork", "mode=allow"]
-    if ssid:
-        args.append(f"ssid={ssid}")
-    if password:
-        if len(password) < 8:
-            raise ValueError("Hotspot password must be at least 8 characters")
-        args.append(f"key={password}")
-    result = run_cmd(args)
-    text = ((result.stdout or "") + (result.stderr or "")).strip()
-    if result.returncode != 0 or "not supported" in text.lower():
-        raise RuntimeError(text or "Windows Hosted Network is not supported by this Wi-Fi adapter")
-    return text
-
-
-def start_hotspot(ssid=None, password=None):
-    if ssid or password:
-        configure_hotspot(ssid, password)
-    result = run_cmd(["netsh", "wlan", "start", "hostednetwork"])
-    text = ((result.stdout or "") + (result.stderr or "")).strip()
-    if result.returncode != 0 or "couldn't" in text.lower() or "not supported" in text.lower():
-        raise RuntimeError(text or "Unable to start hotspot")
-    return text
-
-
-def stop_hotspot():
-    result = run_cmd(["netsh", "wlan", "stop", "hostednetwork"])
-    return ((result.stdout or "") + (result.stderr or "")).strip()
-
-
-def open_mobile_hotspot_settings():
-    os.startfile("ms-settings:network-mobilehotspot")
-
-
 def startup_command():
     exe = Path(sys.executable if getattr(sys, "frozen", False) else __file__).resolve()
     if getattr(sys, "frozen", False):
@@ -324,30 +277,12 @@ def tray_loop():
     def open_ui(icon, item):
         webbrowser.open(f"http://127.0.0.1:{APP_PORT}")
 
-    def hotspot_on(icon, item):
-        try:
-            start_hotspot()
-        except Exception:
-            open_mobile_hotspot_settings()
-
-    def hotspot_off(icon, item):
-        try:
-            stop_hotspot()
-        except Exception:
-            pass
-
-    def settings(icon, item):
-        open_mobile_hotspot_settings()
-
     def quit_app(icon, item):
         icon.stop()
         os._exit(0)
 
     menu = pystray.Menu(
         pystray.MenuItem("Open Print Hub", open_ui, default=True),
-        pystray.MenuItem("Start hotspot", hotspot_on),
-        pystray.MenuItem("Stop hotspot", hotspot_off),
-        pystray.MenuItem("Windows hotspot settings", settings),
         pystray.MenuItem("Exit", quit_app),
     )
     icon = pystray.Icon(APP_NAME, make_tray_icon(), "Phone Printer Hub", menu)
@@ -434,21 +369,16 @@ def server_running():
 
 
 def print_status():
-    print(json.dumps({"server_running": server_running(), "url": f"http://{local_ip()}:{APP_PORT}", "startup": startup_installed(), "hotspot": hotspot_status()}, indent=2))
+    print(json.dumps({"server_running": server_running(), "url": f"http://{local_ip()}:{APP_PORT}", "startup": startup_installed()}, indent=2))
 
 
 def parse_args():
     p = argparse.ArgumentParser(description="Phone Printer Hub")
     p.add_argument("--background", action="store_true", help="Run server minimized to tray")
     p.add_argument("--show", action="store_true", help="Open local Print Hub in browser")
-    p.add_argument("--status", action="store_true", help="Show server/startup/hotspot status")
+    p.add_argument("--status", action="store_true", help="Show server/startup status")
     p.add_argument("--install-startup", action="store_true", help="Start Print Hub in background when this user signs in")
     p.add_argument("--remove-startup", action="store_true", help="Remove automatic startup")
-    p.add_argument("--start-hotspot", action="store_true", help="Start Windows hotspot/hosted network")
-    p.add_argument("--stop-hotspot", action="store_true", help="Stop Windows hotspot/hosted network")
-    p.add_argument("--hotspot-settings", action="store_true", help="Open Windows Mobile Hotspot settings")
-    p.add_argument("--ssid")
-    p.add_argument("--password")
     return p.parse_args()
 
 
@@ -463,18 +393,6 @@ def main():
         install_startup(); print("Startup enabled."); return
     if args.remove_startup:
         remove_startup(); print("Startup disabled."); return
-    if args.hotspot_settings:
-        open_mobile_hotspot_settings(); return
-    if args.stop_hotspot:
-        print(stop_hotspot()); return
-    if args.start_hotspot:
-        try:
-            print(start_hotspot(args.ssid, args.password))
-        except Exception as exc:
-            print(f"Hotspot start failed: {exc}")
-            print("Opening Windows Mobile Hotspot settings as fallback.")
-            open_mobile_hotspot_settings()
-        return
 
     if args.background:
         hide_console()
