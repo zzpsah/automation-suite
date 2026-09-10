@@ -41,6 +41,7 @@ function processDocument_(document, file) {
       processing_status: 'Needs Manual Review'
     };
     let suggestion = null;
+    const botVerified = String(document.source_app || '').toLowerCase() === 'telegram';
     if (getConfig().reviewProvider !== 'NONE') {
       try {
         suggestion = reviewSuggest_(file, extraction);
@@ -56,28 +57,41 @@ function processDocument_(document, file) {
         baseChanges.required_action = suggestion.required_action || baseChanges.required_action;
         baseChanges.deadline_as_printed = suggestion.deadline_as_printed || baseChanges.deadline_as_printed;
         baseChanges.priority = normalizePriority_(suggestion.priority || baseChanges.priority);
-
-        if (isAiPublicSafe_(suggestion, extraction) && baseChanges.priority !== 'IGNORE') {
-          baseChanges.sensitive = false;
-          const publicUrl = publishDriveFile_(file);
-          const published = autoPublishDocument_(document.id, publicUrl, 'AI automatic publication');
-          baseChanges.public_file_url = published.public_file_url;
-          baseChanges.approved_for_publication = true;
-          baseChanges.publication_status = 'Published';
-          baseChanges.publication_reason = 'AI automatic publication';
-          baseChanges.processing_status = 'Approved';
-          addDocumentEvent_(document.id, 'AI_AUTO_PUBLISHED', { public_safe: true, confidence: baseChanges.category_confidence, category_key: baseChanges.category_key });
-        } else {
-          baseChanges.sensitive = true;
-          baseChanges.approved_for_publication = false;
-          baseChanges.publication_status = 'Unpublished';
-          baseChanges.publication_reason = suggestion.public_safe === false ? 'AI marked document as not public-safe' : 'AI confidence insufficient for automatic publication';
-        }
       } catch (geminiError) {
         baseChanges.ai_suggestion_status = 'Failed';
         addDocumentEvent_(document.id, 'REVIEW_ASSISTANT_FAILED', { error: String(geminiError.message).slice(0, 500) });
       }
     }
+
+    // Telegram submissions are already verified by the operator. AI/OCR only enriches metadata;
+    // it must never become a second approval gate. Publish bot-origin documents automatically.
+    if (botVerified && baseChanges.priority !== 'IGNORE') {
+      const publicUrl = publishDriveFile_(file);
+      const published = autoPublishDocument_(document.id, publicUrl, 'Telegram bot verified automatic publication');
+      baseChanges.public_file_url = published.public_file_url;
+      baseChanges.approved_for_publication = true;
+      baseChanges.publication_status = 'Published';
+      baseChanges.publication_reason = 'Telegram bot verified automatic publication';
+      baseChanges.processing_status = 'Approved';
+      baseChanges.sensitive = false;
+      addDocumentEvent_(document.id, 'BOT_AUTO_PUBLISHED', { category_key: baseChanges.category_key, confidence: baseChanges.category_confidence });
+    } else if (suggestion && isAiPublicSafe_(suggestion, extraction) && baseChanges.priority !== 'IGNORE') {
+      const publicUrl = publishDriveFile_(file);
+      const published = autoPublishDocument_(document.id, publicUrl, 'AI automatic publication');
+      baseChanges.public_file_url = published.public_file_url;
+      baseChanges.approved_for_publication = true;
+      baseChanges.publication_status = 'Published';
+      baseChanges.publication_reason = 'AI automatic publication';
+      baseChanges.processing_status = 'Approved';
+      baseChanges.sensitive = false;
+      addDocumentEvent_(document.id, 'AI_AUTO_PUBLISHED', { public_safe: true, confidence: baseChanges.category_confidence, category_key: baseChanges.category_key });
+    } else {
+      baseChanges.sensitive = true;
+      baseChanges.approved_for_publication = false;
+      baseChanges.publication_status = 'Unpublished';
+      baseChanges.publication_reason = botVerified ? 'Document marked IGNORE' : 'AI confidence insufficient for automatic publication';
+    }
+
     const updated = updateDocument_(document.id, baseChanges);
     addDocumentEvent_(document.id, 'EXTRACTED', { method: extraction.method, confidence: extraction.confidence });
     if (suggestion) addDocumentEvent_(document.id, 'REVIEW_ASSISTANT_SUGGESTED', { provider: suggestion.provider, model: suggestion.model, display_filename: suggestion.display_filename || null, public_safe: suggestion.public_safe === true });
