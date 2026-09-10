@@ -39,14 +39,11 @@ function processAiReviewJob_(job) {
     changes.extraction_confidence = extraction.confidence;
     changes.source_file_modified_at = file.getLastUpdated().toISOString();
 
-    // A document received through the Telegram bot is already verified by the operator.
-    // Do not create a second human approval gate. AI remains useful for indexing/metadata,
-    // but publication does not depend on the AI safety classification for bot-origin files.
     const botVerified = String(document.source_app || '').toLowerCase() === 'telegram';
     const publicSafe = botVerified || isAiPublicSafe_(suggestion, extraction);
     changes.sensitive = false;
 
-    if (publicSafe && changes.priority !== 'IGNORE') {
+    if (publicSafe) {
       const publicUrl = publishDriveFile_(file);
       const published = autoPublishDocument_(document.id, publicUrl, botVerified ? 'Telegram bot verified automatic publication' : 'AI automatic publication');
       changes.public_file_url = published.public_file_url;
@@ -61,17 +58,18 @@ function processAiReviewJob_(job) {
         provider: suggestion.provider, model: suggestion.model, public_safe: publicSafe,
         bot_verified: botVerified, category_key: changes.category_key, confidence: changes.category_confidence
       });
+      if (botVerified) moveToReviewedArchive_(file);
     } else {
       changes.approved_for_publication = false;
       changes.publication_status = 'Unpublished';
       changes.publication_reason = 'AI marked document as not public-safe';
-      changes.processing_status = 'Needs Manual Review';
+      changes.processing_status = 'Processing';
       changes.reviewed_by = null;
       changes.reviewed_at = null;
       updateDocument_(document.id, changes);
       addDocumentEvent_(document.id, 'AI_REVIEW_COMPLETED', {
         provider: suggestion.provider, model: suggestion.model,
-        public_safe: false, human_review_required: true, reason: changes.publication_reason
+        public_safe: false, human_review_required: false, reason: changes.publication_reason
       });
     }
 
@@ -79,11 +77,23 @@ function processAiReviewJob_(job) {
   } catch (error) {
     failAiReviewJob_(job.id, error);
     updateDocument_(job.document_id, {
-      ai_suggestion_status: 'Failed', processing_status: 'Needs Manual Review',
-      approved_for_publication: false, publication_status: 'Unpublished',
-      publication_reason: String(error.message).slice(0, 500), reviewed_by: null, reviewed_at: null
+      ai_suggestion_status: 'Failed',
+      processing_status: 'Processing Failed',
+      approved_for_publication: false,
+      publication_status: 'Unpublished',
+      publication_reason: String(error.message).slice(0, 500),
+      reviewed_by: null,
+      reviewed_at: null
     });
     addDocumentEvent_(job.document_id, 'AI_REVIEW_FAILED', { error: String(error.message).slice(0, 500) });
+    try {
+      const failedDocument = getDocumentForAiReview_(job.document_id);
+      if (failedDocument && failedDocument.private_drive_file_id) {
+        moveToManualReviewSafe_(DriveApp.getFileById(failedDocument.private_drive_file_id), job.document_id, String(error.message));
+      }
+    } catch (moveError) {
+      console.error('Could not route failed AI job to Manual Review: ' + moveError.message);
+    }
   }
 }
 
