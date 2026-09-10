@@ -26,7 +26,7 @@ function registerDriveFile_(file, sourceApp, sourceMessageId, sourceLocation) {
     const processed = processDocument_(document, file);
     document = processed.document || document;
     if (document.processing_status === 'Approved' && document.publication_status === 'Published') {
-      moveToReviewedArchive_(file);
+      moveToPublishedArchive_(file);
     }
     return { document: document, created: true, suggestion: processed.suggestion };
   } catch (error) {
@@ -65,7 +65,7 @@ function processDocument_(document, file) {
         suggestion = reviewSuggest_(file, extraction);
         Object.assign(baseChanges, geminiSuggestionChanges_(suggestion));
         baseChanges.category_key = normalizeCategoryKey_(suggestion.category) || baseChanges.category_key || 'other';
-        baseChanges.category_source = suggestion.category ? 'ai' : baseChanges.category_source;
+        baseChanges.category_source = suggestion.category ? 'rule' : baseChanges.category_source;
         baseChanges.category_confidence = normalizeExtractionConfidence_(suggestion.confidence || extraction.confidence);
         baseChanges.reference_number = suggestion.reference_number || baseChanges.reference_number;
         baseChanges.issue_date_as_printed = suggestion.date_as_printed || baseChanges.issue_date_as_printed;
@@ -141,11 +141,11 @@ function getSiblingFolder_(sourceFile, folderName) {
   return folders.next();
 }
 
-function moveToReviewedArchive_(file) {
+function moveToPublishedArchive_(file) {
   try {
-    file.moveTo(getSiblingFolder_(file, '03_Reviewed_Archive'));
+    file.moveTo(getSiblingFolder_(file, '03_Published_Archive'));
   } catch (error) {
-    console.error('Published but could not move to Reviewed Archive: ' + error.message);
+    console.error('Published but could not move to Published Archive: ' + error.message);
   }
 }
 
