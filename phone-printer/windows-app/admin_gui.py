@@ -52,19 +52,16 @@ class PhonePrinterAdmin:
         self.tabs.pack(fill="both", expand=True, padx=10, pady=(0, 10))
 
         self.dashboard = ttk.Frame(self.tabs, padding=12)
-        self.hotspot = ttk.Frame(self.tabs, padding=12)
         self.printers_tab = ttk.Frame(self.tabs, padding=12)
         self.queue_tab = ttk.Frame(self.tabs, padding=12)
         self.logs_tab = ttk.Frame(self.tabs, padding=12)
 
         self.tabs.add(self.dashboard, text="Dashboard")
-        self.tabs.add(self.hotspot, text="Hotspot")
         self.tabs.add(self.printers_tab, text="Printers")
         self.tabs.add(self.queue_tab, text="Print Queue")
         self.tabs.add(self.logs_tab, text="Logs")
 
         self._build_dashboard()
-        self._build_hotspot()
         self._build_printers()
         self._build_queue()
         self._build_logs()
@@ -82,6 +79,7 @@ class PhonePrinterAdmin:
         ttk.Label(info, text="Print URL:").grid(row=2, column=0, sticky="w", padx=4, pady=4)
         ttk.Label(info, textvariable=self.url_var).grid(row=2, column=1, sticky="w", padx=4, pady=4)
         ttk.Button(info, text="Open Browser Print Page", command=self.open_print_page).grid(row=3, column=0, columnspan=2, sticky="ew", padx=4, pady=8)
+        ttk.Label(info, text="Connect this PC to your phone's own hotspot, then open the Print URL above from the phone.", wraplength=760, justify="left", foreground="#555").grid(row=4, column=0, columnspan=2, sticky="w", padx=4, pady=(0, 4))
 
         startup = ttk.LabelFrame(self.dashboard, text="Background / Startup", padding=12)
         startup.pack(fill="x", pady=(0, 12))
@@ -94,31 +92,6 @@ class PhonePrinterAdmin:
         ttk.Button(actions, text="Refresh Everything", command=self.refresh_now).pack(side="left", padx=4)
         ttk.Button(actions, text="Show Logs", command=lambda: self.tabs.select(self.logs_tab)).pack(side="left", padx=4)
         ttk.Button(actions, text="Exit Print Hub", command=self.exit_app).pack(side="right", padx=4)
-
-    def _build_hotspot(self):
-        form = ttk.LabelFrame(self.hotspot, text="Windows Hotspot", padding=12)
-        form.pack(fill="x")
-        self.ssid_var = tk.StringVar(value="SchoolPrinter")
-        self.password_var = tk.StringVar(value="")
-        self.hotspot_status_var = tk.StringVar(value="Checking…")
-        ttk.Label(form, text="SSID / Network name").grid(row=0, column=0, sticky="w", padx=4, pady=4)
-        ttk.Entry(form, textvariable=self.ssid_var, width=38).grid(row=0, column=1, sticky="ew", padx=4, pady=4)
-        ttk.Label(form, text="Password (8+ characters)").grid(row=1, column=0, sticky="w", padx=4, pady=4)
-        ttk.Entry(form, textvariable=self.password_var, show="*", width=38).grid(row=1, column=1, sticky="ew", padx=4, pady=4)
-        ttk.Label(form, text="Status").grid(row=2, column=0, sticky="w", padx=4, pady=4)
-        ttk.Label(form, textvariable=self.hotspot_status_var).grid(row=2, column=1, sticky="w", padx=4, pady=4)
-        form.columnconfigure(1, weight=1)
-
-        buttons = ttk.Frame(self.hotspot)
-        buttons.pack(fill="x", pady=12)
-        ttk.Button(buttons, text="Configure + Start Hotspot", command=self.start_hotspot).pack(side="left", padx=4)
-        ttk.Button(buttons, text="Stop Hotspot", command=self.stop_hotspot).pack(side="left", padx=4)
-        ttk.Button(buttons, text="Open Windows Mobile Hotspot Settings", command=self.open_hotspot_settings).pack(side="left", padx=4)
-        ttk.Button(buttons, text="Refresh Status", command=self.refresh_hotspot).pack(side="right", padx=4)
-
-        note = ttk.LabelFrame(self.hotspot, text="Compatibility", padding=12)
-        note.pack(fill="x")
-        ttk.Label(note, text="Some newer Windows 11 Wi‑Fi drivers disable the legacy Hosted Network command. If that happens, use the Windows Mobile Hotspot Settings button; the print service still works normally on that hotspot.", wraplength=820, justify="left").pack(anchor="w")
 
     def _build_printers(self):
         bar = ttk.Frame(self.printers_tab)
@@ -232,54 +205,6 @@ class PhonePrinterAdmin:
             self.log(f"STARTUP ERROR: {exc}")
             messagebox.showerror("Startup", str(exc))
 
-    def start_hotspot(self):
-        ssid = self.ssid_var.get().strip()
-        password = self.password_var.get()
-        if password and len(password) < 8:
-            messagebox.showerror("Hotspot", "Password must be at least 8 characters.")
-            return
-        try:
-            self.log(f"Configuring hotspot SSID '{ssid}'")
-            output = hub.start_hotspot(ssid or None, password or None)
-            self.log("Hotspot start output: " + (output or "Started"))
-        except Exception as exc:
-            self.log(f"HOTSPOT ERROR: {exc}")
-            messagebox.showwarning("Hotspot", f"Windows could not start the legacy hosted-network hotspot.\n\n{exc}\n\nOpening Windows Mobile Hotspot settings instead.")
-            try:
-                hub.open_mobile_hotspot_settings()
-            except Exception as open_exc:
-                self.log(f"HOTSPOT SETTINGS ERROR: {open_exc}")
-        self.refresh_hotspot()
-
-    def stop_hotspot(self):
-        try:
-            output = hub.stop_hotspot()
-            self.log("Hotspot stop output: " + (output or "Stopped"))
-        except Exception as exc:
-            self.log(f"HOTSPOT STOP ERROR: {exc}")
-        self.refresh_hotspot()
-
-    def open_hotspot_settings(self):
-        try:
-            hub.open_mobile_hotspot_settings()
-            self.log("Opened Windows Mobile Hotspot settings")
-        except Exception as exc:
-            self.log(f"HOTSPOT SETTINGS ERROR: {exc}")
-
-    def refresh_hotspot(self):
-        try:
-            state = hub.hotspot_status()
-            if state.get("active"):
-                text = "Running"
-            elif state.get("supported"):
-                text = "Stopped"
-            else:
-                text = "Legacy hosted-network not supported; use Windows Mobile Hotspot"
-            self.hotspot_status_var.set(text)
-        except Exception as exc:
-            self.hotspot_status_var.set("Status unavailable")
-            self.log(f"HOTSPOT STATUS ERROR: {exc}")
-
     def refresh_printers(self):
         try:
             names = hub.installed_printers()
@@ -339,7 +264,6 @@ class PhonePrinterAdmin:
         self.ip_var.set(ip)
         self.url_var.set(f"http://{ip}:{hub.APP_PORT}")
         self.server_badge.config(text=f"Server running • {ip}:{hub.APP_PORT}")
-        self.refresh_hotspot()
         self.refresh_printers()
         self.refresh_jobs()
         self._drain_logs()
