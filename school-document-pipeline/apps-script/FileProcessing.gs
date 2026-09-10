@@ -13,18 +13,26 @@ function registerDriveFile_(file, sourceApp, sourceMessageId, sourceLocation) {
     private_drive_file_id: file.getId(),
     private_drive_url: file.getUrl(),
     source_file_modified_at: file.getLastUpdated().toISOString(),
-    category: 'Other', priority: 'NORMAL', required_action: 'Needs manual review',
+    category: 'Other', priority: 'NORMAL', required_action: 'Automatic processing',
     extraction_method: getConfig().extractionMode, extraction_confidence: 'LOW',
-    useful: false, duplicate: false, sensitive: true, processing_status: 'Queued',
+    useful: true, duplicate: false, sensitive: false, processing_status: 'Queued',
     forwarding_status: 'Not Forwarded', category_key: 'other', category_source: 'import', category_confidence: 'LOW',
     publication_status: 'Unpublished'
   };
 
   let document = insertDocument_(record);
   addDocumentEvent_(document.id, 'INGESTED', { source: sourceApp, filename: file.getName() });
-  const processed = processDocument_(document, file);
-  document = processed.document;
-  return { document: document, created: true, suggestion: processed.suggestion };
+  try {
+    const processed = processDocument_(document, file);
+    document = processed.document || document;
+    if (document.processing_status === 'Approved' && document.publication_status === 'Published') {
+      moveToReviewedArchive_(file);
+    }
+    return { document: document, created: true, suggestion: processed.suggestion };
+  } catch (error) {
+    moveToManualReviewSafe_(file, document.id, String(error.message));
+    throw error;
+  }
 }
 
 function processDocument_(document, file) {
@@ -33,12 +41,22 @@ function processDocument_(document, file) {
     const extraction = extractDocument_(file);
     const category = suggestCategory_(extraction);
     const baseChanges = {
-      reference_number: extraction.reference_number, issue_date_as_printed: extraction.issue_date_as_printed,
-      issuing_authority: extraction.issuing_authority, subject: extraction.subject, short_description: extraction.short_description,
-      category: category.displayName, category_key: category.key, category_source: category.source, category_confidence: category.confidence,
-      priority: extraction.priority, required_action: extraction.required_action, deadline_as_printed: extraction.deadline_as_printed,
-      full_text_ocr: extraction.text, extraction_method: extraction.method, extraction_confidence: extraction.confidence,
-      processing_status: 'Needs Manual Review'
+      reference_number: extraction.reference_number,
+      issue_date_as_printed: extraction.issue_date_as_printed,
+      issuing_authority: extraction.issuing_authority,
+      subject: extraction.subject,
+      short_description: extraction.short_description,
+      category: category.displayName,
+      category_key: category.key,
+      category_source: category.source,
+      category_confidence: category.confidence,
+      priority: extraction.priority,
+      required_action: extraction.required_action,
+      deadline_as_printed: extraction.deadline_as_printed,
+      full_text_ocr: extraction.text,
+      extraction_method: extraction.method,
+      extraction_confidence: extraction.confidence,
+      processing_status: 'Processing'
     };
     let suggestion = null;
     const botVerified = String(document.source_app || '').toLowerCase() === 'telegram';
@@ -63,9 +81,8 @@ function processDocument_(document, file) {
       }
     }
 
-    // Telegram submissions are already verified by the operator. AI/OCR only enriches metadata;
-    // it must never become a second approval gate. Publish bot-origin documents automatically.
-    if (botVerified && baseChanges.priority !== 'IGNORE') {
+    // Telegram is the trusted intake channel. AI enriches metadata but never blocks publication.
+    if (botVerified) {
       const publicUrl = publishDriveFile_(file);
       const published = autoPublishDocument_(document.id, publicUrl, 'Telegram bot verified automatic publication');
       baseChanges.public_file_url = published.public_file_url;
@@ -74,7 +91,11 @@ function processDocument_(document, file) {
       baseChanges.publication_reason = 'Telegram bot verified automatic publication';
       baseChanges.processing_status = 'Approved';
       baseChanges.sensitive = false;
-      addDocumentEvent_(document.id, 'BOT_AUTO_PUBLISHED', { category_key: baseChanges.category_key, confidence: baseChanges.category_confidence });
+      baseChanges.useful = true;
+      addDocumentEvent_(document.id, 'BOT_AUTO_PUBLISHED', {
+        category_key: baseChanges.category_key,
+        confidence: baseChanges.category_confidence
+      });
     } else if (suggestion && isAiPublicSafe_(suggestion, extraction) && baseChanges.priority !== 'IGNORE') {
       const publicUrl = publishDriveFile_(file);
       const published = autoPublishDocument_(document.id, publicUrl, 'AI automatic publication');
@@ -89,7 +110,8 @@ function processDocument_(document, file) {
       baseChanges.sensitive = true;
       baseChanges.approved_for_publication = false;
       baseChanges.publication_status = 'Unpublished';
-      baseChanges.publication_reason = botVerified ? 'Document marked IGNORE' : 'AI confidence insufficient for automatic publication';
+      baseChanges.publication_reason = 'AI could not establish automatic-publication safety';
+      baseChanges.processing_status = 'Processing';
     }
 
     const updated = updateDocument_(document.id, baseChanges);
@@ -97,9 +119,42 @@ function processDocument_(document, file) {
     if (suggestion) addDocumentEvent_(document.id, 'REVIEW_ASSISTANT_SUGGESTED', { provider: suggestion.provider, model: suggestion.model, display_filename: suggestion.display_filename || null, public_safe: suggestion.public_safe === true });
     return { document: updated || document, suggestion: suggestion };
   } catch (error) {
-    updateDocument_(document.id, { processing_status: 'Processing Failed', extraction_confidence: 'LOW', approved_for_publication: false, publication_status: 'Unpublished' });
+    updateDocument_(document.id, {
+      processing_status: 'Processing Failed',
+      extraction_confidence: 'LOW',
+      approved_for_publication: false,
+      publication_status: 'Unpublished',
+      publication_reason: String(error.message).slice(0, 500)
+    });
     addDocumentEvent_(document.id, 'PROCESSING_FAILED', { error: String(error.message).slice(0, 500) });
     throw error;
+  }
+}
+
+function getSiblingFolder_(sourceFile, folderName) {
+  const processingFolder = DriveApp.getFolderById(getConfig().processingFolderId);
+  const parents = processingFolder.getParents();
+  if (!parents.hasNext()) throw new Error('Automation root folder not found');
+  const root = parents.next();
+  const folders = root.getFoldersByName(folderName);
+  if (!folders.hasNext()) throw new Error('Required folder not found: ' + folderName);
+  return folders.next();
+}
+
+function moveToReviewedArchive_(file) {
+  try {
+    file.moveTo(getSiblingFolder_(file, '03_Reviewed_Archive'));
+  } catch (error) {
+    console.error('Published but could not move to Reviewed Archive: ' + error.message);
+  }
+}
+
+function moveToManualReviewSafe_(file, documentId, reason) {
+  try {
+    file.moveTo(getSiblingFolder_(file, '04_Manual_Review'));
+    addDocumentEvent_(documentId, 'MOVED_TO_MANUAL_REVIEW', { reason: reason });
+  } catch (moveError) {
+    addDocumentEvent_(documentId, 'MANUAL_REVIEW_MOVE_FAILED', { reason: reason, error: String(moveError.message).slice(0, 500) });
   }
 }
 
