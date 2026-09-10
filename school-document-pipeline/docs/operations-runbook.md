@@ -2,12 +2,12 @@
 
 ## Daily ingest
 
-1. Telegram files arrive through the authorized webhook, or files are placed in the private Drive Inbox.
+1. Authorized Telegram files arrive through one-minute polling, or files are placed in the private Drive Inbox.
 2. The worker validates the source and moves accepted files to Processing.
 3. The original filename is preserved wherever possible.
 4. The worker records source metadata, attachment metadata, duplicate identity, and processing status in Supabase.
 5. `MANUAL_ONLY` creates a review record without guessing document contents.
-6. Image OCR may be enabled for single images. PDFs follow the first-page/manual-review rule.
+6. Current Drive OCR processes images and entire PDFs. Strict first-page processing remains pending.
 
 ## Portal-facing filename and description
 
@@ -27,7 +27,7 @@ Example description:
 Official Education Department instruction regarding Class XI registration correction. The school must verify student details before the printed deadline.
 ```
 
-The portal uses the approved display filename and description only after review; it never replaces the original private file.
+The private portal currently displays the stored display filename. The worker stores suggested filenames separately and may update metadata from extraction. Human acceptance controls and automatic Drive renaming are not implemented. Public publication still requires approval.
 
 ## Gemini review gate
 

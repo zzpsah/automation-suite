@@ -75,7 +75,7 @@ Alternative endings: `Duplicate`, `Ignored`, `Archived`, or `Processing Failed`.
 
 ## Extraction
 
-Default mode is `MANUAL_ONLY`. It creates review records without guessing document contents. Optional AI implementations must conform to the same extraction-result schema and cannot publish, rename, delete, or forward records automatically.
+Code defaults to `MANUAL_ONLY`; the current deployment is configured for `DRIVE_OCR` with the `RULES` review provider. PDF OCR currently processes the entire document; strict first-page isolation remains pending. Optional AI implementations use a shared suggestion format. Consult [current deployment](current-deployment.md) for tested behavior and remaining limitations.
 
 ## Optional Gemini document assistant
 

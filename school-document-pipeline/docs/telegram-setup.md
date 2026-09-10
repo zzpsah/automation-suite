@@ -1,5 +1,12 @@
 # Telegram Setup
 
+> Current transport is polling, not the webhook steps preserved below.
+> Use `installTelegramPolling`; do not re-register the webhook while polling is
+> enabled. The webhook returned HTTP 302 and caused repeated deliveries.
+> See [current deployment](current-deployment.md) for authoritative setup/status.
+> Earlier version-2 deployment and Gemini instructions below are historical or
+> optional configuration, not evidence of the currently active review provider.
+
 This document records the Telegram portion of the School Document Pipeline. It is intentionally written so the workflow can be repeated if the website, Apps Script project, or portal layout changes.
 
 ## What is already prepared
