@@ -14,6 +14,11 @@ function getConfig() {
     supabaseUrl: properties.getProperty('SUPABASE_URL') || '',
     supabaseSecret: properties.getProperty('SUPABASE_SERVER_SECRET') || '',
     extractionMode: properties.getProperty('EXTRACTION_MODE') || 'MANUAL_ONLY',
+    geminiEnabled: String(properties.getProperty('GEMINI_ENABLED') || 'false').toLowerCase() === 'true',
+    reviewProvider: properties.getProperty('REVIEW_PROVIDER') ||
+      (properties.getProperty('GEMINI_ENABLED') === 'true' ? 'GEMINI' : 'NONE'),
+    geminiApiKey: properties.getProperty('GEMINI_API_KEY') || '',
+    geminiModel: properties.getProperty('GEMINI_MODEL') || 'gemini-2.5-flash',
     batchSize: safeBatchSize
   };
 }

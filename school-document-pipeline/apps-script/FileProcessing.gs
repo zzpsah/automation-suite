@@ -27,10 +27,11 @@ function registerDriveFile_(file, sourceApp, sourceMessageId, sourceLocation) {
     category_confidence: 'LOW'
   };
 
-  const document = insertDocument_(record);
+  let document = insertDocument_(record);
   addDocumentEvent_(document.id, 'INGESTED', { source: sourceApp, filename: file.getName() });
-  processDocument_(document, file);
-  return { document: document, created: true };
+  const processed = processDocument_(document, file);
+  document = processed.document;
+  return { document: document, created: true, suggestion: processed.suggestion };
 }
 
 function processDocument_(document, file) {
@@ -38,7 +39,7 @@ function processDocument_(document, file) {
     updateDocument_(document.id, { processing_status: 'Processing' });
     const extraction = extractDocument_(file);
     const category = suggestCategory_(extraction);
-    updateDocument_(document.id, {
+    const baseChanges = {
       reference_number: extraction.reference_number,
       issue_date_as_printed: extraction.issue_date_as_printed,
       issuing_authority: extraction.issuing_authority,
@@ -55,11 +56,30 @@ function processDocument_(document, file) {
       extraction_method: extraction.method,
       extraction_confidence: extraction.confidence,
       processing_status: 'Needs Manual Review'
-    });
+    };
+    let suggestion = null;
+    if (getConfig().reviewProvider !== 'NONE') {
+      try {
+        suggestion = reviewSuggest_(file, extraction);
+        Object.assign(baseChanges, geminiSuggestionChanges_(suggestion));
+      } catch (geminiError) {
+        baseChanges.ai_suggestion_status = 'Failed';
+        addDocumentEvent_(document.id, 'REVIEW_ASSISTANT_FAILED', { error: String(geminiError.message).slice(0, 500) });
+      }
+    }
+    const updated = updateDocument_(document.id, baseChanges);
     addDocumentEvent_(document.id, 'EXTRACTED', {
       method: extraction.method,
       confidence: extraction.confidence
     });
+    if (suggestion) {
+      addDocumentEvent_(document.id, 'REVIEW_ASSISTANT_SUGGESTED', {
+        provider: suggestion.provider,
+        model: suggestion.model,
+        display_filename: suggestion.display_filename || null
+      });
+    }
+    return { document: updated || document, suggestion: suggestion };
   } catch (error) {
     updateDocument_(document.id, {
       processing_status: 'Processing Failed',

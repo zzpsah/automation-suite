@@ -1,4 +1,5 @@
 function doPost(e) {
+  const lock = LockService.getScriptLock();
   try {
     const config = getConfig();
     requireConfig_(config, ['telegramToken', 'telegramWebhookSecret', 'inboxFolderId', 'processingFolderId']);
@@ -18,10 +19,14 @@ function doPost(e) {
     const chatAllowed = config.telegramChats.indexOf(chatId) >= 0;
     if (!userAllowed && !chatAllowed) return jsonResponse_({ ok: false, error: 'unauthorized sender' });
 
+    // Serialize delivery checks so simultaneous retries cannot create two files.
+    lock.waitLock(30000);
+
     const sourceMessageId = chatId + ':' + String(message.message_id);
     const existing = findDocumentBySource_('Telegram', sourceMessageId);
     if (existing) {
-      sendTelegramMessage_(chatId, 'Document already registered.');
+      // Telegram retries the same update when delivery is not acknowledged.
+      // A retry is transport housekeeping, not a new user upload or notification.
       return jsonResponse_({ ok: true, duplicate: true });
     }
 
@@ -37,12 +42,25 @@ function doPost(e) {
     const file = DriveApp.getFolderById(config.inboxFolderId).createFile(blob);
     const result = registerDriveFile_(file, 'Telegram', sourceMessageId, 'Telegram chat ' + chatId);
     moveToProcessing_(file);
-    sendTelegramMessage_(chatId, 'Document registered: ' + result.document.id);
+    sendTelegramMessage_(chatId, 'Document registered: ' + result.document.id +
+      (result.suggestion ? '\n\n' + formatReviewTelegramReport_(result.suggestion) : ''));
     return jsonResponse_({ ok: true });
   } catch (error) {
     console.error('Telegram webhook failed: ' + error.message);
     return jsonResponse_({ ok: false, error: 'processing failed' });
+  } finally {
+    if (lock.hasLock()) lock.releaseLock();
   }
+}
+
+// Logs only diagnostic fields; never log the webhook URL containing its secret.
+function inspectTelegramDelivery() {
+  const info = telegramApi_('getWebhookInfo', {}).result;
+  console.log(JSON.stringify({
+    pending_updates: info.pending_update_count,
+    last_error_date: info.last_error_date || null,
+    last_error_message: info.last_error_message || null
+  }));
 }
 
 function registerTelegramWebhook() {

@@ -36,6 +36,9 @@ SUPABASE_URL=<Supabase project URL>
 SUPABASE_SERVER_SECRET=<server-only Supabase secret>
 EXTRACTION_MODE=MANUAL_ONLY
 DRIVE_SCAN_BATCH_SIZE=10
+GEMINI_ENABLED=false
+GEMINI_API_KEY=<server-side Gemini API key>
+GEMINI_MODEL=gemini-2.5-flash
 ```
 
 The webhook secret is an application secret, not a Supabase API key. Do not invent a Supabase key. Use the project's real server secret only in Apps Script Properties.
@@ -60,13 +63,15 @@ The current webhook sends this confirmation after successful registration:
 Document registered: <Supabase document ID>
 ```
 
-It also replies when a duplicate is detected or when no supported attachment is present. A future status command can report `Received`, `Processing`, `Needs Manual Review`, `Reviewed`, or `Archived`; the bot must not claim a later state before the database and Drive transition is verified.
+Repeated delivery of a registered message is acknowledged silently. Unsupported attachments receive guidance. See [delivery and review tools](review-tools-and-delivery.md) for current polling setup and provider configuration.
 
 ## Clean-start procedure
 
 Do not delete all history by default. Identify exact test message IDs and filenames, confirm the target rows and files, then remove only explicitly approved test items. Keep category definitions and audit history unless a separate database reset is approved.
 
 The current deployment completed as version 2 on 10 September 2026, and the webhook registration returned `ok: true`. The live web-app URL is intentionally not committed to this public repository; keep it in Apps Script Properties as `TELEGRAM_WEBAPP_URL`.
+
+To enable Gemini suggestions for a controlled test, set `GEMINI_ENABLED=true`, add the key only to Apps Script Properties, and send a test PDF. Gemini suggestions are stored separately from approved portal fields. Telegram reports the suggested filename, title, authority, category, priority, and description, while the original Drive filename remains unchanged.
 
 ## Failure handling
 

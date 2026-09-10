@@ -8,6 +8,7 @@ const migration = fs.readFileSync(path.join(root, "supabase", "migrations", "000
 const config = fs.readFileSync(path.join(root, "apps-script", "Config.gs"), "utf8");
 const driveScanner = fs.readFileSync(path.join(root, "apps-script", "DriveScanner.gs"), "utf8");
 const telegramWebhook = fs.readFileSync(path.join(root, "apps-script", "TelegramWebhook.gs"), "utf8");
+const geminiAssistant = fs.readFileSync(path.join(root, "apps-script", "GeminiAssistant.gs"), "utf8");
 const extraction = fs.readFileSync(path.join(root, "apps-script", "Extraction.gs"), "utf8");
 const taxonomyMigration = fs.readFileSync(
   path.join(root, "supabase", "migrations", "20260909182635_resilient_document_taxonomy.sql"),
@@ -24,6 +25,8 @@ assert.match(config, /Math\.max\(1, Math\.min\(50/);
 assert.match(driveScanner, /moveToProcessing_\(file\)/);
 assert.match(telegramWebhook, /moveToProcessing_\(file\)/);
 assert.match(telegramWebhook, /function registerTelegramWebhook\(\)/);
+assert.match(geminiAssistant, /function geminiSuggest_\(file, extraction\)/);
+assert.match(geminiAssistant, /responseMimeType/);
 assert.match(extraction, /MANUAL_FIRST_PAGE_REQUIRED/);
 assert.match(extraction, /\^image\\\//);
 assert.match(extraction, /suggestCategory_/);
