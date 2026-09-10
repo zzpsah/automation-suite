@@ -29,6 +29,7 @@ class PhonePrinterAdmin:
         self.background = background
 
         self._build_ui()
+        hub.init_db()
         self._start_server()
         self._start_tray()
         self._refresh_all()
