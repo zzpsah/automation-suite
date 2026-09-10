@@ -14,6 +14,16 @@ redeployment is required for polling changes.
 
 ## Review configuration
 
+### Live smoke test, 10 September 2026
+
+Verified one polling trigger, no active webhook, zero pending updates, and read
+access to the existing PDF (277555 bytes). Three repeat deliveries of the same
+registered source message were silently acknowledged. Telegram accepted one
+explicit test confirmation. No new document was created by this test.
+Review provider was `NONE`, extraction was `MANUAL_ONLY`, and Gemini key was
+absent (checked as a boolean only). AI extraction, new-upload ingestion, and
+approved portal/filename synchronization are not covered by this smoke test.
+
 The seven suggestion columns were applied and verified in Supabase. The adapter
 code is saved in the live Apps Script editor used by polling. Provider activation
 and an end-to-end extraction test remain separate from this deployment; no AI
