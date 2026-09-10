@@ -37,17 +37,19 @@ Moving these folders does not change their Drive IDs, so Apps Script properties 
 | Component | Responsibility | Write authority |
 | --- | --- | --- |
 | Telegram bot | Receive an authorized document or image | Telegram message only |
-| Apps Script webhook | Validate, download, and preserve originals | Private Drive and Supabase |
+| Apps Script polling | Receive updates every minute, validate and preserve originals | Private Drive and Supabase |
 | Drive folders | Preserve originals and review-stage organization | Apps Script plus reviewer |
 | Supabase | Store metadata, events, categories, duplicates, and status | Server-side integration and reviewer |
 | Gemini adapter | Optional first-page suggestions | Never publishes or deletes automatically |
-| GitHub Pages portal | Display approved public-safe records | No source-data write authority |
+| Public GitHub Pages archive | Display approved public-safe records | Read only |
+| Private document manager | Authenticated document table, filters, Realtime, review requests | Authorized review RPC |
+| Apps Script review worker | Process queued OCR/AI jobs every five minutes | Private metadata and audit events |
 
 ## New-document lifecycle
 
 ```text
 Telegram upload
-  -> webhook validates secret and allowlist
+  -> polling handler validates sender allowlist
   -> original saved in 01_Inbox
   -> Supabase metadata row created
   -> file moved to 02_Processing
