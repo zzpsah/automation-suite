@@ -2,7 +2,9 @@ function extractDocument_(file) {
   const mode = getConfig().extractionMode;
   if (mode === 'MANUAL_ONLY') return manualExtraction_();
   if (mode === 'DRIVE_OCR') {
-    if (/^image\//i.test(file.getMimeType())) return driveOcrExtraction_(file);
+    if (/^image\//i.test(file.getMimeType()) || file.getMimeType() === 'application/pdf') {
+      return driveOcrExtraction_(file);
+    }
     const manual = manualExtraction_();
     manual.method = file.getMimeType() === 'application/pdf'
       ? 'MANUAL_FIRST_PAGE_REQUIRED'
@@ -48,6 +50,7 @@ function driveOcrExtraction_(file) {
 function ruleBasedExtraction_(text) {
   const reference = text.match(/(?:पत्रांक|ज्ञापांक|letter\s*no|memo\s*no)\s*[:.\-]?\s*([A-Za-z0-9\/_-]+)/i);
   const dates = text.match(/\b(?:\d{1,2}[./-]\d{1,2}[./-]\d{2,4}|\d{4}-\d{2}-\d{2})\b/g) || [];
+  const subject = text.match(/(?:विषय|subject)\s*[:.\-]?\s*([^\r\n]{8,300})/i);
   let authority = null;
   let category = 'Other';
   if (/बिहार विद्यालय परीक्षा समिति|BSEB/i.test(text)) { authority = 'BSEB'; category = 'BSEB'; }
@@ -59,8 +62,8 @@ function ruleBasedExtraction_(text) {
     reference_number: reference ? reference[1] : null,
     issue_date_as_printed: dates.length ? dates[0] : null,
     issuing_authority: authority,
-    subject: null,
-    short_description: null,
+    subject: subject ? subject[1].trim() : null,
+    short_description: subject ? subject[1].trim() : null,
     category: category,
     priority: urgent ? 'HIGH' : 'NORMAL',
     required_action: 'Needs manual review',
@@ -69,6 +72,15 @@ function ruleBasedExtraction_(text) {
     method: 'DRIVE_OCR_RULES',
     confidence: 'LOW'
   };
+}
+
+function configureFreeReviewMode() {
+  PropertiesService.getScriptProperties().setProperties({
+    REVIEW_PROVIDER: 'RULES',
+    EXTRACTION_MODE: 'DRIVE_OCR'
+  }, false);
+  installAiReviewTrigger();
+  console.log('Free review mode configured: Google Drive OCR plus rule extraction.');
 }
 
 function suggestCategory_(extraction) {

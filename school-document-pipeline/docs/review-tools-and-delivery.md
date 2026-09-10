@@ -14,6 +14,25 @@ redeployment is required for polling changes.
 
 ## Review configuration
 
+## Portal review queue
+
+The private admin portal reads `documents` with an authenticated Supabase session,
+filters database and AI status, subscribes to Realtime changes, and calls the
+`request_document_ai_review` RPC. The RPC accepts only profile admins or JWT
+roles `reviewer`/`admin`, creates one active `AI_REVIEW` job, and records an audit
+event. Drive and provider credentials remain in Apps Script Properties.
+
+`processAiReviewQueue` claims queued jobs, reads the Drive file, runs the selected
+review adapter, updates extracted fields, and records completion or failure.
+`configureFreeReviewMode` selects Google Drive OCR plus rules and installs the
+five-minute worker. A successful tool run gets AI status `Completed`; database
+status becomes `Reviewed` only when reliable source metadata was extracted.
+
+Live test on `Letter No-14811 Dt-16-08-2026.pdf`: Drive OCR returned 5,455
+characters. Filename evidence supplied reference `14811` and date `16-08-2026`.
+The subject and authority were not reliably extracted, so the job completed and
+the document correctly remained `Needs Manual Review`.
+
 ### Live smoke test, 10 September 2026
 
 Verified one polling trigger, no active webhook, zero pending updates, and read

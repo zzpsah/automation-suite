@@ -6,19 +6,29 @@ function reviewSuggest_(file, extraction) {
     suggestion = geminiSuggest_(file, extraction);
     suggestion.model = getConfig().geminiModel;
   } else if (provider === 'RULES') {
+    const filename = file.getName();
+    const filenameReference = filename.match(/(?:letter\s*no|पत्रांक)[\s_.-]*([A-Za-z0-9\/_-]+)/i);
+    const filenameDate = filename.match(/(?:dt|dated|date)[\s_.-]*(\d{1,2}[.-]\d{1,2}[.-]\d{2,4})/i);
+    const reference = extraction.reference_number || (filenameReference ? filenameReference[1] : null);
+    const printedDate = extraction.issue_date_as_printed || (filenameDate ? filenameDate[1] : null);
+    const fallbackTitle = reference ? 'Official letter ' + reference : null;
+    const fallbackDescription = reference || printedDate
+      ? 'Official letter' + (reference ? ' reference ' + reference : '') +
+        (printedDate ? ' dated ' + printedDate : '') + '. Subject needs manual review.'
+      : null;
     suggestion = {
-      title: extraction.subject,
+      title: extraction.subject || fallbackTitle,
       issuing_authority: extraction.issuing_authority,
-      date_as_printed: extraction.issue_date_as_printed,
-      reference_number: extraction.reference_number,
+      date_as_printed: printedDate,
+      reference_number: reference,
       deadline_as_printed: extraction.deadline_as_printed,
       required_action: extraction.required_action,
       category: extraction.category,
       priority: extraction.priority,
-      portal_description: extraction.short_description,
-      display_filename: file.getName(),
+      portal_description: extraction.short_description || fallbackDescription,
+      display_filename: filename,
       confidence: extraction.confidence,
-      notes: 'Rule-based extraction; verify against the source before approval.',
+      notes: 'Rule-based extraction with filename fallback; verify against the source before approval.',
       model: extraction.method
     };
   } else {

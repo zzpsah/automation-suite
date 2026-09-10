@@ -51,3 +51,37 @@ function listCurrentCategoryDefinitions_() {
     '&active=eq.true&valid_to=is.null&order=sort_order.asc';
   return supabaseRequest_('get', 'document_category_definitions', query);
 }
+
+function listQueuedAiReviewJobs_(limit) {
+  const query = '?select=id,document_id,attempt_count&job_type=eq.AI_REVIEW' +
+    '&status=eq.Queued&order=created_at.asc&limit=' + encodeURIComponent(limit || 5);
+  return supabaseRequest_('get', 'processing_jobs', query);
+}
+
+function getDocumentForAiReview_(documentId) {
+  const fields = 'id,private_drive_file_id,reference_number,issue_date_as_printed,' +
+    'issuing_authority,subject,short_description,required_action,deadline_as_printed,category,priority';
+  const rows = supabaseRequest_('get', 'documents', '?select=' + fields +
+    '&id=eq.' + encodeURIComponent(documentId) + '&limit=1');
+  return rows.length ? rows[0] : null;
+}
+
+function claimAiReviewJob_(jobId) {
+  return supabaseRequest_('patch', 'processing_jobs', '?id=eq.' + encodeURIComponent(jobId), {
+    status: 'Processing', locked_at: new Date().toISOString()
+  })[0];
+}
+
+function completeAiReviewJob_(jobId) {
+  return supabaseRequest_('patch', 'processing_jobs', '?id=eq.' + encodeURIComponent(jobId), {
+    status: 'Completed', updated_at: new Date().toISOString()
+  })[0];
+}
+
+function failAiReviewJob_(jobId, error) {
+  return supabaseRequest_('patch', 'processing_jobs', '?id=eq.' + encodeURIComponent(jobId), {
+    status: 'Failed',
+    last_error: String(error.message).slice(0, 500),
+    updated_at: new Date().toISOString()
+  })[0];
+}
