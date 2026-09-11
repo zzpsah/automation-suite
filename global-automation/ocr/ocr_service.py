@@ -6,17 +6,19 @@ from pathlib import Path
 from typing import Any
 
 from .diagnostics import diagnose_pages
+from .field_confidence import score_fields
 from .language_packs.bihar_office_resolver import resolve_office
 from .ocr_engine import extract_document_pages, ocr_image_detailed
 from .sarkari_normalizer import extract_metadata
 from .subject_extractor import extract_multiline_subject
 from .taxonomy import taxonomy_info
 
-OCR_SERVICE_VERSION = "1.5"
+OCR_SERVICE_VERSION = "1.6"
 _IMAGE_SUFFIXES = {".png", ".jpg", ".jpeg", ".tif", ".tiff", ".bmp", ".webp"}
 
 
 def score_metadata_quality(metadata: dict[str, Any], text: str) -> dict[str, Any]:
+    """Backward-compatible document-level confidence summary."""
     checks = {}
     subject, authority = metadata.get("subject"), metadata.get("authority")
     reference, date = metadata.get("reference_number"), metadata.get("issue_date")
@@ -41,6 +43,7 @@ def _assemble_result(path: Path, text: str, *, method: str, page_texts: list[str
     if subject:
         result["subject"] = subject
     result["confidence_details"] = score_metadata_quality(result, text)
+    result["field_confidence"] = score_fields(result, text)
     result["confidence"] = result["confidence_details"]["level"]
     result["taxonomy"] = taxonomy_info(result.get("category"))
     result["bihar_office"] = resolve_office(text)
