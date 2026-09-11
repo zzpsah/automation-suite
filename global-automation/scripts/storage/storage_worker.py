@@ -128,7 +128,6 @@ def process_record(row):
 
     metadata = row.get("metadata") or {}
     storage = metadata.get("storage") or {}
-    # Already fully backed up: nothing to do.
     if storage.get("b2_status") == "AVAILABLE" and storage.get("drive_status") == "AVAILABLE":
         return False
 
@@ -136,9 +135,16 @@ def process_record(row):
     file_path = file_info.get("file_path")
     if not file_path:
         raise RuntimeError("Telegram did not return file_path")
-    download = requests.get(f"https://api.telegram.org/file/bot{TELEGRAM_TOKEN}/{file_path}", timeout=120)
+
+    download = requests.get(
+        f"https://api.telegram.org/file/bot{TELEGRAM_TOKEN}/{file_path}",
+        timeout=120,
+    )
     download.raise_for_status()
     data = download.content
+    if not data:
+        raise RuntimeError("Telegram returned an empty file")
+
     sha = hashlib.sha256(data).hexdigest()
     safe_name = (row.get("file_name") or "file").replace("/", "_").replace("\\", "_")
     date_path = datetime.now(timezone.utc).strftime("%Y-%m-%d")
@@ -149,7 +155,13 @@ def process_record(row):
         s3.head_object(Bucket=B2_BUCKET, Key=object_key)
         b2_status = "AVAILABLE"
     except Exception:
-        s3.put_object(Bucket=B2_BUCKET, Key=object_key, Body=data, ContentType=row.get("mime_type") or "application/octet-stream", Metadata={"sha256": sha, "telegram-intake-id": str(record_id)})
+        s3.put_object(
+            Bucket=B2_BUCKET,
+            Key=object_key,
+            Body=data,
+            ContentType=row.get("mime_type") or "application/octet-stream",
+            Metadata={"sha256": sha, "telegram-intake-id": str(record_id)},
+        )
         b2_status = "AVAILABLE"
 
     drive_status = storage.get("drive_status")
@@ -164,6 +176,8 @@ def process_record(row):
         else:
             uploaded = drive_upload(token, drive_name, row.get("mime_type") or "application/octet-stream", data)
             drive_file_id = uploaded.get("id")
+            if not drive_file_id:
+                raise RuntimeError("Google Drive upload returned no file id")
             drive_status = "AVAILABLE"
 
     storage.update({
@@ -184,7 +198,6 @@ def process_record(row):
 
 
 def main():
-    # Keep the query intentionally small for predictable GitHub Actions runs.
     query = "telegram_intake?select=*&file_id=not.is.null&or=(status.eq.Received,status.eq.Storage%20Failed,status.eq.Storage%20Partial)&order=received_at.asc&limit=10"
     rows = db_get(query)
     processed = 0
@@ -196,7 +209,17 @@ def main():
         except Exception as exc:
             failed += 1
             metadata = row.get("metadata") or {}
-            db_patch(row["id"], {"status": "Storage Failed", "metadata": {**metadata, "storage_error": str(exc)[:500], "storage_error_at": datetime.now(timezone.utc).isoformat()}})
+            db_patch(
+                row["id"],
+                {
+                    "status": "Storage Failed",
+                    "metadata": {
+                        **metadata,
+                        "storage_error": str(exc)[:500],
+                        "storage_error_at": datetime.now(timezone.utc).isoformat(),
+                    },
+                },
+            )
             print(f"Record {row['id']}: storage failed: {exc}")
     print(f"Storage worker complete: processed={processed}, failed={failed}, candidates={len(rows)}")
     if failed:
