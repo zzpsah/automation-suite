@@ -37,7 +37,7 @@ Region Alignment / Consensus
         ↓
 Document Structure Intelligence
  ├── explicit blocks
- ├── reading order
+ ├── global reading order
  ├── columns
  ├── headers / footers
  ├── tables
@@ -60,23 +60,42 @@ Document Understanding
 Consumer project
 ```
 
-**Important:** OCR must not simply flatten a government document into a text blob. The target representation is **OCR → geometry → layout blocks → document structure → formatted text/HTML/Markdown/JSON**. Original evidence remains preserved.
+**Important:** OCR must not simply flatten a government document into a text blob. The target representation is **OCR → geometry → layout blocks → document structure → optimized reading order → formatted text/HTML/Markdown/JSON**. Original evidence remains preserved.
 
 ## Document structure intelligence
 
-Implemented baseline in `document_structure.py`:
+Implemented in `document_structure.py` and `reading_order.py`:
 
 - explicit `DocumentStructure` and `StructureBlock` models
 - deterministic page ordering
+- geometry attached to structure blocks for downstream ordering
 - page-level block generation from geometry-aware OCR spans
 - column-aware block ordering
 - conservative table recognition integration
 - structural block labels such as header/footer/body/heading-or-label
+- global reading-order optimizer for multi-page and mixed-layout documents
+- headers are placed before page body content and footers after body content
+- explicit column assignments are preferred; otherwise visual geometry is used
 - JSON-safe serialization through `structure_to_dict()`
 
 The structure model is intentionally evidence-preserving. It records what the layout engine inferred and its confidence; it does not rewrite OCR evidence or invent missing cells.
 
-Current limitation: the baseline column detector and table detector are heuristic. High-fidelity reading-order optimization, merged cells, irregular tables, nested sections and annexure boundaries remain planned.
+### Reading-order policy
+
+`reading_order.py` provides `ReadingOrderBlock` and `optimize_reading_order()`.
+
+The optimizer is deterministic and conservative:
+
+1. process pages in numeric order
+2. emit detected headers first
+3. order body blocks top-to-bottom within explicit columns
+4. for unassigned mixed layouts, infer visual column bands from geometry
+5. emit footers last
+6. use stable geometry/block IDs as tie-breakers
+
+This is a **structure/routing heuristic**, not a claim that the inferred order is legally or semantically authoritative. Source OCR, page boundaries and original evidence remain unchanged.
+
+Current limitation: the optimizer does not yet perform graph-based global reading-order inference, robust region adjacency optimization, or semantic section ordering. It also inherits the limitations of the baseline column and table detectors.
 
 ## Core runtime pipeline
 
@@ -131,7 +150,8 @@ Implemented under `global-automation/ocr/`:
 - `region_consensus.py` — region disagreement/consensus diagnostics.
 - `text_reconstruction.py` — line grouping, horizontal spacing and paragraph-aware reconstruction.
 - `layout_intelligence.py` — column detection, conservative table-cell detection and structural block labels.
-- `document_structure.py` — explicit page/block structure and deterministic reading order.
+- `document_structure.py` — explicit page/block structure and geometry-aware structure model.
+- `reading_order.py` — deterministic global reading-order optimization across page/column structure.
 
 ## Visual artifact intelligence
 
@@ -231,7 +251,7 @@ Implemented foundation:
 - geometry-aware region alignment
 - layout-preserving reconstruction
 - column and conservative table intelligence
-- explicit document structure model and reading order
+- explicit document structure model and global reading order
 - signature/stamp/annotation candidate intelligence
 - multi-page repeated-element intelligence
 - separate image-processing benchmark foundation
@@ -245,7 +265,7 @@ Not yet release-certified:
 - calibrated benchmark results on representative Bihar government documents
 - production-pinned PaddleOCR artifact
 - pixel-level signature/stamp/seal vision model
-- full multi-column reading-order optimizer
+- graph-based/global reading-order optimizer beyond the current deterministic geometry heuristic
 - high-fidelity table reconstruction
 - section/annexure/attachment boundary model
 - cross-page entity/section continuity graph
@@ -259,7 +279,7 @@ A change is not considered production-ready merely because code exists. Release 
 3. OCR CER/WER benchmark
 4. Hindi + English + Sarkari terminology golden set
 5. field-level confidence benchmark
-6. structure-level benchmark
+6. structure-level benchmark, including reading-order cases
 7. backend comparison where applicable
 8. latency/resource checks
 9. artifact version + SHA-256 verification
@@ -270,9 +290,9 @@ Never report a gate as passed without actual execution or verified CI evidence.
 
 ## Roadmap / next recovery point
 
-1. Upgrade structure intelligence to a **global reading-order optimizer** with robust multi-column and mixed-layout handling.
-2. Add explicit section, annexure, attachment and table schemas including merged/irregular cells.
-3. Add multi-page structure graph and cross-page entity continuity.
+1. Add explicit section, annexure, attachment and robust table schemas including merged/irregular cells.
+2. Add multi-page structure graph and cross-page entity/section continuity.
+3. Upgrade reading order from deterministic geometry heuristics to graph-based global optimization with robust region adjacency and mixed-layout handling.
 4. Add pixel-aware optional vision backend for handwriting/signature/stamp/seal detection while preserving evidence-safe routing semantics.
 5. Add real reviewed Bihar Education image/PDF corpus with provenance.
 6. Add CER/WER, field-level and structure-level golden benchmarks.
