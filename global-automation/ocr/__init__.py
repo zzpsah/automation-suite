@@ -30,6 +30,7 @@ from .cluster_search import ClusterSearchQuery, ClusterSearchResult, search_clus
 from .evidence_relations import EvidenceRelation, extract_evidence_relations, evidence_relations_to_dict
 from .runtime_health import HealthCheck, RuntimeHealth, check_runtime, runtime_health_to_dict
 from .release_manifest import ReleaseFile, ReleaseManifest, build_release_manifest, manifest_to_dict, manifest_to_json, verify_release_manifest
+from .artifact_verification import ArtifactSpec, verify_artifact, artifact_to_dict
 from .errors import ErrorCode, OCRPlatformError, InvalidInputError, BackendUnavailableError, StorageError
 from .observability import OperationEvent, emit_event, event_to_json
 from .backup import backup_sqlite, verify_sqlite, restore_sqlite
@@ -46,7 +47,7 @@ __all__ = [
     "CandidateCluster", "CandidateClusterResult", "build_candidate_clusters", "candidate_clusters_to_dict", "SearchDocument", "SearchEntity", "SearchHit", "DocumentSearchIndex", "build_search_index", "normalize_query", "search_to_dict",
     "SearchFilter", "filter_hits", "filter_to_dict", "SearchStore", "search_with_filter", "TimelineEvent", "ReferenceTimeline", "build_reference_timeline", "reference_timeline_to_dict", "SQLiteSearchStore", "SupabaseSearchStore",
     "ClusterSearchQuery", "ClusterSearchResult", "search_clusters", "cluster_search_to_dict", "EvidenceRelation", "extract_evidence_relations", "evidence_relations_to_dict", "HealthCheck", "RuntimeHealth", "check_runtime", "runtime_health_to_dict",
-    "ReleaseFile", "ReleaseManifest", "manifest_to_dict", "manifest_to_json", "verify_release_manifest", "ErrorCode", "OCRPlatformError", "InvalidInputError", "BackendUnavailableError", "StorageError",
-    "OperationEvent", "emit_event", "event_to_json", "backup_sqlite", "verify_sqlite", "restore_sqlite",
-    "ResourceLimits", "ResourceLimitError", "ConcurrencyLimitError", "OCRConcurrencyGate", "check_file_size", "check_page_count", "check_image_pixels", "check_text_size", "limits_to_dict",
+    "ReleaseFile", "ReleaseManifest", "build_release_manifest", "manifest_to_dict", "manifest_to_json", "verify_release_manifest", "ArtifactSpec", "verify_artifact", "artifact_to_dict",
+    "ErrorCode", "OCRPlatformError", "InvalidInputError", "BackendUnavailableError", "StorageError", "OperationEvent", "emit_event", "event_to_json", "backup_sqlite", "verify_sqlite", "restore_sqlite",
+    "ResourceLimits", "ResourceLimitError", "ConcurrencyLimitError", "OCRConcurrencyGate", "check_file_size", "check_image_pixels", "check_page_count", "check_text_size", "limits_to_dict",
 ]
