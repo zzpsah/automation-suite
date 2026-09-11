@@ -1,4 +1,9 @@
-from global_automation.scripts.document.delivery_reconciliation import build_worklist
+import sys
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+
+from delivery_reconciliation import build_worklist
 
 
 def test_unpublished_document_is_ignored():
