@@ -25,6 +25,8 @@ from .search_filters import SearchFilter, filter_hits, filter_to_dict
 from .search_contract import SearchStore, search_with_filter
 from .reference_timeline import TimelineEvent, ReferenceTimeline, build_reference_timeline, reference_timeline_to_dict
 from .persistent_search import SQLiteSearchStore
+from .storage import SupabaseSearchStore
+from .cluster_search import ClusterSearchQuery, ClusterSearchResult, search_clusters, cluster_search_to_dict
 from .evidence_relations import EvidenceRelation, extract_evidence_relations, evidence_relations_to_dict
 from .runtime_health import HealthCheck, RuntimeHealth, check_runtime, runtime_health_to_dict
 
@@ -43,7 +45,8 @@ __all__ = [
     "CandidateCluster", "CandidateClusterResult", "build_candidate_clusters", "candidate_clusters_to_dict",
     "SearchDocument", "SearchEntity", "SearchHit", "DocumentSearchIndex", "build_search_index", "normalize_query", "search_to_dict",
     "SearchFilter", "filter_hits", "filter_to_dict", "SearchStore", "search_with_filter",
-    "TimelineEvent", "ReferenceTimeline", "build_reference_timeline", "reference_timeline_to_dict", "SQLiteSearchStore",
+    "TimelineEvent", "ReferenceTimeline", "build_reference_timeline", "reference_timeline_to_dict", "SQLiteSearchStore", "SupabaseSearchStore",
+    "ClusterSearchQuery", "ClusterSearchResult", "search_clusters", "cluster_search_to_dict",
     "EvidenceRelation", "extract_evidence_relations", "evidence_relations_to_dict",
     "HealthCheck", "RuntimeHealth", "check_runtime", "runtime_health_to_dict",
 ]
