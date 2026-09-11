@@ -1,0 +1,36 @@
+name: Telegram Webhook
+
+on:
+  workflow_dispatch:
+    inputs:
+      webhook_url:
+        description: 'Telegram webhook URL'
+        required: true
+        default: 'https://sxfnrwugsyfypqgfglzc.supabase.co/functions/v1/telegram-input-v2'
+        type: string
+
+jobs:
+  set-webhook:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure Telegram webhook
+        shell: pwsh
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_WEBHOOK_SECRET: ${{ secrets.TELEGRAM_WEBHOOK_SECRET }}
+          WEBHOOK_URL: ${{ inputs.webhook_url }}
+        run: |
+          ./global-automation/scripts/telegram/Set-TelegramWebhook.ps1 `
+            -BotToken $env:TELEGRAM_BOT_TOKEN `
+            -WebhookUrl $env:WEBHOOK_URL `
+            -SecretToken $env:TELEGRAM_WEBHOOK_SECRET
+
+      - name: Verify webhook
+        shell: pwsh
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+        run: |
+          ./global-automation/scripts/telegram/Get-TelegramWebhook.ps1 -BotToken $env:TELEGRAM_BOT_TOKEN
