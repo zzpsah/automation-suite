@@ -1,0 +1,63 @@
+name: Backblaze B2 Storage Health
+
+on:
+  workflow_dispatch:
+
+jobs:
+  b2:
+    name: Backblaze B2
+    runs-on: ubuntu-latest
+    steps:
+      - name: Validate required secrets
+        env:
+          B2_KEY_ID: ${{ secrets.B2_KEY_ID }}
+          B2_APPLICATION_KEY: ${{ secrets.B2_APPLICATION_KEY }}
+          B2_S3_ENDPOINT: ${{ secrets.B2_S3_ENDPOINT }}
+          B2_BUCKET_NAME: ${{ secrets.B2_BUCKET_NAME }}
+        run: |
+          set -euo pipefail
+          missing=()
+          for name in B2_KEY_ID B2_APPLICATION_KEY B2_S3_ENDPOINT B2_BUCKET_NAME; do
+            if [ -z "${!name:-}" ]; then missing+=("$name"); fi
+          done
+          if [ ${#missing[@]} -gt 0 ]; then
+            echo "Missing required secret(s): ${missing[*]}"
+            exit 1
+          fi
+          echo "All four B2 configuration secrets are present. Values are not displayed."
+
+      - name: Install AWS CLI
+        run: python -m pip install --upgrade awscli
+
+      - name: Verify B2 S3 authentication and bucket access
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.B2_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.B2_APPLICATION_KEY }}
+          B2_S3_ENDPOINT: ${{ secrets.B2_S3_ENDPOINT }}
+          B2_BUCKET_NAME: ${{ secrets.B2_BUCKET_NAME }}
+        run: |
+          set -euo pipefail
+          endpoint="https://${B2_S3_ENDPOINT}"
+          echo "Checking bucket access..."
+          aws --endpoint-url "$endpoint" s3api head-bucket --bucket "$B2_BUCKET_NAME"
+          echo "B2 S3 authentication: OK"
+          echo "Bucket access: OK"
+
+      - name: Verify write and delete permission with temporary object
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.B2_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.B2_APPLICATION_KEY }}
+          B2_S3_ENDPOINT: ${{ secrets.B2_S3_ENDPOINT }}
+          B2_BUCKET_NAME: ${{ secrets.B2_BUCKET_NAME }}
+        run: |
+          set -euo pipefail
+          endpoint="https://${B2_S3_ENDPOINT}"
+          key="_health-check/github-actions-${GITHUB_RUN_ID}.txt"
+          printf 'UMV B2 health check %s\n' "$GITHUB_RUN_ID" > /tmp/b2-health.txt
+          aws --endpoint-url "$endpoint" s3 cp /tmp/b2-health.txt "s3://${B2_BUCKET_NAME}/${key}"
+          aws --endpoint-url "$endpoint" s3api head-object --bucket "$B2_BUCKET_NAME" --key "$key"
+          aws --endpoint-url "$endpoint" s3 rm "s3://${B2_BUCKET_NAME}/${key}"
+          echo "B2 write: OK"
+          echo "B2 read/head: OK"
+          echo "B2 delete: OK"
+          echo "Backblaze B2 storage health: GREEN"
