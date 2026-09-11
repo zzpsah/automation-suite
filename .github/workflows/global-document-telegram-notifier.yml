@@ -29,4 +29,4 @@ jobs:
           B2_APPLICATION_KEY: ${{ secrets.B2_APPLICATION_KEY }}
           B2_S3_ENDPOINT: ${{ secrets.B2_S3_ENDPOINT }}
           B2_BUCKET_NAME: ${{ secrets.B2_BUCKET_NAME }}
-        run: python global-automation/scripts/document/telegram_publication_notifier_v2.py
+        run: python global-automation/scripts/document/telegram_publication_notifier_v3.py
