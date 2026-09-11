@@ -5,21 +5,20 @@ from dataclasses import asdict
 from pathlib import Path
 from typing import Any
 
+from .language_packs.bihar_office_resolver import resolve_office
 from .ocr_engine import extract_document_text
 from .sarkari_normalizer import extract_metadata
 from .subject_extractor import extract_multiline_subject
 from .taxonomy import taxonomy_info
 
-OCR_SERVICE_VERSION = "1.3"
+OCR_SERVICE_VERSION = "1.4"
 
 
 def score_metadata_quality(metadata: dict[str, Any], text: str) -> dict[str, Any]:
     """Score extracted fields by quality/validity, not merely field count."""
     checks = {}
-    subject = metadata.get("subject")
-    authority = metadata.get("authority")
-    reference = metadata.get("reference_number")
-    date = metadata.get("issue_date")
+    subject, authority = metadata.get("subject"), metadata.get("authority")
+    reference, date = metadata.get("reference_number"), metadata.get("issue_date")
     checks["subject"] = bool(subject and 8 <= len(subject.strip()) <= 1200)
     checks["authority"] = bool(authority and 3 <= len(authority.strip()) <= 300)
     checks["reference_number"] = bool(reference and 1 <= len(reference.strip()) <= 250)
@@ -35,7 +34,7 @@ def score_metadata_quality(metadata: dict[str, Any], text: str) -> dict[str, Any
 
 
 def process_pdf(pdf_path: str, work_dir: str, *, min_embedded_chars: int = 80) -> dict[str, Any]:
-    """Extract document text and Sarkari metadata without project dependencies."""
+    """Extract document text and metadata without project/database dependencies."""
     path = Path(pdf_path)
     if not path.exists():
         raise FileNotFoundError(pdf_path)
@@ -47,19 +46,13 @@ def process_pdf(pdf_path: str, work_dir: str, *, min_embedded_chars: int = 80) -
     subject = extract_multiline_subject(text)
     if subject:
         result["subject"] = subject
-    quality = score_metadata_quality(result, text)
-    result["confidence"] = quality["level"]
-    result["confidence_details"] = quality
+    result["confidence_details"] = score_metadata_quality(result, text)
+    result["confidence"] = result["confidence_details"]["level"]
     result["taxonomy"] = taxonomy_info(result.get("category"))
-    result.update({
-        "text": text,
-        "extraction_method": method,
-        "filename": path.name,
-        "ocr_service_version": OCR_SERVICE_VERSION,
-    })
+    result["bihar_office"] = resolve_office(text)
+    result.update({"text": text, "extraction_method": method, "filename": path.name, "ocr_service_version": OCR_SERVICE_VERSION})
     return result
 
 
 def process_file(file_path: str, work_dir: str, *, min_embedded_chars: int = 80) -> dict[str, Any]:
-    """Stable generic entry point for future consumers."""
     return process_pdf(file_path, work_dir, min_embedded_chars=min_embedded_chars)
