@@ -8,6 +8,7 @@ from .field_confidence import FieldConfidence, score_field, score_fields
 from .region_alignment import OCRSpan, align_regions
 from .region_consensus import RegionDisagreement, compare_regions
 from .text_reconstruction import ReconstructionLine, group_lines, reconstruct_text
+from .layout_intelligence import LayoutBlock, TableCell, analyze_layout, detect_columns, detect_table, infer_block_type
 
 __all__ = [
     "extract_document_text",
@@ -33,4 +34,10 @@ __all__ = [
     "ReconstructionLine",
     "group_lines",
     "reconstruct_text",
+    "LayoutBlock",
+    "TableCell",
+    "analyze_layout",
+    "detect_columns",
+    "detect_table",
+    "infer_block_type",
 ]
