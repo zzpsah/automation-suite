@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 from dataclasses import asdict, dataclass
-from typing import Mapping
 
 from .cross_document import CrossDocumentGraph, CrossDocumentRelation
 
@@ -35,8 +34,6 @@ def _relation_id(relation: CrossDocumentRelation) -> str:
 
 def _qualifies(relations: list[CrossDocumentRelation]) -> bool:
     types = {relation.relation_type for relation in relations}
-    # A shared authority/contact alone is too broad for a default cluster.
-    # Require a direct reference, or two independent evidence types.
     return "shared_reference" in types or len(types) >= 2
 
 
@@ -45,17 +42,17 @@ def build_candidate_clusters(
     *,
     min_confidence: float = 0.0,
 ) -> CandidateClusterResult:
-    """Build deterministic connected candidate clusters from cross-document edges.
+    """Build deterministic evidence-based candidate document clusters.
 
-    Clusters are evidence groups, not assertions that documents belong to the same
-    legal case. By default, authority/contact-only edges do not create a cluster;
-    a direct shared reference or multiple independent evidence types are required.
+    A cluster is not a claim of same-case/legal identity. A connected component
+    qualifies when it contains a shared reference or at least two independent
+    cross-document evidence types. Authority/contact-only components are excluded.
     """
     if not 0.0 <= min_confidence <= 1.0:
         raise ValueError("min_confidence must be between 0 and 1")
 
     relations = sorted(
-        (relation for relation in graph.relations if relation.confidence >= min_confidence),
+        (r for r in graph.relations if r.confidence >= min_confidence),
         key=_relation_id,
     )
     parent: dict[str, str] = {}
@@ -76,31 +73,21 @@ def build_candidate_clusters(
     for relation in relations:
         union(relation.source_document_id, relation.target_document_id)
 
-    grouped: dict[str, list[CrossDocumentRelation]] = {}
-    for relation in relations:
-        if not _qualifies([relation]):
-            continue
-        root = find(relation.source_document_id)
-        grouped.setdefault(root, []).append(relation)
-
-    # Rebuild groups after filtering: a valid multi-edge path can qualify even
-    # when an individual edge is only supporting evidence.
-    valid: dict[str, list[CrossDocumentRelation]] = {}
+    groups: dict[str, list[CrossDocumentRelation]] = {}
     for relation in relations:
         root = find(relation.source_document_id)
-        valid.setdefault(root, []).append(relation)
+        groups.setdefault(root, []).append(relation)
 
     clusters: list[CandidateCluster] = []
-    for root, group in sorted(valid.items()):
+    for root, group in sorted(groups.items()):
         if not _qualifies(group):
             continue
-        documents = sorted({d for relation in group for d in (relation.source_document_id, relation.target_document_id)})
-        relation_ids = tuple(sorted(_relation_id(relation) for relation in group))
-        relation_types = tuple(sorted({relation.relation_type for relation in group}))
-        confidence = round(sum(relation.confidence for relation in group) / len(group), 6)
-        cluster_id = "cluster:" + ":".join(documents)
+        documents = sorted({d for r in group for d in (r.source_document_id, r.target_document_id)})
+        relation_ids = tuple(sorted(_relation_id(r) for r in group))
+        relation_types = tuple(sorted({r.relation_type for r in group}))
+        confidence = round(sum(r.confidence for r in group) / len(group), 6)
         clusters.append(CandidateCluster(
-            cluster_id=cluster_id,
+            cluster_id="cluster:" + ":".join(documents),
             document_ids=tuple(documents),
             relation_ids=relation_ids,
             relation_types=relation_types,
@@ -109,9 +96,17 @@ def build_candidate_clusters(
             reason="candidate cluster supported by cross-document evidence",
         ))
 
-    clusters.sort(key=lambda cluster: cluster.cluster_id)
+    clusters.sort(key=lambda c: c.cluster_id)
     return CandidateClusterResult(tuple(clusters))
 
 
 def candidate_clusters_to_dict(result: CandidateClusterResult) -> dict:
-    return {"clusters": [asdict(cluster) for cluster in result.clusters]}
+    """Return JSON-compatible cluster data."""
+    payload = []
+    for cluster in result.clusters:
+        item = asdict(cluster)
+        item["document_ids"] = list(cluster.document_ids)
+        item["relation_ids"] = list(cluster.relation_ids)
+        item["relation_types"] = list(cluster.relation_types)
+        payload.append(item)
+    return {"clusters": payload}
