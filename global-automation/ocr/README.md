@@ -36,6 +36,10 @@ Consumer project
 
 `benchmark.py` provides a lightweight timing/output-size harness for rendered images. It deliberately does not log document text. Backend comparison should use the same labelled corpus and include accuracy/extraction quality in addition to runtime.
 
+## Page diagnostics
+
+`diagnostics.py` provides privacy-safe measurements for each OCR page: output character count, non-whitespace character count, non-empty line count, blank-page detection, and a conservative `likely_weak` flag. Diagnostics never return or log page text. They can be used by consumers to decide whether a page should be retried with another preprocessing profile or backend.
+
 ## Language/domain roadmap
 
 1. Bihar Education
@@ -65,9 +69,9 @@ Never commit API tokens, service-role keys, refresh tokens or storage credential
 ## Future upgrades
 
 - Add real Bihar Education OCR samples with provenance.
-- Add page-level diagnostics and image preprocessing profiles.
 - Add more Bihar authority aliases through language packs.
 - Add document-type taxonomy versioning.
 - Benchmark every backend against the same corpus.
+- Add advanced deskew/rotation only after benchmark evidence.
 - Add structured error diagnostics without exposing document content.
 - Publish a migration note before changing the default backend.
