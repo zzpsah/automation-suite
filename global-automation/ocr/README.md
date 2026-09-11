@@ -11,7 +11,7 @@ This README records the current architecture, implementation state, constraints,
 ## Stable consumer API
 
 ```python
-from ocr import process_file, process_pdf, process_image
+from ocr import process_file, process_pdf, process_image, build_understanding_graph
 
 result = process_file("document.pdf", "/tmp/ocr-work")
 result = process_file("scan.jpg", "/tmp/ocr-work")
@@ -27,78 +27,57 @@ Government Document
 Image / Vision Processing
         ↓
 OCR Backend Adapters
- ├── Tesseract
- ├── PaddleOCR
- └── Future VLM
         ↓
 OCR text + geometry
         ↓
-Region Alignment / Consensus
+Structure + Reading Order + Sections + Tables
         ↓
-Document Structure Intelligence
- ├── explicit blocks
- ├── global reading order
- ├── columns
- ├── headers / footers
- ├── sections / annexures / attachments
- └── explicit table schema
-        ↓
-Multi-page Structure Graph (next)
-        ↓
-Visual Artifact Intelligence
+Multi-page Structure Graph
         ↓
 Layout-preserving Reconstruction
         ↓
-Document Understanding
+Document Understanding Graph
         ↓
 Consumer project
 ```
 
-**Important:** OCR must not simply flatten a government document into a text blob. The target representation is **OCR → geometry → layout blocks → document structure → optimized reading order → structured sections/tables → formatted text/HTML/Markdown/JSON**. Original evidence remains preserved.
+**Evidence rule:** every derived structure or semantic entity is traceable to source OCR geometry/text. Original OCR evidence is never rewritten and the understanding layer does not invent missing facts.
 
-## P14 — Global reading order
+## P17 — Intelligent reconstruction
 
-`reading_order.py` provides `ReadingOrderBlock` and `optimize_reading_order()`.
+P17 consumes structure/graph intelligence to prepare reconstruction-aware document output. Reconstruction must preserve source block IDs and page provenance while handling:
 
-The current optimizer is deterministic and conservative:
+- graph-aware ordering and cross-page continuation
+- section / annexure / attachment boundaries
+- repeated headers and footers as structural metadata
+- detected tables as structured content rather than invented prose
+- source traceability from reconstructed output back to blocks/pages
 
-1. process pages in numeric order
-2. emit detected headers first
-3. order body blocks top-to-bottom within explicit columns
-4. infer visual column bands when columns are not explicitly assigned
-5. emit footers last
-6. use stable geometry/block IDs as tie-breakers
+Reconstruction is presentation intelligence, not a replacement for OCR evidence.
 
-This is a structure/routing heuristic, not semantic or legal truth. Source OCR and page evidence remain unchanged.
+## P18 — Document understanding graph
 
-## P15 — Sections, annexures, attachments and tables
+`document_understanding.py` provides `DocumentUnderstandingGraph`, `UnderstandingEntity`, `UnderstandingRelation` and `build_understanding_graph()`.
 
-`section_intelligence.py` adds explicit boundary signals for clearly marked:
+The current conservative baseline extracts explicitly recognizable:
 
-- sections
-- annexures / appendices
-- attachments / enclosures
+- reference numbers
+- dates
+- email addresses
+- authority markers such as District Education Officer / जिला शिक्षा पदाधिकारी
 
-Detection is intentionally textual and conservative. It reports a `SectionBoundary` with page, source block, marker label and confidence. It does **not** invent a boundary merely because a document appears to change topic.
+When a P16 structure graph is supplied, recognized entities can inherit conservative cross-page `continuation` / `entity_continuity` relations from verified graph edges. Relations retain confidence and evidence block IDs. No semantic relationship is asserted without an upstream structural edge.
 
-`table_schema.py` adds an explicit `StructuredTable` / `StructuredTableCell` representation over already detected OCR cells. It preserves source coordinates and text and supports `row_span` / `column_span` fields for future merged/irregular-cell detection without fabricating missing cells. The current detector remains conservative; the schema is ready for richer geometry-based table recognition.
+Serialization is JSON-safe through `understanding_graph_to_dict()`.
 
-## Layout intelligence
+## Implemented modules
 
-Implemented under `global-automation/ocr/`:
-
-- `region_alignment.py` — geometry-aware OCR span alignment.
-- `region_consensus.py` — region disagreement/consensus diagnostics.
-- `text_reconstruction.py` — line grouping, horizontal spacing and paragraph-aware reconstruction.
-- `layout_intelligence.py` — column detection and conservative table-cell detection.
-- `document_structure.py` — explicit page/block structure and geometry-aware structure model.
-- `reading_order.py` — deterministic global reading-order optimization.
-- `section_intelligence.py` — explicit section/annexure/attachment boundary signals.
-- `table_schema.py` — evidence-preserving structured table representation.
-
-## Multi-page intelligence
-
-`multipage_intelligence.py` provides page count, repeated-header/footer detection and continuation signals. The next structural upgrade is a graph linking sections, entities and continuation blocks across pages. Every original page remains independently addressable.
+- `document_structure.py` — explicit page/block structure.
+- `reading_order.py` — deterministic geometry-aware reading order.
+- `section_intelligence.py` — explicit section/annexure/attachment boundaries.
+- `table_schema.py` — evidence-preserving structured table schema.
+- `structure_graph.py` — adjacent-page continuation and entity-continuity graph.
+- `document_understanding.py` — conservative semantic entities and graph relations.
 
 ## Current implementation state
 
@@ -113,44 +92,36 @@ Implemented foundation:
 - line/region disagreement diagnostics
 - field-aware confidence
 - geometry-aware region alignment
-- layout-preserving reconstruction
+- layout-preserving reconstruction foundation
 - column and conservative table intelligence
 - explicit document structure and global reading order
 - section/annexure/attachment boundary signals
 - explicit structured-table schema with merge-span fields
 - signature/stamp/annotation candidate intelligence
 - multi-page repeated-element intelligence
+- multi-page structure graph
+- document understanding graph baseline
+- regression coverage for understanding-graph behavior
 - separate image-processing benchmark foundation
 - CER/WER benchmark metrics
 - isolated training/improvement workflow
 - DevOS recovery documentation
 
-Not yet release-certified:
-
-- real reviewed corpus at production scale
-- calibrated benchmark results on representative Bihar government documents
-- production-pinned PaddleOCR artifact
-- pixel-level signature/stamp/seal vision model
-- graph-based reading-order optimization beyond the current deterministic heuristic
-- robust merged/irregular table detection
-- full section/annexure/attachment continuity model
-- cross-page entity/section continuity graph
-
 ## Release gates
 
-A change is not considered production-ready merely because code exists. Release validation should cover unit/regression tests, image-processing regression, OCR CER/WER, Hindi + English + Sarkari terminology golden sets, field-level confidence, structure/reading-order/table/section benchmarks, backend comparison, latency/resource checks, artifact version + SHA-256 verification, consumer API compatibility, and source-evidence preservation.
+A change is not considered production-ready merely because code exists. Release validation should cover unit/regression tests, image-processing regression, OCR CER/WER, Hindi + English + Sarkari terminology golden sets, field-level confidence, structure/reading-order/table/section benchmarks, understanding-graph precision/recall on reviewed data, backend comparison, latency/resource checks, artifact version + SHA-256 verification, consumer API compatibility, and source-evidence preservation.
 
 Never report a gate as passed without actual execution or verified CI evidence.
 
 ## Roadmap / next recovery point
 
-1. Build the multi-page structure graph and cross-page entity/section continuity.
+1. Complete graph-aware reconstruction with source-traceable Markdown/HTML/JSON outputs.
 2. Upgrade table detection for merged/irregular cells and explicit row/column geometry.
 3. Upgrade reading order to graph-based global optimization with robust region adjacency and mixed-layout handling.
-4. Add pixel-aware optional vision backend for handwriting/signature/stamp/seal detection while preserving evidence-safe routing semantics.
+4. Expand understanding entities using validated Bihar government terminology and field rules.
 5. Add real reviewed Bihar Education image/PDF corpus with provenance.
-6. Add CER/WER, field-level and structure-level golden benchmarks.
-7. Calibrate backend confidence and release policy.
+6. Add CER/WER, field-level, structure-level and semantic-graph golden benchmarks.
+7. Calibrate confidence and release policy.
 8. Add pinned PaddleOCR production artifact once benchmarked.
 9. Add validated local/open VLM adapter without changing the consumer API.
-10. Expand Bihar and cross-government language packs.
+10. Expand cross-document intelligence only after single-document evidence/understanding gates pass.
