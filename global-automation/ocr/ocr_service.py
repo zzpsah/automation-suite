@@ -1,9 +1,4 @@
-"""Stable, project-agnostic public interface for Global Sarkari OCR.
-
-Consumers should use this module instead of importing internal OCR engine
-functions directly. It intentionally has no storage, database, Telegram, or
-school-specific dependency.
-"""
+"""Stable, project-agnostic public interface for Global Sarkari OCR."""
 from __future__ import annotations
 
 from dataclasses import asdict
@@ -14,23 +9,53 @@ from .ocr_engine import extract_document_text
 from .sarkari_normalizer import extract_metadata
 from .subject_extractor import extract_multiline_subject
 
-OCR_SERVICE_VERSION = "1.1"
+OCR_SERVICE_VERSION = "1.2"
+
+
+def score_metadata_quality(metadata: dict[str, Any], text: str) -> dict[str, Any]:
+    """Score extracted fields by quality/validity, not merely field count."""
+    checks = {}
+    subject = metadata.get("subject")
+    authority = metadata.get("authority")
+    reference = metadata.get("reference_number")
+    date = metadata.get("issue_date")
+    checks["subject"] = bool(subject and 8 <= len(subject.strip()) <= 1200)
+    checks["authority"] = bool(authority and 3 <= len(authority.strip()) <= 300)
+    checks["reference_number"] = bool(reference and 1 <= len(reference.strip()) <= 250)
+    checks["issue_date"] = bool(date and len(date) == 10 and date[4] == "-" and date[7] == "-")
+
+    # A field is stronger when its extracted value can be located in OCR evidence.
+    evidence_text = (text or "").casefold()
+    evidence = {name: bool(value and str(value).casefold() in evidence_text) for name, value in {
+        "subject": subject, "authority": authority, "reference_number": reference, "issue_date": date
+    }.items()}
+    weights = {"subject": 0.30, "authority": 0.30, "reference_number": 0.15, "issue_date": 0.25}
+    total = sum(weights[k] for k in checks if checks[k] and evidence[k])
+    if total >= 0.80:
+        level = "HIGH"
+    elif total >= 0.45:
+        level = "MEDIUM"
+    else:
+        level = "LOW"
+    return {"level": level, "score": round(total, 2), "fields": checks, "evidence": evidence}
 
 
 def process_pdf(pdf_path: str, work_dir: str, *, min_embedded_chars: int = 80) -> dict[str, Any]:
-    """Extract document text and Sarkari metadata from a PDF."""
+    """Extract document text and Sarkari metadata without project dependencies."""
     path = Path(pdf_path)
     if not path.exists():
         raise FileNotFoundError(pdf_path)
     if path.suffix.lower() != ".pdf":
         raise ValueError("process_pdf currently accepts PDF files only")
-
     text, method = extract_document_text(str(path), work_dir, min_embedded_chars=min_embedded_chars)
     metadata = extract_metadata(text)
     result = asdict(metadata)
     subject = extract_multiline_subject(text)
     if subject:
         result["subject"] = subject
+    quality = score_metadata_quality(result, text)
+    result["confidence"] = quality["level"]
+    result["confidence_details"] = quality
     result.update({
         "text": text,
         "extraction_method": method,
