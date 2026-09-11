@@ -10,7 +10,7 @@ permissions:
 
 jobs:
   sync:
-    uses: zzpsah/chatgpt-development-os/.github/workflows/context-sync-contract-smoke.yml@main
+    uses: zzpsah/chatgpt-development-os/.github/workflows/context-sync.yml@main
     with:
       context_directory: .ai
       meaningful_path_patterns: 'src/**,app/**,package.json,.github/workflows/**'
