@@ -1,0 +1,17 @@
+name: DevOS Context Sync Integration Test
+
+on:
+  push:
+    branches:
+      - devos-p10-context-sync-test
+
+permissions:
+  contents: write
+
+jobs:
+  sync:
+    uses: zzpsah/chatgpt-development-os/.github/workflows/context-sync.yml@main
+    with:
+      context_directory: .ai
+    permissions:
+      contents: write
