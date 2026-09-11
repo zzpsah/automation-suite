@@ -17,6 +17,8 @@ from ocr import (
     build_cross_document_graph, build_candidate_clusters,
     build_search_index, DocumentSearchIndex,
     build_reference_timeline, SQLiteSearchStore,
+    SearchFilter, SearchStore, search_with_filter,
+    extract_evidence_relations, check_runtime,
 )
 ```
 
@@ -27,104 +29,74 @@ Government Document → OCR text + geometry → Structure/Sections/Tables
         → Multi-page Structure Graph → Intelligent Reconstruction
         → Document Understanding Graph → Global Search Index
         → Cross-Document Graph → Candidate Clusters → Reference Timeline
-        → Persistent Search Adapter → Consumer project
+        → Persistent Search Contract → Storage Adapter → Consumer project
 ```
 
 **Evidence rule:** derived output retains source block IDs, entity IDs, document IDs and page provenance. Original OCR evidence is never rewritten; reconstruction, search, clustering and cross-document intelligence never invent source content.
 
-## P17 — Intelligent reconstruction
+## P17–P22 foundation
 
-`intelligent_reconstruction.py` provides graph-aware reconstruction while retaining source block IDs and page provenance. Explicit continuation edges are the only cross-page join signal in the baseline.
+P17 intelligent reconstruction, P18 document understanding, P19 cross-document evidence, P20 candidate clustering, global deterministic search, P21 reference timeline and P22 SQLite persistence are implemented with tests and documented recovery boundaries.
 
-## P18 — Document understanding graph
+## P23 — Search contract + metadata filters
 
-`document_understanding.py` provides conservative reference/date/email/authority entities and relations derived only from recognized source text and supplied structure-graph edges.
+`search_contract.py` defines the storage-neutral `SearchStore` protocol and `search_with_filter()` helper. `search_filters.py` provides deterministic filters for document ID, page, block, entity type and minimum score.
 
-## P19 — Cross-document intelligence
+Filters operate on already-ranked `SearchHit` records and never modify source evidence. This keeps database-specific query optimization optional while preserving one consumer-facing contract.
 
-`cross_document.py` accepts multiple P18 graphs keyed by stable document IDs and creates relationships only from exact normalized entity-value matches across different documents.
+## P24 — Explicit document relationship evidence
 
-Supported relationships:
+`evidence_relations.py` extracts only explicit textual markers such as `continuation of`, `supersedes`, and `replaces`. It returns the source block and exact evidence text plus the target reference.
 
-- `shared_reference` — exact normalized reference match.
-- `shared_contact` — exact normalized email match.
-- `shared_authority` — exact normalized authority match.
+These relationships are evidence signals only. They do not automatically establish legal validity, chronology, same-case identity, or authenticity.
 
-P19 does **not** infer same-case identity, chronology, causality, legal supersession, or document relationships from dates alone.
+## P25 — Runtime production health
 
-## P20 — Candidate clustering
+`runtime_health.py` provides side-effect-free startup/readiness diagnostics. Required core dependencies can be enforced while Tesseract/PaddleOCR remain explicitly optional unless a deployment chooses to require them.
 
-`document_clustering.py` converts P19 evidence edges into deterministic **candidate clusters**. A cluster is an evidence group, **not** a claim that documents are the same legal case.
-
-Default safety policy:
-
-- `shared_reference` can establish a candidate cluster.
-- `shared_authority` alone is too broad and does not establish a cluster.
-- multiple independent supporting evidence types can establish a candidate cluster.
-- relation IDs, document IDs, relation types, confidence and evidence count are retained.
-- cluster IDs and ordering are deterministic.
-- serialized cluster arrays are JSON-compatible lists.
-
-## Global Search — reusable platform capability
-
-`search_index.py` is intentionally separate from P20. It provides Unicode/Hindi search, exact entity matching, containment/token overlap, deterministic relevance ordering, configurable limits, page/block/entity provenance, and storage-independent indexing. Normalization is used only for matching and never overwrites source text.
-
-## P21 — Reference timeline
-
-`reference_timeline.py` provides an evidence-only chronological view of explicitly extracted P18 `date` entities. Dates are parsed conservatively into ISO form when unambiguous; unparseable dates are retained at the end rather than discarded. References found in the same source block are attached as supporting entity IDs.
-
-P21 does **not** decide what a date means legally or causally. It does not label a document as issued, superseded, effective, cancelled, or part of a case unless a future layer has explicit source evidence for that relationship.
-
-## P22 — Persistent search adapter
-
-`persistent_search.py` adds a small SQLite persistence layer while keeping the OCR/search core storage-agnostic. `SQLiteSearchStore` persists `SearchDocument` and `SearchEntity` records with deterministic indexed retrieval, upserts, provenance, and JSON-safe export.
-
-SQLite is deliberately the first adapter because it is dependency-light and useful for local/offline deployments. **Supabase/Postgres is a future adapter, not embedded into the OCR core.** External adapters should preserve the same search contract and source provenance.
-
-P22 does not replace the in-memory `DocumentSearchIndex`; it adds persistence for consumers that need recovery across process restarts. Search ranking remains deterministic and evidence-first.
+The health result is structured and JSON-safe, making it suitable for CLI, service readiness, deployment diagnostics and future monitoring without coupling the OCR core to a web framework.
 
 ## Search evolution path
 
 ```text
 P22: SQLite persistent adapter
         ↓
-Supabase/Postgres adapter (same contract)
+P23: SearchStore contract + metadata filters
         ↓
-Metadata + field filters
+P24: Explicit evidence relationships
         ↓
-Cross-document/cluster-aware queries
+P25: Runtime health/readiness
+        ↓
+Supabase/Postgres adapter
+        ↓
+Cluster-aware query/timeline APIs
+        ↓
+Reviewed golden benchmarks
         ↓
 Optional semantic/vector retrieval
-        ↓
-Hybrid keyword + semantic ranking
 ```
 
 ## Implemented modules
 
-- `document_structure.py` — explicit page/block structure.
-- `reading_order.py` — deterministic geometry-aware reading order.
-- `section_intelligence.py` — explicit section/annexure/attachment boundaries.
-- `table_schema.py` — evidence-preserving structured table schema.
-- `structure_graph.py` — adjacent-page continuation and entity-continuity graph.
-- `intelligent_reconstruction.py` — source-traceable graph-aware reconstruction.
-- `document_understanding.py` — conservative semantic entities and graph relations.
-- `search_index.py` — reusable deterministic global document/entity search.
-- `cross_document.py` — conservative exact-match cross-document relations.
-- `document_clustering.py` — conservative candidate document groups from P19 evidence.
-- `reference_timeline.py` — conservative date/reference timeline from P18 entities.
-- `persistent_search.py` — portable SQLite persistence adapter for the search contract.
+- `search_filters.py` — deterministic metadata filtering.
+- `search_contract.py` — storage-neutral persistent search contract.
+- `persistent_search.py` — portable SQLite persistence adapter.
+- `evidence_relations.py` — explicit relationship-marker extraction.
+- `runtime_health.py` — read-only production runtime diagnostics.
 
-## Release status
+## Production gate
 
-P19, P20 candidate clustering, baseline global search, P21 reference timeline, and P22 SQLite persistence have implementation/tests/documentation on the development branch. **Production certification is not claimed** until repository CI and broader structure/semantic/search benchmarks complete successfully.
+The platform is architecturally production-oriented but **not yet production-certified**. Certification requires actual repository CI/full regression execution, verified backend/runtime compatibility, representative Hindi/mixed-language golden data, deployment-specific persistence validation, and operational backup/restore testing.
 
-## Roadmap / recovery notes
+No CI pass, OCR accuracy claim, or production certification is inferred merely from code presence.
 
-1. Verify the full OCR regression suite and CI after the current changes.
-2. Add a Supabase/Postgres adapter using the P22 storage contract without coupling storage into OCR core.
-3. Add structured metadata/field filters to search.
-4. Expand directly evidenced cross-document relationship markers such as “in continuation of” and “supersedes”.
-5. Add reviewed search golden benchmarks for Hindi, mixed-language references, OCR errors and government terminology.
-6. Add cluster-aware timeline/query APIs using P20 + P21 while keeping legal meaning evidence-bound.
-7. Add optional semantic/vector and hybrid retrieval only after deterministic search remains the evidence baseline.
-8. Keep consumer projects thin: consume global OCR/search/cluster/timeline APIs; do not duplicate OCR or search business logic.
+## Recovery checklist
+
+1. Read this README.
+2. Confirm canonical branch `feature/global-ocr-platform` and PR #6.
+3. Inspect latest commit and changed files.
+4. Run the complete OCR/search test suite in the target environment.
+5. Run `check_runtime()` with deployment-required backends enabled.
+6. Validate persistent-store backup/restore before production rollout.
+7. Preserve original source files and all page/block/entity provenance.
+8. Record every material production decision here immediately after implementation.
