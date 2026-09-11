@@ -17,22 +17,17 @@ from .section_intelligence import SectionBoundary, detect_section_boundaries, se
 from .table_schema import StructuredTableCell, StructuredTable, build_table, table_to_dict
 from .structure_graph import StructureNode, StructureEdge, StructureGraph, build_structure_graph, structure_graph_to_dict
 from .document_understanding import UnderstandingEntity, UnderstandingRelation, DocumentUnderstandingGraph, build_understanding_graph, understanding_graph_to_dict
+from .intelligent_reconstruction import ReconstructedBlock, ReconstructedDocument, reconstruct_document, reconstruct_markdown, reconstructed_to_dict
 
 __all__ = [
     "extract_document_text", "extract_embedded_pdf_text", "ocr_image", "ocr_image_detailed", "render_pdf",
-    "process_file", "process_image", "process_pdf",
-    "SarkariMetadata", "extract_metadata", "normalize_sarkari_text",
-    "choose_backend", "choose_from_benchmarks",
-    "FieldConfidence", "score_field", "score_fields",
-    "OCRSpan", "align_regions", "RegionDisagreement", "compare_regions",
-    "ReconstructionLine", "group_lines", "reconstruct_text",
-    "LayoutBlock", "TableCell", "analyze_layout", "detect_columns", "detect_table", "infer_block_type",
-    "VisualArtifact", "detect_visual_artifacts", "summarize_visual_intelligence",
-    "PageStructure", "analyze_pages",
-    "DocumentStructure", "StructureBlock", "build_document_structure", "build_page_structure", "structure_to_dict",
-    "ReadingOrderBlock", "optimize_reading_order",
-    "SectionBoundary", "detect_section_boundaries", "section_boundaries_to_dict",
-    "StructuredTableCell", "StructuredTable", "build_table", "table_to_dict",
-    "StructureNode", "StructureEdge", "StructureGraph", "build_structure_graph", "structure_graph_to_dict",
+    "process_file", "process_image", "process_pdf", "SarkariMetadata", "extract_metadata", "normalize_sarkari_text",
+    "choose_backend", "choose_from_benchmarks", "FieldConfidence", "score_field", "score_fields",
+    "OCRSpan", "align_regions", "RegionDisagreement", "compare_regions", "ReconstructionLine", "group_lines", "reconstruct_text",
+    "LayoutBlock", "TableCell", "analyze_layout", "detect_columns", "detect_table", "infer_block_type", "VisualArtifact", "detect_visual_artifacts", "summarize_visual_intelligence",
+    "PageStructure", "analyze_pages", "DocumentStructure", "StructureBlock", "build_document_structure", "build_page_structure", "structure_to_dict",
+    "ReadingOrderBlock", "optimize_reading_order", "SectionBoundary", "detect_section_boundaries", "section_boundaries_to_dict",
+    "StructuredTableCell", "StructuredTable", "build_table", "table_to_dict", "StructureNode", "StructureEdge", "StructureGraph", "build_structure_graph", "structure_graph_to_dict",
     "UnderstandingEntity", "UnderstandingRelation", "DocumentUnderstandingGraph", "build_understanding_graph", "understanding_graph_to_dict",
+    "ReconstructedBlock", "ReconstructedDocument", "reconstruct_document", "reconstruct_markdown", "reconstructed_to_dict",
 ]
