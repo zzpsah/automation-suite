@@ -21,6 +21,7 @@ from ocr import (
     ClusterSearchQuery, search_clusters,
     extract_evidence_relations, check_runtime,
     build_release_manifest, verify_release_manifest,
+    ArtifactSpec, verify_artifact,
     OCRPlatformError, emit_event, backup_sqlite, restore_sqlite,
     ResourceLimits, OCRConcurrencyGate,
 )
@@ -40,6 +41,8 @@ Government Document → OCR text + geometry → Structure/Sections/Tables
                      Release Manifest + Operations + DR
                                       ↓
                          Resource Safety / Admission Gate
+                                      ↓
+                    Immutable Artifact Verification
 ```
 
 **Evidence rule:** derived output retains source block IDs, entity IDs, document IDs and page provenance. Original OCR evidence is never rewritten; reconstruction, search, clustering and cross-document intelligence never invent source content.
@@ -74,6 +77,12 @@ Backups must be stored separately from the live database and tested periodically
 
 P32 is a safety/admission layer; it does not claim that the OCR service automatically enforces every limit internally yet. Consumer/server integration should apply these checks before expensive processing, with timeout/cancellation integration in the next hardening step.
 
+## P33 — Immutable artifact verification + controlled releases
+
+`artifact_verification.py` adds a dependency-free fail-closed verifier for model/runtime artifacts. Every artifact specification requires an immutable `MAJOR.MINOR.PATCH` version and a 64-character SHA-256 digest; floating versions such as `latest` are rejected. Optional byte-size verification is supported. Missing, modified or size-mismatched artifacts return verification failure.
+
+P33 complements the P29 release manifest: P29 records the release inventory, while P33 verifies an individual external artifact before it is trusted. Model binaries and other large artifacts should remain outside Git where appropriate and be obtained from controlled storage using immutable version + digest metadata. No artifact is considered trusted merely because its filename/version looks correct.
+
 ## Search evolution / production hardening path
 
 ```text
@@ -99,6 +108,7 @@ P34 Full production certification gate
 - `observability.py` — structured, privacy-safe operation events.
 - `backup.py` — SQLite backup, integrity check and atomic restore.
 - `resource_limits.py` — file/page/pixel/text admission limits and fail-fast concurrency gate.
+- `artifact_verification.py` — immutable version + SHA-256 artifact verification.
 
 ## Production gate
 
@@ -114,7 +124,8 @@ No CI pass, OCR accuracy claim, benchmark pass, disaster-recovery certification 
 4. Run the complete OCR/search test suite in the target environment.
 5. Run `check_runtime()` with deployment-required backends enabled.
 6. Verify the release manifest before deployment.
-7. Back up persistent search data and perform an isolated restore drill.
-8. Apply P32 resource limits before expensive OCR work and configure worker concurrency for the deployment.
-9. Preserve original source files and all page/block/entity provenance.
-10. Record every material production decision here immediately after implementation.
+7. Verify every external model/runtime artifact by immutable version + SHA-256 before loading it.
+8. Back up persistent search data and perform an isolated restore drill.
+9. Apply P32 resource limits before expensive OCR work and configure worker concurrency for the deployment.
+10. Preserve original source files and all page/block/entity provenance.
+11. Record every material production decision here immediately after implementation.
