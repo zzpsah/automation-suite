@@ -4,6 +4,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Protocol
 
+from .region_alignment import OCRSpan
+
 
 @dataclass(frozen=True)
 class OCRResult:
@@ -11,6 +13,8 @@ class OCRResult:
     backend: str
     # Backends that expose confidence MUST normalize it to [0, 1].
     confidence: float | None = None
+    # Optional geometry-aware spans; text-only consumers remain compatible.
+    spans: tuple[OCRSpan, ...] = ()
 
 
 class OCRBackend(Protocol):
@@ -30,7 +34,32 @@ class TesseractBackend:
     def extract_image(self, image_path: str, *, language: str = "hin+eng", psm: int = 6) -> OCRResult:
         from .ocr_engine import ocr_image
 
-        return OCRResult(text=ocr_image(image_path, lang=language, psm=psm), backend=self.name)
+        text = ocr_image(image_path, lang=language, psm=psm)
+        spans: list[OCRSpan] = []
+        try:
+            import pytesseract
+            from pytesseract import Output
+            data = pytesseract.image_to_data(image_path, lang=language, config=f"--psm {psm}", output_type=Output.DICT)
+            for i, raw in enumerate(data.get("text", [])):
+                value = str(raw).strip()
+                if not value:
+                    continue
+                try:
+                    conf = float(data["conf"][i]) / 100.0
+                except (KeyError, TypeError, ValueError):
+                    conf = None
+                spans.append(OCRSpan(
+                    text=value,
+                    backend=self.name,
+                    x=float(data["left"][i]),
+                    y=float(data["top"][i]),
+                    width=float(data["width"][i]),
+                    height=float(data["height"][i]),
+                    confidence=max(0.0, min(1.0, conf)) if conf is not None and conf >= 0 else None,
+                ))
+        except (ImportError, RuntimeError, OSError):
+            spans = []
+        return OCRResult(text=text, backend=self.name, spans=tuple(spans))
 
 
 # Factories are used so optional backends are imported only when selected.
