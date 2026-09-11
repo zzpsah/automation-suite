@@ -32,19 +32,7 @@ Government Document → OCR text + geometry → Structure/Sections/Tables
 
 ## P17 — Intelligent reconstruction
 
-`intelligent_reconstruction.py` provides `ReconstructedBlock`, `ReconstructedDocument`, `reconstruct_document()`, `reconstruct_markdown()` and `reconstructed_to_dict()`.
-
-The baseline is deliberately conservative:
-
-- explicit P16 `continuation` edges join cross-page blocks
-- source block IDs are retained as `source_block_ids`
-- page numbers and block types are preserved
-- headers and footers remain structural blocks and are omitted from Markdown presentation
-- headings/section-like blocks can render as Markdown headings without changing their wording
-- table blocks remain untouched rather than being fabricated into cells
-- JSON serialization preserves reconstruction provenance
-
-No reconstruction decision is treated as semantic or legal truth.
+`intelligent_reconstruction.py` provides graph-aware reconstruction while retaining source block IDs and page provenance. Explicit continuation edges are the only cross-page join signal in the baseline.
 
 ## P18 — Document understanding graph
 
@@ -52,29 +40,29 @@ No reconstruction decision is treated as semantic or legal truth.
 
 ## P19 — Cross-document intelligence
 
-`cross_document.py` accepts multiple P18 `DocumentUnderstandingGraph` objects keyed by stable document IDs and creates relationships only from exact normalized entity-value matches across different documents.
+`cross_document.py` accepts multiple P18 graphs keyed by stable document IDs and creates relationships only from exact normalized entity-value matches across different documents.
 
-Supported baseline relationships:
+Supported relationships:
 
-- `shared_reference` — exact normalized reference entity match.
-- `shared_contact` — exact normalized email entity match.
-- `shared_authority` — exact normalized authority entity match.
+- `shared_reference` — exact normalized reference match.
+- `shared_contact` — exact normalized email match.
+- `shared_authority` — exact normalized authority match.
 
-P19 deliberately does **not** infer same-case identity, chronology, causality, legal supersession, or document relationships from dates alone.
+P19 does **not** infer same-case identity, chronology, causality, legal supersession, or document relationships from dates alone.
 
 ## P20 — Candidate clustering
 
-`document_clustering.py` converts P19 evidence edges into deterministic **candidate clusters**. A cluster is an evidence group, **not** a claim that the documents are the same legal case.
+`document_clustering.py` converts P19 evidence edges into deterministic **candidate clusters**. A cluster is an evidence group, **not** a claim that documents are the same legal case.
 
 Default safety policy:
 
-- a `shared_reference` can establish a candidate cluster
-- `shared_authority` alone is too broad and does not establish a cluster
-- multiple independent supporting evidence types can establish a candidate cluster
-- relation IDs, document IDs, relation types, confidence and evidence count are retained
-- cluster ordering and IDs are deterministic
+- `shared_reference` can establish a candidate cluster.
+- `shared_authority` alone is too broad and does not establish a cluster.
+- multiple independent supporting evidence types can establish a candidate cluster.
+- relation IDs, document IDs, relation types, confidence and evidence count are retained.
+- cluster IDs and ordering are deterministic.
 
-This gives consumers a reusable operation such as “find the candidate document group supported by this reference” without embedding case-group logic in School, Telegram or portal projects.
+Consumers can therefore ask for a candidate document group without embedding case-group logic in School, Telegram or portal projects.
 
 ## Global Search — reusable platform capability
 
@@ -87,7 +75,7 @@ The baseline `DocumentSearchIndex` supports:
 - entity containment and token-overlap matching
 - document/block text matching
 - deterministic relevance ordering
-- configurable result limit
+- configurable result limits
 - page/block/entity provenance in every hit
 - storage-independent indexing
 - JSON-compatible serialization helpers
@@ -117,7 +105,7 @@ Optional semantic/vector retrieval
 Hybrid keyword + semantic ranking
 ```
 
-The storage layer is deliberately not coupled to the OCR core. A future project should persist the same search contract rather than inventing a project-specific index format.
+The storage layer is deliberately not coupled to the OCR core. Future projects should persist the same search contract rather than inventing a project-specific index format.
 
 ## Implemented modules
 
@@ -138,10 +126,10 @@ P19, P20 candidate clustering, and the baseline global search contract have impl
 
 ## Roadmap / recovery notes
 
-1. Run and verify the full OCR regression suite and CI after the P19/P20/search changes.
+1. Run and verify the full OCR regression suite and CI after P19/P20/search changes.
 2. Add persistent search adapters without coupling storage into OCR core.
 3. Add structured metadata/field filters to search.
-4. Expand cross-document relationship markers such as “in continuation of” and “supersedes” only when directly evidenced.
+4. Expand directly evidenced cross-document relationship markers such as “in continuation of” and “supersedes”.
 5. Add reviewed search golden benchmarks for Hindi, mixed-language references, OCR errors and government terminology.
 6. Add case/reference timeline intelligence after search and clustering gates.
 7. Add optional semantic/vector and hybrid retrieval only after deterministic search remains the evidence baseline.
