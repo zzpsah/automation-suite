@@ -6,8 +6,6 @@ without changing OCR or consumer code.
 """
 from __future__ import annotations
 
-from dataclasses import asdict
-import json
 import sqlite3
 from typing import Iterable
 
@@ -52,9 +50,18 @@ class SQLiteSearchStore:
         )
         self.connection.commit()
 
-    def upsert_document(self, document: SearchDocument) -> None:
+    @staticmethod
+    def _validate_document(document: SearchDocument) -> None:
         if not document.document_id.strip() or not document.block_id.strip():
             raise ValueError("document_id and block_id must not be empty")
+
+    @staticmethod
+    def _validate_entity(entity: SearchEntity) -> None:
+        if not entity.document_id.strip() or not entity.entity_id.strip():
+            raise ValueError("document_id and entity_id must not be empty")
+
+    def upsert_document(self, document: SearchDocument) -> None:
+        self._validate_document(document)
         self.connection.execute(
             """INSERT INTO search_documents(document_id,page_number,block_id,text)
                VALUES(?,?,?,?)
@@ -65,8 +72,7 @@ class SQLiteSearchStore:
         self.connection.commit()
 
     def upsert_entity(self, entity: SearchEntity) -> None:
-        if not entity.document_id.strip() or not entity.entity_id.strip():
-            raise ValueError("document_id and entity_id must not be empty")
+        self._validate_entity(entity)
         self.connection.execute(
             """INSERT INTO search_entities
                (document_id,entity_id,entity_type,value,page_number,block_id,confidence)
@@ -83,8 +89,7 @@ class SQLiteSearchStore:
     def upsert_many(self, documents: Iterable[SearchDocument] = (), entities: Iterable[SearchEntity] = ()) -> None:
         with self.connection:
             for document in documents:
-                if not document.document_id.strip() or not document.block_id.strip():
-                    raise ValueError("document_id and block_id must not be empty")
+                self._validate_document(document)
                 self.connection.execute(
                     """INSERT INTO search_documents(document_id,page_number,block_id,text)
                        VALUES(?,?,?,?) ON CONFLICT(document_id,page_number,block_id)
@@ -92,8 +97,7 @@ class SQLiteSearchStore:
                     (document.document_id, document.page_number, document.block_id, document.text),
                 )
             for entity in entities:
-                if not entity.document_id.strip() or not entity.entity_id.strip():
-                    raise ValueError("document_id and entity_id must not be empty")
+                self._validate_entity(entity)
                 self.connection.execute(
                     """INSERT INTO search_entities
                        (document_id,entity_id,entity_type,value,page_number,block_id,confidence)
@@ -120,6 +124,8 @@ class SQLiteSearchStore:
         hits: list[SearchHit] = []
         for row in rows:
             value = normalize_query(row["value"])
+            if normalized not in value:
+                continue
             if value == normalized:
                 score, kind = 1.0, "exact_entity"
             else:
@@ -134,6 +140,8 @@ class SQLiteSearchStore:
         ).fetchall()
         for row in text_rows:
             text = normalize_query(row["text"])
+            if normalized not in text:
+                continue
             hits.append(SearchHit(row["document_id"], row["page_number"], row["block_id"],
                                   "exact_text" if text == normalized else "text_contains",
                                   row["text"], 0.90 if text == normalized else 0.82))
