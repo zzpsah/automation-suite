@@ -6,7 +6,7 @@ This component is deliberately independent of any one school, portal, bot, stora
 
 ## DevOS recovery / source of truth
 
-This README records the current architecture, implementation state, constraints, limitations and next steps. **When DevOS resumes work, read this file first, then inspect code/tests and recent commits before continuing.** Material implementation decisions must be documented here or in the nearest subsystem README during the same development sequence.
+This README records the current architecture, implementation state, constraints and next steps. **When DevOS resumes work, read this file first, then inspect code/tests and recent commits before continuing.** Material implementation decisions must be documented here or in the nearest subsystem README during the same development sequence.
 
 ## Stable consumer API
 
@@ -16,6 +16,7 @@ from ocr import (
     reconstruct_document, reconstruct_markdown,
     build_cross_document_graph, build_candidate_clusters,
     build_search_index, DocumentSearchIndex,
+    build_reference_timeline,
 )
 ```
 
@@ -25,10 +26,11 @@ from ocr import (
 Government Document → OCR text + geometry → Structure/Sections/Tables
         → Multi-page Structure Graph → Intelligent Reconstruction
         → Document Understanding Graph → Global Search Index
-        → Cross-Document Graph → Candidate Clusters → Consumer project
+        → Cross-Document Graph → Candidate Clusters → Reference Timeline
+        → Consumer project
 ```
 
-**Evidence rule:** derived output retains source block IDs, entity IDs, document IDs and page provenance. Original OCR evidence is never rewritten; reconstruction, search and cross-document intelligence never invent source content.
+**Evidence rule:** derived output retains source block IDs, entity IDs, document IDs and page provenance. Original OCR evidence is never rewritten; reconstruction, search, clustering and cross-document intelligence never invent source content.
 
 ## P17 — Intelligent reconstruction
 
@@ -61,35 +63,21 @@ Default safety policy:
 - multiple independent supporting evidence types can establish a candidate cluster.
 - relation IDs, document IDs, relation types, confidence and evidence count are retained.
 - cluster IDs and ordering are deterministic.
-
-Consumers can therefore ask for a candidate document group without embedding case-group logic in School, Telegram or portal projects.
+- serialized cluster arrays are JSON-compatible lists.
 
 ## Global Search — reusable platform capability
 
 `search_index.py` is intentionally **separate from P20**. Search is a platform service that every future project can consume.
 
-The baseline `DocumentSearchIndex` supports:
+The baseline `DocumentSearchIndex` supports Unicode/Hindi search, exact entity matching, containment/token overlap, deterministic relevance ordering, configurable limits, page/block/entity provenance, and storage-independent indexing. Normalization is used only for matching and never overwrites source text.
 
-- Unicode/Hindi text search
-- exact entity matching
-- entity containment and token-overlap matching
-- document/block text matching
-- deterministic relevance ordering
-- configurable result limits
-- page/block/entity provenance in every hit
-- storage-independent indexing
-- JSON-compatible serialization helpers
+## P21 — Reference timeline
 
-Example:
+`reference_timeline.py` provides an evidence-only chronological view of explicitly extracted P18 `date` entities. Dates are parsed conservatively into ISO form when unambiguous; unparseable dates are retained at the end rather than discarded. References found in the same source block are attached as supporting entity IDs.
 
-```python
-index = build_search_index(document_graphs, blocks=source_blocks)
-hits = index.search("पत्रांक 123", limit=20)
-```
+P21 does **not** decide what a date means legally or causally. It does not label a document as issued, superseded, effective, cancelled, or part of a case unless a future layer has explicit source evidence for that relationship.
 
-Every `SearchHit` retains `document_id`, `page_number`, `block_id`, match type, matched value, score and optional entity provenance. Normalization is used only for matching and never overwrites source text.
-
-### Search evolution path
+## Search evolution path
 
 ```text
 Current: in-memory deterministic index
@@ -105,8 +93,6 @@ Optional semantic/vector retrieval
 Hybrid keyword + semantic ranking
 ```
 
-The storage layer is deliberately not coupled to the OCR core. Future projects should persist the same search contract rather than inventing a project-specific index format.
-
 ## Implemented modules
 
 - `document_structure.py` — explicit page/block structure.
@@ -119,18 +105,19 @@ The storage layer is deliberately not coupled to the OCR core. Future projects s
 - `search_index.py` — reusable deterministic global document/entity search.
 - `cross_document.py` — conservative exact-match cross-document relations.
 - `document_clustering.py` — conservative candidate document groups from P19 evidence.
+- `reference_timeline.py` — conservative date/reference timeline from P18 entities.
 
 ## Release status
 
-P19, P20 candidate clustering, and the baseline global search contract have implementation/tests/documentation on the development branch. **Production certification is not claimed** until repository CI and broader structure/semantic/search benchmarks complete successfully.
+P19, P20 candidate clustering, baseline global search, and P21 reference timeline have implementation/tests/documentation on the development branch. **Production certification is not claimed** until repository CI and broader structure/semantic/search benchmarks complete successfully.
 
 ## Roadmap / recovery notes
 
-1. Run and verify the full OCR regression suite and CI after P19/P20/search changes.
+1. Verify the full OCR regression suite and CI after the current changes.
 2. Add persistent search adapters without coupling storage into OCR core.
 3. Add structured metadata/field filters to search.
 4. Expand directly evidenced cross-document relationship markers such as “in continuation of” and “supersedes”.
 5. Add reviewed search golden benchmarks for Hindi, mixed-language references, OCR errors and government terminology.
-6. Add case/reference timeline intelligence after search and clustering gates.
+6. Add cluster-aware timeline/query APIs using P20 + P21 while keeping legal meaning evidence-bound.
 7. Add optional semantic/vector and hybrid retrieval only after deterministic search remains the evidence baseline.
-8. Keep consumer projects thin: consume global OCR/search/cluster APIs; do not duplicate OCR or search business logic.
+8. Keep consumer projects thin: consume global OCR/search/cluster/timeline APIs; do not duplicate OCR or search business logic.
