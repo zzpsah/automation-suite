@@ -27,7 +27,15 @@ B2_BUCKET = os.environ.get("B2_BUCKET_NAME", "Education-Dept-Files")
 DEFAULT_B2_ENDPOINT = "https://s3.us-east-005.backblazeb2.com"
 _configured_endpoint = (os.environ.get("B2_S3_ENDPOINT") or "").strip().strip('"').strip("'")
 _parsed_endpoint = urlparse(_configured_endpoint)
-B2_ENDPOINT = _configured_endpoint if _parsed_endpoint.scheme in {"http", "https"} and _parsed_endpoint.netloc else DEFAULT_B2_ENDPOINT
+# Accept only an actual Backblaze S3 endpoint. If the GitHub secret is empty,
+# masked/placeholder text, malformed, or points elsewhere, use our known-good
+# bucket endpoint rather than allowing boto3 to receive an invalid URL.
+if (_parsed_endpoint.scheme in {"http", "https"}
+        and _parsed_endpoint.hostname
+        and _parsed_endpoint.hostname.endswith("backblazeb2.com")):
+    B2_ENDPOINT = _configured_endpoint
+else:
+    B2_ENDPOINT = DEFAULT_B2_ENDPOINT
 HEADERS = {"apikey": SUPABASE_KEY, "Authorization": f"Bearer {SUPABASE_KEY}"}
 
 TAG_MAP = {
@@ -145,8 +153,6 @@ def find_intake_for_document(doc):
     source_message_id = str(doc.get("source_message_id") or "").strip()
     if not source_message_id:
         return []
-    # Only UUID-shaped source_message_id values can be telegram_intake primary keys.
-    # Legacy rows may contain values such as chat_id:message_id; skip those safely.
     try:
         uuid.UUID(source_message_id)
     except ValueError:
@@ -159,7 +165,7 @@ def main():
     rows = db_get("documents?select=id,source_message_id,original_filename,display_filename,subject,short_description,issuing_authority,reference_number,normalized_issue_date,received_at,published_at,category,category_key,publication_status,approved_for_publication&publication_status=eq.Published&approved_for_publication=is.true&order=received_at.desc.nullslast,published_at.desc.nullslast,normalized_issue_date.desc.nullslast&limit=50")
     sent = failed = skipped = 0
     serial_no = 0
-    print(f"B2 endpoint configured: {urlparse(B2_ENDPOINT).netloc}")
+    print(f"B2 endpoint selected: {urlparse(B2_ENDPOINT).hostname}")
     for doc in rows:
         intake = find_intake_for_document(doc)
         if not intake:
