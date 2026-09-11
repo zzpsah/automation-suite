@@ -1,0 +1,6 @@
+[
+  {"case_id":"hindi-authority","query":"जिला शिक्षा पदाधिकारी","expected_document_ids":["doc-hindi-1"],"top_k":5},
+  {"case_id":"mixed-reference","query":"REF-2025/17","expected_document_ids":["doc-mixed-1"],"top_k":5},
+  {"case_id":"government-date","query":"15 March 2025","expected_document_ids":["doc-date-1"],"top_k":5},
+  {"case_id":"term-error-tolerant","query":"education","expected_document_ids":["doc-hindi-1","doc-mixed-1"],"top_k":5}
+]
