@@ -1,0 +1,31 @@
+name: Global Sarkari OCR Tests
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'global-automation/ocr/**'
+      - '.github/workflows/global-sarkari-ocr-tests.yml'
+
+jobs:
+  test:
+    name: OCR engine and metadata tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Install OCR runtime
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y tesseract-ocr tesseract-ocr-hin tesseract-ocr-eng poppler-utils
+
+      - name: Install Python dependencies
+        run: python -m pip install --disable-pip-version-check pytest pypdf
+
+      - name: Verify Hindi and English packs
+        run: |
+          tesseract --list-langs | grep -E '^(hin|eng)$'
+
+      - name: Run tests
+        run: pytest -q global-automation/ocr/tests

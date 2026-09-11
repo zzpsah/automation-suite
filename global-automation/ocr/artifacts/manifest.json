@@ -1,0 +1,5 @@
+{
+  "schema_version": 1,
+  "artifacts": [],
+  "policy": "Every production model/language artifact must be added here with an immutable version, release asset URL, SHA-256, size, license and backend compatibility. Empty means no external model artifact is currently pinned."
+}
