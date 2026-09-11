@@ -1,0 +1,17 @@
+{
+  "name": "Bihar Government District Vocabulary",
+  "version": "0.2.0",
+  "locale": "hi-IN",
+  "districts": {
+    "Araria": ["Araria", "अररिया"], "Arwal": ["Arwal", "अरवल"], "Aurangabad": ["Aurangabad", "औरंगाबाद"], "Banka": ["Banka", "बांका"], "Begusarai": ["Begusarai", "बेगूसराय"], "Bhagalpur": ["Bhagalpur", "भागलपुर"], "Bhojpur": ["Bhojpur", "भोजपुर", "Ara", "आरा"], "Buxar": ["Buxar", "बक्सर"], "Darbhanga": ["Darbhanga", "दरभंगा"], "East Champaran": ["East Champaran", "E. Champaran", "पूर्वी चंपारण", "पूर्वी चम्पारण", "Motihari", "मोतिहारी"], "Gaya": ["Gaya", "Gaya Ji", "गया", "गया जी"], "Gopalganj": ["Gopalganj", "गोपालगंज"], "Jamui": ["Jamui", "जमुई"], "Jehanabad": ["Jehanabad", "जहानाबाद"], "Kaimur": ["Kaimur", "Kaimur (Bhabua)", "कैमूर", "भभुआ", "Bhabua"], "Katihar": ["Katihar", "कटिहार"], "Khagaria": ["Khagaria", "खगड़िया", "खगड़िया"], "Kishanganj": ["Kishanganj", "किशनगंज"], "Lakhisarai": ["Lakhisarai", "लखीसराय"], "Madhepura": ["Madhepura", "मधेपुरा"], "Madhubani": ["Madhubani", "मधुबनी"], "Munger": ["Munger", "मुंगेर"], "Muzaffarpur": ["Muzaffarpur", "मुजफ्फरपुर"], "Nalanda": ["Nalanda", "नालंदा", "नालन्दा"], "Nawada": ["Nawada", "नवादा"], "Patna": ["Patna", "पटना"], "Purnia": ["Purnia", "Purnea", "पूर्णिया", "पूर्णियाँ"], "Rohtas": ["Rohtas", "रोहतास", "Sasaram", "सासाराम"], "Saharsa": ["Saharsa", "सहरसा"], "Samastipur": ["Samastipur", "समस्तीपुर"], "Saran": ["Saran", "सारण", "Chhapra", "छपरा"], "Sheikhpura": ["Sheikhpura", "शेखपुरा", "Shekhpura"], "Sheohar": ["Sheohar", "शिवहर"], "Sitamarhi": ["Sitamarhi", "सीतामढ़ी", "सीतामढ़ी"], "Siwan": ["Siwan", "सिवान"], "Supaul": ["Supaul", "सुपौल"], "Vaishali": ["Vaishali", "वैशाली", "Hajipur", "हाजीपुर"], "West Champaran": ["West Champaran", "W. Champaran", "पश्चिमी चंपारण", "पश्चिमी चम्पारण", "Bettiah", "बेतिया"]
+  },
+  "office_patterns": {
+    "deo": ["जिला शिक्षा पदाधिकारी", "जिला शिक्षा अधिकारी", "District Education Officer", "DEO"],
+    "dpo": ["जिला कार्यक्रम पदाधिकारी", "जिला कार्यक्रम अधिकारी", "District Programme Officer", "District Program Officer", "DPO"],
+    "beo": ["प्रखंड शिक्षा पदाधिकारी", "प्रखण्ड शिक्षा पदाधिकारी", "प्रखंड शिक्षा अधिकारी", "Block Education Officer", "BEO"],
+    "rdd": ["क्षेत्रीय उप शिक्षा निदेशक", "क्षेत्रीय उप शिक्षा निदेशालय", "Regional Deputy Director", "RDD"],
+    "school": ["उच्च माध्यमिक विद्यालय", "उच्चतर माध्यमिक विद्यालय", "माध्यमिक विद्यालय", "मध्य विद्यालय", "प्राथमिक विद्यालय", "विद्यालय"],
+    "school_code": ["UDISE", "UDISE+", "यू-डायस", "यूडाइस", "विद्यालय कोड", "स्कूल कोड"]
+  },
+  "safety": {"do_not_infer_district_from_person_name": true, "do_not_infer_office_from_email_only": true, "preserve_source_text": true}
+}
