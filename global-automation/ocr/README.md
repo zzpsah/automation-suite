@@ -16,7 +16,7 @@ from ocr import (
     reconstruct_document, reconstruct_markdown,
     build_cross_document_graph, build_candidate_clusters,
     build_search_index, DocumentSearchIndex,
-    build_reference_timeline,
+    build_reference_timeline, SQLiteSearchStore,
 )
 ```
 
@@ -27,7 +27,7 @@ Government Document → OCR text + geometry → Structure/Sections/Tables
         → Multi-page Structure Graph → Intelligent Reconstruction
         → Document Understanding Graph → Global Search Index
         → Cross-Document Graph → Candidate Clusters → Reference Timeline
-        → Consumer project
+        → Persistent Search Adapter → Consumer project
 ```
 
 **Evidence rule:** derived output retains source block IDs, entity IDs, document IDs and page provenance. Original OCR evidence is never rewritten; reconstruction, search, clustering and cross-document intelligence never invent source content.
@@ -67,9 +67,7 @@ Default safety policy:
 
 ## Global Search — reusable platform capability
 
-`search_index.py` is intentionally **separate from P20**. Search is a platform service that every future project can consume.
-
-The baseline `DocumentSearchIndex` supports Unicode/Hindi search, exact entity matching, containment/token overlap, deterministic relevance ordering, configurable limits, page/block/entity provenance, and storage-independent indexing. Normalization is used only for matching and never overwrites source text.
+`search_index.py` is intentionally separate from P20. It provides Unicode/Hindi search, exact entity matching, containment/token overlap, deterministic relevance ordering, configurable limits, page/block/entity provenance, and storage-independent indexing. Normalization is used only for matching and never overwrites source text.
 
 ## P21 — Reference timeline
 
@@ -77,12 +75,20 @@ The baseline `DocumentSearchIndex` supports Unicode/Hindi search, exact entity m
 
 P21 does **not** decide what a date means legally or causally. It does not label a document as issued, superseded, effective, cancelled, or part of a case unless a future layer has explicit source evidence for that relationship.
 
+## P22 — Persistent search adapter
+
+`persistent_search.py` adds a small SQLite persistence layer while keeping the OCR/search core storage-agnostic. `SQLiteSearchStore` persists `SearchDocument` and `SearchEntity` records with deterministic indexed retrieval, upserts, provenance, and JSON-safe export.
+
+SQLite is deliberately the first adapter because it is dependency-light and useful for local/offline deployments. **Supabase/Postgres is a future adapter, not embedded into the OCR core.** External adapters should preserve the same search contract and source provenance.
+
+P22 does not replace the in-memory `DocumentSearchIndex`; it adds persistence for consumers that need recovery across process restarts. Search ranking remains deterministic and evidence-first.
+
 ## Search evolution path
 
 ```text
-Current: in-memory deterministic index
+P22: SQLite persistent adapter
         ↓
-Persistent adapter (Supabase/Postgres/SQLite)
+Supabase/Postgres adapter (same contract)
         ↓
 Metadata + field filters
         ↓
@@ -106,15 +112,16 @@ Hybrid keyword + semantic ranking
 - `cross_document.py` — conservative exact-match cross-document relations.
 - `document_clustering.py` — conservative candidate document groups from P19 evidence.
 - `reference_timeline.py` — conservative date/reference timeline from P18 entities.
+- `persistent_search.py` — portable SQLite persistence adapter for the search contract.
 
 ## Release status
 
-P19, P20 candidate clustering, baseline global search, and P21 reference timeline have implementation/tests/documentation on the development branch. **Production certification is not claimed** until repository CI and broader structure/semantic/search benchmarks complete successfully.
+P19, P20 candidate clustering, baseline global search, P21 reference timeline, and P22 SQLite persistence have implementation/tests/documentation on the development branch. **Production certification is not claimed** until repository CI and broader structure/semantic/search benchmarks complete successfully.
 
 ## Roadmap / recovery notes
 
 1. Verify the full OCR regression suite and CI after the current changes.
-2. Add persistent search adapters without coupling storage into OCR core.
+2. Add a Supabase/Postgres adapter using the P22 storage contract without coupling storage into OCR core.
 3. Add structured metadata/field filters to search.
 4. Expand directly evidenced cross-document relationship markers such as “in continuation of” and “supersedes”.
 5. Add reviewed search golden benchmarks for Hindi, mixed-language references, OCR errors and government terminology.
