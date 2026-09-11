@@ -47,8 +47,6 @@ def ocr_image_detailed(image_path: str, lang: str = "hin+eng", psm: int = 6, *, 
     image_quality = analyze_image(image_path)
     with tempfile.TemporaryDirectory(prefix="global-ocr-") as temp_dir:
         candidates = prepare_variants(image_path, temp_dir, strategy=strategy)
-        results = [(score_text(_run_tesseract(image_path, lang=lang, psm=psm)), "original", _run_tesseract(image_path, lang=lang, psm=psm))]
-        # Run each normalized candidate once; selection remains deterministic.
         results = []
         baseline = _run_tesseract(image_path, lang=lang, psm=psm)
         results.append((score_text(baseline), "original", baseline))
