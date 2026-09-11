@@ -3,12 +3,11 @@ from __future__ import annotations
 
 from dataclasses import asdict, dataclass
 from datetime import date
-from typing import Iterable, Mapping
 
 from .document_clustering import CandidateCluster, CandidateClusterResult
 from .reference_timeline import ReferenceTimeline, TimelineEvent
 from .search_contract import SearchStore
-from .search_filters import SearchFilter
+from .search_filters import SearchFilter, filter_hits
 from .search_index import SearchHit
 
 
@@ -67,17 +66,21 @@ def search_clusters(
     selected = [cluster_by_id[cid] for cid in sorted(query.cluster_ids) if cid in cluster_by_id]
     if query.cluster_ids:
         allowed_documents = frozenset(d for cluster in selected for d in cluster.document_ids)
-        effective = search_filter or SearchFilter()
+        base = search_filter or SearchFilter()
         effective = SearchFilter(
-            document_ids=(effective.document_ids & allowed_documents) if effective.document_ids else allowed_documents,
-            page_numbers=effective.page_numbers,
-            block_ids=effective.block_ids,
-            entity_types=effective.entity_types,
-            min_score=effective.min_score,
+            document_ids=(base.document_ids & allowed_documents) if base.document_ids else allowed_documents,
+            page_numbers=base.page_numbers,
+            block_ids=base.block_ids,
+            entity_types=base.entity_types,
+            min_score=base.min_score,
         )
     else:
         effective = search_filter
-    hits = store.search(query.query, limit=query.limit, search_filter=effective)
+    # SearchStore implementations may optimize filters, but the public query
+    # layer stays compatible with the in-memory index by applying filters here.
+    hits = store.search(query.query, limit=query.limit)
+    if effective is not None:
+        hits = filter_hits(hits, effective)
 
     selected_documents = frozenset(d for cluster in selected for d in cluster.document_ids) if query.cluster_ids else None
     events: tuple[TimelineEvent, ...] = ()
