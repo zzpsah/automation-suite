@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from math import hypot
+import math
 from typing import Any
 
 from PIL import Image
@@ -25,14 +25,15 @@ def image_metrics(image: Image.Image) -> dict[str, Any]:
             "dark_pixel_ratio": 0.0,
         }
 
-    mean = _mean([float(p) for p in pixels])
-    variance = _mean([(float(p) - mean) ** 2 for p in pixels])
+    values = [float(p) for p in pixels]
+    mean = _mean(values)
+    variance = _mean([(p - mean) ** 2 for p in values])
     dark_ratio = sum(p < 80 for p in pixels) / len(pixels)
     return {
         "width": gray.width,
         "height": gray.height,
         "mean_luminance": round(mean, 3),
-        "contrast": round(hypot(variance, 0.0) ** 0.5, 3),
+        "contrast": round(math.sqrt(variance), 3),
         "dark_pixel_ratio": round(dark_ratio, 6),
     }
 
