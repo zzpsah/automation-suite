@@ -1,3 +1,4 @@
+import json
 import sys
 from pathlib import Path
 
@@ -26,3 +27,12 @@ def test_does_not_invent_missing_fields():
     assert md.reference_number is None
     assert md.issue_date is None
     assert md.authority is None
+
+
+def test_training_corpus():
+    corpus = Path(__file__).with_name("training_corpus.jsonl")
+    for line in corpus.read_text(encoding="utf-8").splitlines():
+        case = json.loads(line)
+        md = extract_metadata(case["text"])
+        for field, expected in case["expected"].items():
+            assert getattr(md, field) == expected, f"{case['name']}: {field}"
