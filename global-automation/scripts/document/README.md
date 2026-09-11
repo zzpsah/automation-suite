@@ -1,57 +1,42 @@
 # School Document Pipeline
 
-Reusable production documentation for the **UMV Tetahali School Document Pipeline**.
+Production document ingestion, storage, OCR, metadata extraction, publication and monitoring for the UMV Tetahali School Document Pipeline.
 
-> This README documents the production document flow. The separate Global Sarkari OCR project is a reusable OCR dependency and is intentionally documented independently.
+> **Boundary:** this production pipeline currently uses its existing internal Tesseract OCR path. The separate Global Sarkari OCR project is being developed independently and will be integrated later through a stable interface. Do not couple this pipeline to the OCR training project.
 
-## 1. Project
-
-**School:** UCHCH MADHYAMIK VIDALAY, TETAHALI  
-**UDISE:** `10160203806`  
-**Classes:** 9–12  
-**BSEB College Code:** `42369`  
-**GitHub owner:** `zzpsah`
-
-### Main repositories
+## Quick links
 
 - [Automation Suite](https://github.com/zzpsah/automation-suite)
-- [School public/staging site](https://github.com/zzpsah/umv-tetahali-staging)
-- [School main public repository](https://github.com/zzpsah/umv-tetahali)
+- [School staging repository](https://github.com/zzpsah/umv-tetahali-staging)
+- [School Public Document Archive](https://zzpsah.github.io/umv-tetahali-staging/school-document-archive.html)
+- [Global Sarkari OCR — exact repository/branch](https://github.com/zzpsah/automation-suite/tree/feature/global-sarkari-ocr/global-automation/ocr)
+- [Global Sarkari OCR PR #5](https://github.com/zzpsah/automation-suite/pull/5)
 
-### Live school pages
+## School
 
-- [School homepage](https://zzpsah.github.io/umv-tetahali-staging/index.html)
-- [Public Document Archive](https://zzpsah.github.io/umv-tetahali-staging/school-document-archive.html)
-- [Official Documents](https://zzpsah.github.io/umv-tetahali-staging/official-documents.html)
-- [Official Updates](https://zzpsah.github.io/umv-tetahali-staging/official-updates.html)
-- [Notices](https://zzpsah.github.io/umv-tetahali-staging/notices.html)
-- [Private Document Manager](https://zzpsah.github.io/umv-tetahali-staging/private-documents.html)
-- [Secure Document Review](https://zzpsah.github.io/umv-tetahali-staging/document-review.html)
-- [Admin Content](https://zzpsah.github.io/umv-tetahali-staging/admin-content.html)
+**UCHCH MADHYAMIK VIDALAY, TETAHALI**  
+**UDISE:** `10160203806`  
+**Classes:** 9–12  
+**BSEB College Code:** `42369`
 
----
-
-## 2. Production architecture
+## Production architecture
 
 ```text
 Telegram / Drive intake
         |
         v
-Supabase Edge Function / Intake
+Supabase Intake (`telegram_intake`)
         |
         v
-Supabase `telegram_intake`
+Backblaze B2  ---------------- PRIMARY FILE STORAGE
+        |
+        +--------------------> Google Drive -------- BACKUP
         |
         v
-Backblaze B2 -------------- PRIMARY FILE STORAGE
-        |
-        +------------------> Google Drive ----- BACKUP
+SHA-256 verification
         |
         v
-SHA-256 / storage verification
-        |
-        v
-Global Document Processor
+Internal Document Processor
         |
         +--> embedded PDF text when reliable
         |
@@ -60,102 +45,61 @@ Global Document Processor
         v
 Supabase `documents`
         |
+        +--> duplicate detection
+        +--> context-aware filename
+        |
         v
 Publication Worker
         |
         v
-Google Drive public reader permission
+Public Drive permission + URL
         |
         v
 `approved_public_documents`
         |
         v
 Public School Document Archive
+
+Independent monitoring:
+  Pipeline Health + Recovery Diagnostics
 ```
 
-### System responsibilities
+### Responsibilities
 
-| Component | Responsibility |
+| Component | Role |
 |---|---|
 | Telegram | Input/transport only |
-| Supabase | Durable metadata, state, control plane |
+| Supabase | Durable metadata/state/control plane |
 | Backblaze B2 | Primary file storage |
-| Google Drive | Backup and public delivery source |
-| Document Processor | Text extraction, OCR and metadata extraction |
+| Google Drive | Backup + public delivery source |
+| Internal Document Processor | Text extraction, Tesseract OCR, metadata extraction |
 | Publication Worker | Safe automatic publication |
-| GitHub Actions | Processing, retries, scheduled execution and monitoring |
-| Apps Script | Existing legacy Drive pipeline; kept intact |
-| Public archive | Human-facing document listing and downloads |
+| Drive Filename Sync | Human-readable Drive names from Supabase metadata |
+| Health Monitor | Detect structural inconsistencies |
+| Recovery Diagnostics | Identify stale/failed records for recovery |
+| GitHub Actions | Scheduled execution and automation |
+| Existing Apps Script | Legacy Drive pipeline; remains intact |
 
-**There is no Cloudflare R2 in this architecture.** The production storage pair is B2 + Google Drive.
+**No R2 is used.** Storage remains exactly B2 primary + Google Drive backup.
 
----
+## Existing Apps Script
 
-## 3. Original Apps Script pipeline
+The existing Google Apps Script pipeline is **not disabled, deleted or replaced**. Its existing Drive folders and processing remain part of the environment.
 
-The existing Google Apps Script project remains part of the system and is **not disabled, deleted or replaced** by the new pipeline.
+Normal processing does not require human approval. `04_Manual_Review` is reserved for genuine failures or exceptional intervention.
 
-Existing responsibilities include Drive scanning, processing and archive handling. The operational rule is:
+## Telegram → Storage
 
-- `02_Processing` for active processing
-- `03_Published_Archive` for published archive material
-- `04_Manual_Review` only for genuine processing failures requiring intervention
+The new Telegram/Supabase path records incoming documents in `telegram_intake`. The global storage worker then:
 
-Successful documents do not wait for human approval. AI/OCR enrichment is metadata assistance, not an approval gate.
+1. downloads the Telegram file,
+2. calculates SHA-256,
+3. writes B2 as primary,
+4. writes Google Drive as backup,
+5. verifies the stored object,
+6. records storage metadata in Supabase.
 
----
-
-## 4. New Telegram/Supabase intake
-
-Bot:
-
-- **Name:** `UMV Data Input`
-- **Username:** `@UMVInputBot`
-- **Authorized users:** configured in the deployment, never committed as secrets
-
-Important commands include:
-
-`/start` `/help` `/menu` `/text` `/document` `/photo` `/status` `/cancel` `/today` `/count` `/failed` `/search` `/doc` `/health`
-
-Primary intake endpoint:
-
-`https://sxfnrwugsyfypqgfglzc.supabase.co/functions/v1/telegram-input-v2`
-
-The intake function records the incoming item in `telegram_intake`. It does not act as the long-term file store.
-
----
-
-## 5. Storage pipeline
-
-### Primary: Backblaze B2
-
-Bucket:
-
-`Education-Dept-Files`
-
-Canonical S3 endpoint:
-
-`https://s3.us-east-005.backblazeb2.com`
-
-Object naming convention:
-
-```text
-telegram-intake/YYYY-MM-DD/<telegram_intake_id>/<safe_filename>
-```
-
-### Backup: Google Drive
-
-The backup folder is configured through the GitHub secret:
-
-`GOOGLE_DRIVE_BACKUP_FOLDER_ID`
-
-The worker is retry-safe. Existing B2 and Drive objects are reused where possible.
-
-### Integrity
-
-Each stored file receives a SHA-256 checksum. Storage metadata records the checksum, size, B2 key, Drive file ID, storage status and verification state.
-
-Expected successful state:
+Expected successful storage state:
 
 ```text
 telegram_intake.status = Stored
@@ -164,291 +108,222 @@ storage.drive_status   = AVAILABLE
 storage.verified       = true
 ```
 
-Implementation: [`storage_worker.py`](./../storage/storage_worker.py)  
+Implementation: [`storage_worker.py`](../storage/storage_worker.py)  
 Workflow: [`global-storage-worker.yml`](../../../.github/workflows/global-storage-worker.yml)
 
----
-
-## 6. Document processing
-
-The document processor consumes verified stored Telegram files.
-
-Candidate intake states:
-
-- `Stored`
-- `Processing Failed` (retry/recovery path)
-
-Processing sequence:
-
-1. Locate verified B2 object.
-2. Download the file.
-3. Try embedded PDF text extraction.
-4. If embedded text is insufficient, render PDF pages.
-5. Run Hindi + English Tesseract OCR.
-6. Clean and normalize extracted text.
-7. Extract structured metadata.
-8. Insert the durable record into Supabase `documents`.
-9. Mark the intake record as processed.
+## Document processing
 
 Implementation: [`document_processor.py`](./document_processor.py)  
 Workflow: [`global-document-processor.yml`](../../../.github/workflows/global-document-processor.yml)
 
-### Extracted metadata
+Processing sequence:
 
-Typical fields include:
+```text
+Verified B2 object
+      ↓
+Download
+      ↓
+Embedded PDF text
+      ↓ (if insufficient)
+Render PDF
+      ↓
+Tesseract hin+eng
+      ↓
+Clean/normalize
+      ↓
+Subject / authority / reference / date / category
+      ↓
+Checksum duplicate check
+      ↓
+Supabase documents
+```
 
-- subject
-- issuing authority
-- reference number
-- printed issue date
-- normalized issue date
-- short description
-- detailed summary
-- category/category key
-- extraction method
-- extraction confidence
-- full OCR text
-- checksum and storage references
-- publication state
+### Current OCR
 
-### Subject rule
+**Current production OCR = internal Tesseract Hindi + English.**
 
-The public table must contain the **actual short subject**, not the full OCR body. Generic fallbacks such as `Official Letter`, `Document`, or `Letter` should not be used when a meaningful subject can be extracted.
+The Global Sarkari OCR project is deliberately separate. When it becomes sufficiently stable, this pipeline can consume it through a stable API rather than duplicating OCR code.
 
-### Special recognition
+## Context-aware filenames
 
-The processor includes explicit recognition for Bihar education/BSEB material, including Spot Admission terminology and the Bihar School Examination Board authority.
+Every processed document keeps both names:
 
----
+```text
+original_filename = Telegram/source name
+                     ↓
+display_filename  = generated contextual name
+```
 
-## 7. Publication pipeline
+Example:
 
-The publication worker selects completed, safe documents.
+```text
+Spot admission extension letter.pdf
+        ↓
+2026-06-25_बिहार-विद्यालय-परीक्षा-समिति_सत्र-2026-28-के-लिए-स्पॉट-नामांकन.pdf
+```
 
-A normal document is eligible when it is:
+The original filename remains available for audit. The B2 storage key is intentionally stable and is not renamed during this operation.
 
-- `processing_status = Completed`
-- `publication_status = Unpublished`
-- backed by a Drive file
-- not sensitive
-- not duplicate
-- useful
-- extraction confidence is HIGH or MEDIUM
-- has a subject
+Google Drive receives the human-readable `display_filename` through:
 
-A reliably machine-readable issue date is useful metadata but is **not a mandatory publication gate**.
+[`drive_filename_sync.py`](./drive_filename_sync.py)  
+Workflow: [`global-document-drive-sync.yml`](../../../.github/workflows/global-document-drive-sync.yml)
 
-Publication performs these actions:
+## Duplicate protection
 
-1. Obtain a Google OAuth access token from the configured refresh token.
-2. Give the Drive file public reader access.
-3. Store a public Drive download URL.
-4. Set `approved_for_publication = true`.
-5. Set `publication_status = Published`.
-6. Record publication time/reason and increment the public revision.
+The processor uses the stored SHA-256 checksum to detect an already-ingested file. A duplicate is linked to the existing document instead of creating another normal document record.
+
+This prevents repeated Telegram uploads of the exact same file from creating duplicate public archive entries.
+
+## Publication
 
 Implementation: [`publication_worker.py`](./publication_worker.py)  
 Workflow: [`global-document-publication.yml`](../../../.github/workflows/global-document-publication.yml)
 
----
+Normal publication requires a completed, useful, non-sensitive, non-duplicate document with sufficient extraction confidence and a meaningful subject. Publication records its public URL, approval state, timestamp and revision.
 
-## 8. Public archive contract
+## Public archive
 
-The public archive is Hindi-first and displays:
+The school archive is Hindi-first and displays:
 
-| Column | Meaning |
-|---|---|
-| Sr.No. | Serial number in current result order |
-| Letter Type | Derived document type |
-| Issuing Authority | Source office/authority |
-| Issued Date | Original document date |
-| Upload Date | Pipeline receipt/publication timing |
-| Subject | Short actual subject |
-| Download | Public file action |
+```text
+Sr.No. | Letter Type | Issuing Authority | Issued Date | Upload Date | Subject | Download
+```
 
-The archive uses the Supabase view:
+Archive:
 
-`approved_public_documents`
+- [school-document-archive.html](https://github.com/zzpsah/umv-tetahali-staging/blob/main/school-document-archive.html)
+- [document-archive.js](https://github.com/zzpsah/umv-tetahali-staging/blob/main/assets/document-archive.js)
+- [document-archive-config.js](https://github.com/zzpsah/umv-tetahali-staging/blob/main/assets/document-archive-config.js)
 
-The view exposes the public branch only when the document satisfies publication conditions. Failed Telegram documents can be surfaced through their secure review path.
+The table must show a short meaningful subject, never a giant OCR paragraph or generic `Document`/`Letter` fallback when useful metadata exists.
 
-Archive implementation in the school repository:
+## Monitoring and recovery
 
-- [`school-document-archive.html`](https://github.com/zzpsah/umv-tetahali-staging/blob/main/school-document-archive.html)
-- [`document-archive.js`](https://github.com/zzpsah/umv-tetahali-staging/blob/main/assets/document-archive.js)
-- [`document-archive-config.js`](https://github.com/zzpsah/umv-tetahali-staging/blob/main/assets/document-archive-config.js)
+### Health monitor
 
----
+[`pipeline_health.py`](./pipeline_health.py) performs read-only consistency checks across intake and document states.
 
-## 9. Supabase data model
+Workflow: [`global-document-pipeline-health.yml`](../../../.github/workflows/global-document-pipeline-health.yml)
+
+It checks, among other things:
+
+- completed document missing subject,
+- completed document missing Drive backup ID,
+- published document missing approval/public URL,
+- orphaned intake/document relationships.
+
+### Recovery diagnostics
+
+[`pipeline_recovery.py`](./pipeline_recovery.py) identifies stale `Received`, `Stored`, storage-failure and processing-failure records that may be recoverable by the existing workers.
+
+It is deliberately **diagnostic and non-mutating**. It does not silently rewrite production records.
+
+Workflow: [`global-document-recovery.yml`](../../../.github/workflows/global-document-recovery.yml)
+
+## Failure policy
+
+```text
+Storage failure
+      ↓
+Storage retry
+
+Processing failure
+      ↓
+Document processor retry
+
+Publication failure
+      ↓
+Publication retry
+
+Persistent/ambiguous failure
+      ↓
+04_Manual_Review / secure review path
+```
+
+Successful documents do not enter manual approval merely because OCR/AI enrichment was used.
+
+Bad records are retained for audit; they are not physically deleted just because processing failed.
+
+## Supabase data model
 
 ### `telegram_intake`
 
-Intake/control record for Telegram-originated items. It tracks the original message/file, processing status and storage metadata.
-
-Typical lifecycle:
-
-```text
-Received
-   |
-   v
-Stored
-   |
-   v
-Processed
-```
-
-Failure/retry states include:
-
-```text
-Storage Failed
-Storage Partial
-Processing Failed
-```
+Input and storage lifecycle record.
 
 ### `documents`
 
-Durable document metadata and processing record. This is the document system's structured index, not the file store.
+Durable document metadata and processing record.
 
 ### `processing_jobs`
 
-Queue/job tracking for processing operations.
+Processing job/attempt tracking.
 
 ### `approved_public_documents`
 
-Public-facing database view for safe archive listing.
+Safe public-facing view used by the archive.
 
----
-
-## 10. Status model
+## Important status values
 
 ### Processing
 
-```text
-New -> Queued -> Processing -> Completed
-                         \-> Processing Failed
-                         \-> Needs Manual Review
-```
-
-Other supported lifecycle values include `Action Required`, `Reviewed`, `Approved`, `Duplicate`, `Ignored` and `Archived` where applicable.
+`New`, `Queued`, `Processing`, `Needs Manual Review`, `Action Required`, `Reviewed`, `Approved`, `Completed`, `Duplicate`, `Ignored`, `Archived`, `Processing Failed`
 
 ### Publication
 
-```text
-Unpublished -> Published
-             \-> Unpublished by Admin
-             \-> Unavailable
-             \-> Superseded
-```
+`Unpublished`, `Published`, `Unpublished by Admin`, `Unavailable`, `Superseded`
 
 ### Priority
 
 `URGENT`, `HIGH`, `NORMAL`, `LOW`, `IGNORE`
 
-### Forwarding
+## Security
 
-`Not Forwarded`, `Ready to Forward`, `Forwarded`, `Do Not Forward`
+Never commit:
 
----
+```text
+SUPABASE_SERVICE_ROLE_KEY
+TELEGRAM_BOT_TOKEN
+B2_APPLICATION_KEY
+GOOGLE_CLIENT_SECRET
+GOOGLE_REFRESH_TOKEN
+```
 
-## 11. Failure and manual review policy
+They must remain GitHub/Supabase deployment secrets.
 
-`04_Manual_Review` is **not a normal approval queue**.
+Supabase is the metadata/control plane; it is not the file store. Public access should expose only the approved public view/data required by the school archive.
 
-Use manual review when:
-
-- storage cannot be completed
-- OCR/extraction genuinely fails
-- metadata cannot be recovered safely
-- publication fails and requires intervention
-- a duplicate/sensitive/problematic document needs a human decision
-
-Even a failed document should remain visible to the operational system with its failure state and secure review path. Records are not physically deleted just because processing failed.
-
----
-
-## 12. GitHub Actions
+## GitHub Actions
 
 Production workflows:
 
-- [`global-storage-worker.yml`](../../../.github/workflows/global-storage-worker.yml) — Telegram → B2 → Drive
-- [`global-document-processor.yml`](../../../.github/workflows/global-document-processor.yml) — B2 → OCR → Supabase
-- [`global-document-publication.yml`](../../../.github/workflows/global-document-publication.yml) — Supabase → public Drive → archive
-- [`global-system-health.yml`](../../../.github/workflows/global-system-health.yml) — global health checks
+- [`global-storage-worker.yml`](../../../.github/workflows/global-storage-worker.yml)
+- [`global-document-processor.yml`](../../../.github/workflows/global-document-processor.yml)
+- [`global-document-publication.yml`](../../../.github/workflows/global-document-publication.yml)
+- [`global-document-drive-sync.yml`](../../../.github/workflows/global-document-drive-sync.yml)
+- [`global-document-pipeline-health.yml`](../../../.github/workflows/global-document-pipeline-health.yml)
+- [`global-document-recovery.yml`](../../../.github/workflows/global-document-recovery.yml)
+- [`global-system-health.yml`](../../../.github/workflows/global-system-health.yml)
 
-Most production workers support both scheduled execution and manual `workflow_dispatch`. Storage also has a push trigger so a repository change can initiate a run; the scheduled trigger remains as a safety net.
+Actions dashboard: https://github.com/zzpsah/automation-suite/actions
 
-Actions dashboard:
+## Tested baseline
 
-https://github.com/zzpsah/automation-suite/actions
+The test document `Spot admission extension letter.pdf` successfully completed the storage → processing → publication path, including B2 primary storage, Google Drive backup, SHA-256 verification, metadata extraction and public publication.
 
----
+This successful test is the baseline; future changes should preserve this path through regression/end-to-end testing.
 
-## 13. Required GitHub secrets
+## Development boundaries
 
-Never put secret values in source code or README files.
-
-Storage/processing/publication require configured repository secrets including:
-
-```text
-SUPABASE_URL
-SUPABASE_SERVICE_ROLE_KEY
-TELEGRAM_BOT_TOKEN
-B2_KEY_ID
-B2_APPLICATION_KEY
-B2_BUCKET_NAME
-GOOGLE_CLIENT_ID
-GOOGLE_CLIENT_SECRET
-GOOGLE_REFRESH_TOKEN
-GOOGLE_DRIVE_BACKUP_FOLDER_ID
-```
-
-The service-role key, bot token, B2 application key and Google refresh token are confidential.
-
----
-
-## 14. Current tested end-to-end result
-
-The test document **Spot admission extension letter.pdf** completed the complete storage and processing path.
-
-Verified outcomes included:
-
-- Telegram intake recorded
-- B2 primary storage available
-- Google Drive backup available
-- SHA-256 verification successful
-- document processing completed
-- BSEB authority extracted
-- Spot Admission subject recognized
-- publication completed
-- public Drive URL created
-- `approved_public_documents` can expose the published record
-
-This establishes the working baseline for continuing production hardening.
-
----
-
-## 15. Operational rules
-
-1. **Do not disable the existing Apps Script pipeline.**
-2. **Do not add R2 or a third file-storage system.**
-3. **Supabase remains the metadata/control plane.**
-4. **B2 is primary; Google Drive is backup.**
-5. **Telegram is input/transport, not storage.**
-6. **Successful documents do not require human approval.**
-7. **Manual review is reserved for genuine failures or exceptional cases.**
-8. **Never publish sensitive or duplicate records.**
-9. **Do not expose service-role keys, bot tokens, OAuth refresh tokens or B2 application keys.**
-10. **Keep production OCR integration separate from the independently maintained Global Sarkari OCR project.**
-11. **Preserve source provenance and audit information.**
-12. **Prefer safe, explainable metadata extraction over invented metadata.**
-
----
-
-## 16. Related documentation
-
-- [Global Automation Toolkit](../../README.md)
-- [Global Sarkari OCR](../../ocr/README.md) — separate reusable OCR project
-- [Automation Suite root](../../../README.md)
-- [School staging repository](https://github.com/zzpsah/umv-tetahali-staging)
-- [School public repository](https://github.com/zzpsah/umv-tetahali)
+1. Keep the existing Apps Script pipeline intact.
+2. Keep B2 as primary and Google Drive as backup.
+3. Do not introduce R2 into this production architecture.
+4. Keep Telegram as input/transport, not permanent storage.
+5. Do not make successful documents wait for human approval.
+6. Use manual review only for genuine failures or exceptional cases.
+7. Preserve original filenames and source provenance.
+8. Use context-aware display filenames for humans.
+9. Do not publish sensitive or duplicate documents.
+10. Keep Global Sarkari OCR development separate until explicitly integrated.
+11. Prefer safe, explainable metadata extraction over invented metadata.
+12. Preserve auditability and retryability.
