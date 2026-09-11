@@ -1,0 +1,35 @@
+name: Global Storage Worker
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '*/5 * * * *'
+
+concurrency:
+  group: global-storage-worker
+  cancel-in-progress: false
+
+jobs:
+  storage:
+    name: Telegram → B2 → Drive
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Install dependencies
+        run: python -m pip install --disable-pip-version-check boto3 requests
+
+      - name: Process pending Telegram files
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          B2_KEY_ID: ${{ secrets.B2_KEY_ID }}
+          B2_APPLICATION_KEY: ${{ secrets.B2_APPLICATION_KEY }}
+          B2_BUCKET_NAME: ${{ secrets.B2_BUCKET_NAME }}
+          GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
+          GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
+          GOOGLE_REFRESH_TOKEN: ${{ secrets.GOOGLE_REFRESH_TOKEN }}
+          GOOGLE_DRIVE_BACKUP_FOLDER_ID: ${{ secrets.GOOGLE_DRIVE_BACKUP_FOLDER_ID }}
+        run: python global-automation/scripts/storage/storage_worker.py
