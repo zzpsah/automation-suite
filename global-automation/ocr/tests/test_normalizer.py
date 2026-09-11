@@ -16,10 +16,16 @@ def test_bihar_bseb_notice():
     md = extract_metadata(text)
     assert md.authority == "बिहार विद्यालय परीक्षा समिति"
     assert md.reference_number == "123/2026"
-    assert md.issue_date == "25.06.2026"
+    assert md.issue_date == "2026-06-25"
     assert md.subject.startswith("सत्र 2026-28")
     assert md.category == "admission"
     assert md.confidence == "HIGH"
+
+
+def test_authority_alias_is_canonicalized():
+    md = extract_metadata("Bihar School Examination Board\nदिनांक: 01/09/2026")
+    assert md.authority == "बिहार विद्यालय परीक्षा समिति"
+    assert md.issue_date == "2026-09-01"
 
 
 def test_does_not_invent_missing_fields():
