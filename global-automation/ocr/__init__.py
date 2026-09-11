@@ -21,8 +21,12 @@ from .intelligent_reconstruction import ReconstructedBlock, ReconstructedDocumen
 from .cross_document import CrossDocumentRelation, CrossDocumentGraph, build_cross_document_graph, cross_document_graph_to_dict
 from .document_clustering import CandidateCluster, CandidateClusterResult, build_candidate_clusters, candidate_clusters_to_dict
 from .search_index import SearchDocument, SearchEntity, SearchHit, DocumentSearchIndex, build_search_index, normalize_query, search_to_dict
+from .search_filters import SearchFilter, filter_hits, filter_to_dict
+from .search_contract import SearchStore, search_with_filter
 from .reference_timeline import TimelineEvent, ReferenceTimeline, build_reference_timeline, reference_timeline_to_dict
 from .persistent_search import SQLiteSearchStore
+from .evidence_relations import EvidenceRelation, extract_evidence_relations, evidence_relations_to_dict
+from .runtime_health import HealthCheck, RuntimeHealth, check_runtime, runtime_health_to_dict
 
 __all__ = [
     "extract_document_text", "extract_embedded_pdf_text", "ocr_image", "ocr_image_detailed", "render_pdf",
@@ -38,5 +42,8 @@ __all__ = [
     "CrossDocumentRelation", "CrossDocumentGraph", "build_cross_document_graph", "cross_document_graph_to_dict",
     "CandidateCluster", "CandidateClusterResult", "build_candidate_clusters", "candidate_clusters_to_dict",
     "SearchDocument", "SearchEntity", "SearchHit", "DocumentSearchIndex", "build_search_index", "normalize_query", "search_to_dict",
+    "SearchFilter", "filter_hits", "filter_to_dict", "SearchStore", "search_with_filter",
     "TimelineEvent", "ReferenceTimeline", "build_reference_timeline", "reference_timeline_to_dict", "SQLiteSearchStore",
+    "EvidenceRelation", "extract_evidence_relations", "evidence_relations_to_dict",
+    "HealthCheck", "RuntimeHealth", "check_runtime", "runtime_health_to_dict",
 ]
