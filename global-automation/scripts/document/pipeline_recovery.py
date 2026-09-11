@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
-"""Identify safely recoverable School Document Pipeline records.
+"""Detect stale document records and optionally dispatch safe recovery.
 
-This utility is intentionally conservative: it reports stale/failed records and
-never changes documents automatically. The lifecycle resolver classifies the
-observed evidence; existing workers remain responsible for mutations.
+Default mode is read-only. When RECOVERY_DISPATCH=true, only the STORAGE
+recovery action is dispatched automatically. Processing failures remain manual,
+and publication/delivery are not invented or auto-triggered here.
 """
 from __future__ import annotations
 
@@ -38,6 +38,33 @@ def get(path: str):
     return r.json()
 
 
+def dispatch_storage(document_id: str, state: str) -> None:
+    token = os.environ.get("GITHUB_TOKEN")
+    repository = os.environ.get("GITHUB_REPOSITORY")
+    if not token or not repository:
+        raise RuntimeError("GITHUB_TOKEN and GITHUB_REPOSITORY are required for recovery dispatch")
+    response = requests.post(
+        f"https://api.github.com/repos/{repository}/dispatches",
+        headers={
+            "Accept": "application/vnd.github+json",
+            "Authorization": f"Bearer {token}",
+            "X-GitHub-Api-Version": "2022-11-28",
+            "Content-Type": "application/json",
+        },
+        json={
+            "event_type": "document-recovery",
+            "client_payload": {
+                "worker": "storage",
+                "document_id": str(document_id),
+                "state": state,
+            },
+        },
+        timeout=30,
+    )
+    if response.status_code not in (204,):
+        raise RuntimeError(f"GitHub recovery dispatch failed: {response.status_code} {response.text[:500]}")
+
+
 def main() -> int:
     now = datetime.now(timezone.utc)
     cutoff = (now - timedelta(minutes=20)).isoformat()
@@ -53,6 +80,8 @@ def main() -> int:
     docs_by_source = {str(d.get("source_message_id")): d for d in docs if d.get("source_message_id")}
     recoverable = []
     state_counts = Counter()
+    dispatched = 0
+    dispatch_enabled = os.environ.get("RECOVERY_DISPATCH", "false").lower() == "true"
 
     for row in rows:
         doc = docs_by_source.get(str(row.get("id")))
@@ -62,6 +91,10 @@ def main() -> int:
         state_counts[state.state] += 1
         if state.next_action != "none":
             recoverable.append((row["id"], row.get("status"), state.state, state.next_action, state.reason))
+            if dispatch_enabled and state.next_action == "storage":
+                dispatch_storage(str(row["id"]), state.state)
+                dispatched += 1
+                print(f"DISPATCHED id={row['id']} worker=storage state={state.state}")
 
     print("=== SCHOOL DOCUMENT PIPELINE RECOVERY ===")
     print(f"checked_at={now.isoformat()}")
@@ -70,9 +103,10 @@ def main() -> int:
     print(f"status_counts={dict(counts)}")
     print(f"resolved_states={dict(state_counts)}")
     print(f"recoverable={len(recoverable)}")
+    print(f"dispatch_enabled={dispatch_enabled}")
+    print(f"dispatched={dispatched}")
     for rid, status, state, worker, reason in recoverable[:100]:
         print(f"RECOVERABLE id={rid} status={status} state={state} worker={worker} reason={reason}")
-    # Diagnostic only: resolver is read-only and workers own side effects.
     return 0
 
 
