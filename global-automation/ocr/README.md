@@ -2,28 +2,35 @@
 
 **Standalone shared OCR and government-document understanding layer.**
 
-This component is deliberately independent of any one school, portal, bot, storage provider, database, or workflow. The school document pipeline is only one consumer. Future OCR-related projects should reuse this engine instead of copying or forking OCR logic.
+This component is deliberately independent of any one school, portal, bot, storage provider, database, or workflow. The school document pipeline is only one consumer. Future projects reuse this engine instead of copying OCR logic.
 
-## Independence contract
+## Stable consumer API
 
-The OCR package must not require Telegram, Supabase, Backblaze B2, Google Drive, GitHub Actions, or any school/district/portal database. It should work locally/offline once runtime dependencies are installed.
+```python
+from ocr import process_file, process_pdf, process_image
 
-## Stable entry point
+result = process_file("document.pdf", "/tmp/ocr-work")
+result = process_file("scan.jpg", "/tmp/ocr-work")
+```
 
-Use `ocr_service.process_pdf(pdf_path, work_dir)` or `ocr_service.process_file(file_path, work_dir)`. Consumers should not import internal engine/backend modules directly.
+Consumers receive source-preserving full text, ordered page text, diagnostics, metadata, taxonomy and confidence. Backend internals remain private.
 
 ## Core runtime pipeline
 
 ```text
-PDF
+PDF / Image
  ↓
-OCR service
+Input validation
  ↓
-Backend selection
+Image quality analysis
  ↓
-Preprocessing profile
+EXIF orientation + resize + deskew
  ↓
-OCR engine (embedded text → Tesseract fallback)
+Denoise + contrast + sharpen + threshold candidates
+ ↓
+OCR backend
+ ↓
+Candidate quality selection
  ↓
 Correction
  ↓
@@ -31,100 +38,91 @@ Sarkari normalizer + subject extraction
  ↓
 District/office resolver + taxonomy
  ↓
-Page diagnostics
- ↓
-Quality confidence
+Page diagnostics + confidence
  ↓
 Consumer project
 ```
 
+The image layer is deliberately backend-neutral. Tesseract currently performs candidate inference; PaddleOCR and future VLM implementations use the same backend contract.
+
+## Image processing capabilities
+
+- EXIF orientation normalization for phone photos.
+- Conservative small-angle deskew; large rotations are not blindly guessed.
+- Deterministic resize/upscale to a useful OCR resolution while preventing oversized images.
+- Grayscale normalization and autocontrast.
+- Median denoising for scanner/phone noise.
+- Mild sharpening and contrast enhancement.
+- Optional hard-threshold candidate for faded monochrome scans.
+- Multiple-candidate OCR and deterministic selection.
+- Privacy-safe image quality measurements: dimensions, luminance, contrast, dark-pixel ratio and estimated skew.
+- Original images are never overwritten.
+
+Candidate selection is a runtime heuristic, **not** an accuracy claim. Ground-truth CER/WER and field accuracy remain release gates.
+
+## Page preservation
+
+PDF processing keeps ordered page text and privacy-safe page diagnostics. Consumers can identify blank/weak pages and retry or route them to another backend without losing the original evidence.
+
 ## Separate improvement pipeline
 
-Training/improvement is intentionally a separate process:
-
 ```text
-Reviewed OCR pairs
+Production projects
+      ↓ feedback / corrections / errors
+Global OCR Training
+      ├── OCR error mining
+      ├── Hindi improvement
+      ├── Sarkari terminology
+      ├── Bihar vocabulary
+      ├── aliases
+      ├── regression corpus
+      └── benchmark
       ↓
-Corpus collector
+Validated release
       ↓
-Candidate miner
-      ↓
-Evaluation / regression tests
-      ↓
-Training artifacts + report
-      ↓
-Human/code review
-      ↓
-Approved correction or model/backend update
-      ↓
-Benchmark
-      ↓
-Release
+ALL PROJECTS
 ```
 
-The scheduled workflow `.github/workflows/global-ocr-training.yml` builds reviewable artifacts. It **does not directly modify** `correction.py`, language packs, the default backend, or production consumers. This prevents self-training from silently degrading OCR quality.
-
-### What can be learned automatically
-
-- repeated OCR token errors
-- safe spelling/label variants
-- authority and office aliases
-- document-type vocabulary
-- subject extraction patterns
-- preprocessing/backend performance signals
-
-### What should require review before becoming runtime behavior
-
-- new automatic substitutions
-- changes to official names
-- new taxonomy categories
-- changes to confidence thresholds
-- default backend changes
-- model weights or fine-tuning datasets
-
-A future true OCR-model fine-tuning job can consume the same reviewed corpus, but model training remains a separate backend-specific concern. The core service contract stays unchanged.
+Training never runs inside School Document Pipeline and never silently edits production runtime behavior. Model training is backend-specific; the consumer API remains stable.
 
 ## Backend architecture
 
-`backend.py` defines the shared backend contract. Tesseract is the current implementation. Future local/open backends can implement the same `OCRBackend` interface and be registered only after passing tests and benchmarks. The consumer contract does not change when the backend changes.
+```text
+Global OCR Engine
+ ├── Tesseract
+ ├── PaddleOCR
+ └── Future VLM
+```
 
-## Page diagnostics
+Backends are interchangeable implementations, not training systems. A backend is enabled only after contract tests, benchmark validation and explicit version/artifact registration.
 
-`diagnostics.py` provides privacy-safe measurements for each OCR page: output character count, non-whitespace character count, non-empty line count, blank-page detection, and a conservative `likely_weak` flag. Diagnostics never return or log page text. They can be used by consumers to decide whether a page should be retried with another preprocessing profile or backend.
+## Controlled artifacts
 
-## Language/domain roadmap
+Large models and binaries are not committed to Git. Production accepts only explicit artifact versions recorded in `artifacts/manifest.json` and verified by SHA-256. `latest` is rejected by policy and checksum mismatches fail closed.
 
-1. Bihar Education
-2. Bihar Government
-3. Other State Governments
-4. Central Government
-5. Shared cross-government terminology
-
-Reusable terminology belongs in `language_packs/`; project-specific business rules stay outside this package.
-
-## Training / improvement model
-
-This is a **corpus-driven improvement system**, not a claim that the repository has trained a new OCR model. Every confirmed correction becomes a regression case.
+## Training / improvement
 
 `real document → OCR sample → confirmed error → corpus → candidate → review → regression test → benchmark → release`
 
-Never change a test merely to hide a regression.
+The training workflow produces reviewable candidates. It does not automatically change correction rules, language packs, confidence thresholds, backend selection or model weights.
 
 ## Language policy
 
 The normalizer is not a translator. Preserve source wording, normalize only safe variants, use controlled terminology only when supported by source text, and never invent dates, reference numbers, authorities or actions.
 
-## Security
+## Security and separation
 
-Never commit API tokens, service-role keys, refresh tokens or storage credentials. OCR must not make publication/approval decisions. Preserve original OCR evidence in consuming systems; corrected text is a derived representation.
+- No Telegram, Supabase, B2, Google Drive or school database dependency.
+- No secrets or credentials in OCR source/artifacts.
+- Original OCR evidence remains available to consumers.
+- Derived metadata never becomes an approval/publication decision.
+- School Document Pipeline remains a consumer, not an OCR training owner.
 
-## Future upgrades
+## Roadmap
 
-- Add real Bihar Education OCR samples with provenance.
-- Add more Bihar authority aliases through language packs.
-- Add district/block vocabulary through scoped language packs.
-- Add benchmark accuracy labels, not only runtime measurements.
-- Add advanced deskew/rotation only after benchmark evidence.
-- Add backend-specific model-training adapters.
-- Add structured error diagnostics without exposing document content.
-- Publish a migration note before changing the default backend.
+1. Add real reviewed Bihar Education image/PDF corpus with provenance.
+2. Add CER/WER and field-level golden benchmarks.
+3. Add backend-specific confidence calibration.
+4. Add PaddleOCR production artifact once pinned and benchmarked.
+5. Add a validated local/open VLM adapter without changing the consumer API.
+6. Expand Bihar and cross-government language packs.
