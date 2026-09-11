@@ -50,9 +50,9 @@ def test_bihar_district_resolution_preserves_evidence():
 
 
 def test_ambiguous_bihar_districts_are_not_silently_canonicalized():
-    result = find_district("आरा / Ara और भोजपुर")
+    result = find_district("गया / पटना")
     assert result["ambiguous"] is True
-    assert set(result["candidates"]) == {"Bhojpur"}
+    assert set(result["candidates"]) == {"Gaya", "Patna"}
 
 
 def test_resolver_returns_context_without_guessing_from_names():
