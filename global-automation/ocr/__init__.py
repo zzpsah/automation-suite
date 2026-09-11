@@ -12,6 +12,7 @@ from .layout_intelligence import LayoutBlock, TableCell, analyze_layout, detect_
 from .vision_intelligence import VisualArtifact, detect_visual_artifacts, summarize_visual_intelligence
 from .multipage_intelligence import PageStructure, analyze_pages
 from .document_structure import DocumentStructure, StructureBlock, build_document_structure, build_page_structure, structure_to_dict
+from .reading_order import ReadingOrderBlock, optimize_reading_order
 
 __all__ = [
     "extract_document_text", "extract_embedded_pdf_text", "ocr_image", "ocr_image_detailed", "render_pdf",
@@ -25,4 +26,5 @@ __all__ = [
     "VisualArtifact", "detect_visual_artifacts", "summarize_visual_intelligence",
     "PageStructure", "analyze_pages",
     "DocumentStructure", "StructureBlock", "build_document_structure", "build_page_structure", "structure_to_dict",
+    "ReadingOrderBlock", "optimize_reading_order",
 ]
