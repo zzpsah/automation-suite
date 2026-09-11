@@ -1,14 +1,15 @@
 #!/usr/bin/env python3
 """Deliver published PDFs through the dedicated eLettersBot.
 
-Uses the intake row referenced by documents.source_message_id to locate the
-private B2 object. PDF bytes are uploaded directly to Telegram; no storage URL
-is included in the notification.
+Uses the private B2 object referenced by telegram_intake. PDF bytes are
+uploaded directly to Telegram; storage URLs are never exposed.
 """
+import hashlib
 import html
 import io
 import os
 import sys
+import time
 import uuid
 from datetime import datetime, timezone
 from urllib.parse import quote, urlparse
@@ -24,18 +25,7 @@ CONFIGURED_CHAT_IDS = [x.strip() for x in os.environ.get("TELEGRAM_NOTIFICATION_
 B2_KEY_ID = os.environ["B2_KEY_ID"]
 B2_APP_KEY = os.environ["B2_APPLICATION_KEY"]
 B2_BUCKET = os.environ.get("B2_BUCKET_NAME", "Education-Dept-Files")
-DEFAULT_B2_ENDPOINT = "https://s3.us-east-005.backblazeb2.com"
-_configured_endpoint = (os.environ.get("B2_S3_ENDPOINT") or "").strip().strip('"').strip("'")
-_parsed_endpoint = urlparse(_configured_endpoint)
-# Accept only an actual Backblaze S3 endpoint. If the GitHub secret is empty,
-# masked/placeholder text, malformed, or points elsewhere, use our known-good
-# bucket endpoint rather than allowing boto3 to receive an invalid URL.
-if (_parsed_endpoint.scheme in {"http", "https"}
-        and _parsed_endpoint.hostname
-        and _parsed_endpoint.hostname.endswith("backblazeb2.com")):
-    B2_ENDPOINT = _configured_endpoint
-else:
-    B2_ENDPOINT = DEFAULT_B2_ENDPOINT
+B2_ENDPOINT = "https://s3.us-east-005.backblazeb2.com"
 HEADERS = {"apikey": SUPABASE_KEY, "Authorization": f"Bearer {SUPABASE_KEY}"}
 
 TAG_MAP = {
@@ -61,17 +51,47 @@ def db_get(path):
 
 
 def db_insert_audit(payload):
-    r = requests.post(f"{SUPABASE_URL}/rest/v1/document_operations_audit", headers={**HEADERS, "Content-Type": "application/json", "Prefer": "return=minimal"}, json=payload, timeout=30)
+    r = requests.post(
+        f"{SUPABASE_URL}/rest/v1/document_operations_audit",
+        headers={**HEADERS, "Content-Type": "application/json", "Prefer": "return=minimal"},
+        json=payload,
+        timeout=30,
+    )
     r.raise_for_status()
 
 
 def telegram(method, payload=None, files=None):
-    r = requests.post(f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/{method}", data=payload, files=files, timeout=120)
-    r.raise_for_status()
-    data = r.json()
-    if not data.get("ok"):
-        raise RuntimeError(f"Telegram {method}: {data.get('description', 'unknown error')}")
-    return data.get("result")
+    """Telegram API call with bounded retry for transient failures/rate limits."""
+    last_error = None
+    for attempt in range(4):
+        try:
+            r = requests.post(
+                f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/{method}",
+                data=payload,
+                files=files,
+                timeout=120,
+            )
+            if r.status_code == 429:
+                retry_after = 5
+                try:
+                    retry_after = int((r.json().get("parameters") or {}).get("retry_after") or 5)
+                except Exception:
+                    pass
+                time.sleep(min(max(retry_after, 1), 60))
+                continue
+            if r.status_code >= 500:
+                last_error = f"HTTP {r.status_code}"
+                time.sleep(2 ** attempt)
+                continue
+            r.raise_for_status()
+            data = r.json()
+            if not data.get("ok"):
+                raise RuntimeError(f"Telegram {method}: {data.get('description', 'unknown error')}")
+            return data.get("result")
+        except (requests.Timeout, requests.ConnectionError) as exc:
+            last_error = str(exc)
+            time.sleep(2 ** attempt)
+    raise RuntimeError(f"Telegram {method} transient failure: {last_error or 'unknown error'}")
 
 
 def verify_output_bot():
@@ -160,6 +180,16 @@ def find_intake_for_document(doc):
     return db_get("telegram_intake?select=id,telegram_chat_id,metadata&limit=1&id=eq." + quote(source_message_id, safe=""))
 
 
+def expected_sha256(intake):
+    metadata = intake.get("metadata") or {}
+    storage = metadata.get("storage") or {}
+    for key in ("sha256", "checksum_sha256", "checksum"):
+        value = str(storage.get(key) or metadata.get(key) or "").strip().lower()
+        if len(value) == 64 and all(c in "0123456789abcdef" for c in value):
+            return value
+    return None
+
+
 def main():
     verify_output_bot()
     rows = db_get("documents?select=id,source_message_id,original_filename,display_filename,subject,short_description,issuing_authority,reference_number,normalized_issue_date,received_at,published_at,category,category_key,publication_status,approved_for_publication&publication_status=eq.Published&approved_for_publication=is.true&order=received_at.desc.nullslast,published_at.desc.nullslast,normalized_issue_date.desc.nullslast&limit=50")
@@ -172,7 +202,8 @@ def main():
             skipped += 1
             print(f"Skipping document={doc['id']}: no valid telegram_intake linkage")
             continue
-        object_key = ((intake[0].get("metadata") or {}).get("storage") or {}).get("b2_key")
+        intake_row = intake[0]
+        object_key = ((intake_row.get("metadata") or {}).get("storage") or {}).get("b2_key")
         if not object_key:
             skipped += 1
             print(f"Skipping document={doc['id']}: no B2 object key")
@@ -185,9 +216,14 @@ def main():
             continue
         try:
             pdf_data = b2_download(object_key)
+            actual_sha256 = hashlib.sha256(pdf_data).hexdigest()
+            expected = expected_sha256(intake_row)
+            if expected and actual_sha256 != expected:
+                raise RuntimeError(f"B2 checksum mismatch: expected={expected}, actual={actual_sha256}")
+            print(f"B2 PDF verified: bytes={len(pdf_data)} sha256={actual_sha256}")
         except Exception as exc:
             failed += 1
-            print(f"B2 download failed for document={doc['id']}: {exc}")
+            print(f"B2 download/verification failed for document={doc['id']}: {exc}")
             continue
         message = format_message(doc, serial_no)
         filename = doc.get("display_filename") or doc.get("original_filename") or "published-document.pdf"
@@ -202,7 +238,7 @@ def main():
                 db_insert_audit({
                     "document_id": doc["id"], "operation": "telegram_publication_notification", "actor_type": "system",
                     "from_status": {"publication_status": "Published"}, "to_status": {"telegram": "Sent"},
-                    "details": {"chat_id": chat_id, "bot_username": EXPECTED_BOT_USERNAME, "delivery": "private_b2_to_telegram_multipart", "external_link_exposed": False, "sent_at": datetime.now(timezone.utc).isoformat(), "serial_no": serial_no},
+                    "details": {"chat_id": chat_id, "bot_username": EXPECTED_BOT_USERNAME, "delivery": "private_b2_to_telegram_multipart", "external_link_exposed": False, "bytes": len(pdf_data), "sha256": actual_sha256, "sent_at": datetime.now(timezone.utc).isoformat(), "serial_no": serial_no},
                 })
                 sent += 1
                 print(f"Notified @{EXPECTED_BOT_USERNAME} -> {chat_id} for {doc['id']}")
