@@ -1,0 +1,23 @@
+name: Telegram Input Smoke Test
+
+on:
+  workflow_dispatch:
+
+jobs:
+  smoke:
+    name: Telegram Input Gateway
+    runs-on: windows-latest
+    steps:
+      - name: Check gateway
+        shell: pwsh
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+        run: |
+          $url = "$env:SUPABASE_URL/functions/v1/telegram-input-v2"
+          $r = Invoke-RestMethod -Method Get -Uri $url
+          $r | ConvertTo-Json -Depth 5
+          if (-not $r.ok) { throw 'Gateway health check failed.' }
+          if ($r.version -ne 2) { throw "Unexpected gateway version: $($r.version)" }
+          if (-not $r.telegram_configured) { throw 'Telegram token is not configured in Supabase.' }
+          if (-not $r.supabase_configured) { throw 'Supabase credentials are not configured in the Edge Function.' }
+          Write-Host 'Telegram Input Gateway v2 is configured and reachable.'
