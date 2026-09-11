@@ -1,11 +1,10 @@
 from pathlib import Path
 import sys
-ROOT=Path(__file__).resolve().parents[2]
+ROOT=Path(__file__).resolve().parents[1]
 sys.path.insert(0,str(ROOT))
-from govdoc_ocr.backend import available_backends, get_backend
-from govdoc_ocr.government_document import analyze_document
-from govdoc_ocr.search import search_documents
-
+from backend import available_backends, get_backend
+from government_document import analyze_document
+from search import search_documents
 
 def test_tesseract_backend_available():
     assert 'tesseract' in available_backends()
