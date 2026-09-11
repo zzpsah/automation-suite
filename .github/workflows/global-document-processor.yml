@@ -2,6 +2,13 @@ name: Global Document Processor
 
 on:
   workflow_dispatch:
+    inputs:
+      recovery_document_id:
+        description: 'Optional telegram_intake UUID to process exclusively'
+        required: false
+        type: string
+  repository_dispatch:
+    types: [document-recovery]
   push:
     paths:
       - 'global-automation/scripts/document/**'
@@ -36,4 +43,5 @@ jobs:
           B2_KEY_ID: ${{ secrets.B2_KEY_ID }}
           B2_APPLICATION_KEY: ${{ secrets.B2_APPLICATION_KEY }}
           B2_BUCKET_NAME: ${{ secrets.B2_BUCKET_NAME }}
+          RECOVERY_DOCUMENT_ID: ${{ github.event.client_payload.document_id || github.event.inputs.recovery_document_id }}
         run: python global-automation/scripts/document/document_processor.py
