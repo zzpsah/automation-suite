@@ -3,9 +3,8 @@ from __future__ import annotations
 
 import subprocess
 from pathlib import Path
-from typing import Optional
 
-from .sarkari_normalizer import normalize_sarkari_text
+from .correction import correct_ocr_text
 
 
 def extract_embedded_pdf_text(pdf_path: str) -> str:
@@ -13,7 +12,7 @@ def extract_embedded_pdf_text(pdf_path: str) -> str:
     from pypdf import PdfReader
 
     reader = PdfReader(pdf_path)
-    return normalize_sarkari_text("\n".join(page.extract_text() or "" for page in reader.pages))
+    return correct_ocr_text("\n".join(page.extract_text() or "" for page in reader.pages))
 
 
 def tesseract_available() -> bool:
@@ -25,7 +24,7 @@ def tesseract_available() -> bool:
 
 
 def ocr_image(image_path: str, lang: str = "hin+eng", psm: int = 6) -> str:
-    """Run Tesseract and return cleaned OCR text."""
+    """Run Tesseract and return corrected OCR text."""
     if not tesseract_available():
         raise RuntimeError("Tesseract is not installed or unavailable")
     result = subprocess.run(
@@ -35,7 +34,7 @@ def ocr_image(image_path: str, lang: str = "hin+eng", psm: int = 6) -> str:
         text=True,
         encoding="utf-8",
     )
-    return normalize_sarkari_text(result.stdout)
+    return correct_ocr_text(result.stdout)
 
 
 def render_pdf(pdf_path: str, output_dir: str, dpi: int = 250) -> list[str]:
@@ -60,4 +59,4 @@ def extract_document_text(pdf_path: str, work_dir: str, min_embedded_chars: int 
 
     pages = render_pdf(pdf_path, work_dir)
     text = "\n\n".join(ocr_image(page) for page in pages)
-    return normalize_sarkari_text(text), "tesseract-hin+eng"
+    return correct_ocr_text(text), "tesseract-hin+eng"
