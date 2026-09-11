@@ -1,0 +1,20 @@
+{
+  "version": "1.0",
+  "purpose": "Controlled regression matrix for the School Document Pipeline. These are test cases and acceptance criteria; no production data is mutated by this file.",
+  "cases": [
+    {"id":"BSEB-ADMISSION","type":"BSEB admission/spot admission","expected":"BSEB authority; meaningful admission subject; valid date when present; category admission"},
+    {"id":"EDU-DEPT","type":"Education Department letter","expected":"education authority; concise subject; date/reference extracted independently"},
+    {"id":"DEO-DPO","type":"District education office letter","expected":"district/office authority where explicitly present; no authority invented from person names"},
+    {"id":"SCANNED-HINDI","type":"scanned Hindi PDF/image","expected":"Tesseract hin+eng fallback; usable OCR text; confidence reflects quality"},
+    {"id":"DUPLICATE","type":"same file submitted twice","expected":"same SHA-256 detected; second record marked duplicate and not publicly published"},
+    {"id":"FAILED-OCR","type":"unreadable/corrupt input","expected":"processing failure retained; no automatic publication; recovery/manual-review path available"},
+    {"id":"FILENAME","type":"successful metadata extraction","expected":"display_filename is contextual; original_filename remains unchanged for audit"},
+    {"id":"PUBLICATION","type":"safe completed document","expected":"published only after required safety checks; public URL and approval state consistent"}
+  ],
+  "production_rules": [
+    "Never use real student personal data as a test fixture when a synthetic fixture is sufficient.",
+    "Never publish a test document.",
+    "Do not mutate B2 or Google Drive during offline CI tests.",
+    "A failed test must block promotion of the code change, not alter existing production records."
+  ]
+}
