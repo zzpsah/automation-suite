@@ -37,7 +37,7 @@ def ocr_pdf(data,workdir):
     import subprocess
     pdf=Path(workdir)/"input.pdf"; pdf.write_bytes(data); prefix=Path(workdir)/"page"
     subprocess.run(["pdftoppm","-r","250","-jpeg",str(pdf),str(prefix)],check=True,stdout=subprocess.DEVNULL,stderr=subprocess.PIPE,timeout=180)
-    images=sorted(Path(workdir).glob("page-*.jpg"));
+    images=sorted(Path(workdir).glob("page-*.jpg"))
     if not images: raise RuntimeError("PDF rendering produced no pages")
     chunks=[]
     for image in images:
@@ -60,27 +60,91 @@ def normalize_date(value):
     try: return f"{y:04d}-{int(mo):02d}-{int(d):02d}"
     except ValueError: return None
 
-def extract_metadata(text,filename):
-    subject=first_match(text,[r"(?:विषय|subject|sub\.)\s*[:\-–—]?\s*(.+)"])
-    # Official Hindi letters often put the authority in the header rather than an explicit label.
-    authority=first_match(text,[r"(?:प्रेषक|जारीकर्ता|कार्यालय|issuing authority|from)\s*[:\-–—]?\s*(.+)"])
-    if not authority and re.search(r"बिहार\s*विद्यालय\s*परीक्षा\s*समिति",text): authority="बिहार विद्यालय परीक्षा समिति"
-    # Prefer the actual notice topic over a noisy OCR fragment when recognizable.
+def lines(text):
+    return [re.sub(r"\s+"," ",x).strip(" :-–—\t") for x in text.splitlines() if x.strip()]
+
+def extract_labeled_line(ls, labels, max_len=700):
+    label_re="|".join(labels)
+    for i,line in enumerate(ls):
+        m=re.match(rf"^(?:{label_re})\s*[:\-–—]?\s*(.*)$",line,re.I)
+        if m:
+            value=m.group(1).strip(" :-–—\t")
+            if value and len(value)<=max_len: return value
+            if not value and i+1<len(ls) and len(ls[i+1])<=max_len: return ls[i+1]
+    return ""
+
+def extract_authority(ls,text):
+    # Authority labels are often followed by the real office name on the same/next line.
+    value=extract_labeled_line(ls,["प्रेषक","जारीकर्ता","जारी करने वाला कार्यालय","issuing authority","from"],500)
+    if value and not re.search(r"(?:विषय|subject|पत्रांक|दिनांक|reference)",value,re.I): return value
+    # Prefer known Bihar departmental authorities appearing in the header/footer.
+    known=[
+        "बिहार विद्यालय परीक्षा समिति",
+        "बिहार शिक्षा परियोजना परिषद्",
+        "जिला शिक्षा पदाधिकारी",
+        "जिला कार्यक्रम पदाधिकारी",
+        "शिक्षा विभाग, बिहार सरकार",
+    ]
+    for name in known:
+        if re.search(re.escape(name),text,re.I): return name
+    # Look for an office-style line, but reject subject/reference/date prose.
+    for line in ls[:80]:
+        if len(line)>250: continue
+        if re.search(r"(?:विषय|subject|पत्रांक|दिनांक|प्रसंग|के संबंध में|संबंधी आवश्यक)",line,re.I): continue
+        if re.search(r"(?:समिति|परिषद्|परिषद|कार्यालय|पदाधिकारी|विभाग|सरकार|शिक्षा भवन)",line,re.I): return line[:500]
+    return ""
+
+def extract_subject(ls,text):
+    # Subject must be a single labelled field/line, never the entire OCR paragraph.
+    value=extract_labeled_line(ls,["विषय","विषयक","subject","sub\."],1000)
+    if value:
+        value=re.split(r"\s+(?:प्रसंग|दिनांक|पत्रांक|reference|memo)\s*[:\-–—]?",value,maxsplit=1,flags=re.I)[0].strip(" :-–—")
+        return value[:1000]
+    # Strong known document types.
     if re.search(r"स्पॉट\s*नामांकन|Spot\s*Admission",text,re.I):
-        subject="सत्र 2026-28 के लिए इंटरमीडिएट कक्षा में स्पॉट नामांकन (Spot Admission) हेतु तिथि विस्तारित करने के संबंध में सूचना"
-    ref_no=first_match(text,[r"(?:पत्रांक|ज्ञापांक|पत्र\s*संख्या|पत्र\s*सं\.|क्रमांक|reference\s*(?:no|number)|memo\s*no)\s*[:\-–—]?\s*([^\n]+)"])
-    printed=first_match(text,[r"(\d{1,2}[./-]\d{1,2}[./-]\d{2,4})",r"(\d{1,2}\s+(?:जनवरी|फरवरी|मार्च|अप्रैल|मई|जून|जुलाई|अगस्त|सितंबर|अक्टूबर|नवंबर|दिसंबर)\s+\d{4})",r"(\d{1,2}\s+(?:January|February|March|April|May|June|July|August|September|October|November|December)\s+\d{4})"])
+        return "सत्र 2026-28 के लिए इंटरमीडिएट कक्षा में स्पॉट नामांकन (Spot Admission) हेतु तिथि विस्तारित करने के संबंध में सूचना"
+    # Fallback: a reasonably short line containing a topic marker.
+    for line in ls:
+        if 15<=len(line)<=220 and re.search(r"(?:संबंध में|के संबंध में|हेतु|बारे में|सूचना|आवश्यकता)",line,re.I):
+            if not re.search(r"^(?:प्रेषक|जारीकर्ता|पत्रांक|दिनांक)",line,re.I): return line[:1000]
+    return ""
+
+def extract_reference(ls):
+    value=extract_labeled_line(ls,["पत्रांक","ज्ञापांक","पत्र संख्या","पत्र सं\.","क्रमांक","reference no","reference number","memo no"],250)
+    if value:
+        value=re.split(r"\s+(?:दिनांक|date)\s*[:\-–—]?",value,maxsplit=1,flags=re.I)[0].strip()
+        return value[:250]
+    return ""
+
+def extract_date(ls,text):
+    # Prefer an explicitly labelled date; otherwise use the first date in the header.
+    value=extract_labeled_line(ls,["दिनांक","दिनांक :","date"],100)
+    m=re.search(r"\b(\d{1,2}[./-]\d{1,2}[./-]\d{2,4})\b",value)
+    if m: return m.group(1)
+    m=re.search(r"\b(\d{1,2}[./-]\d{1,2}[./-]\d{2,4})\b",text)
+    return m.group(1) if m else ""
+
+def extract_metadata(text,filename):
+    ls=lines(text)
+    subject=extract_subject(ls,text)
+    authority=extract_authority(ls,text)
+    ref_no=extract_reference(ls)
+    printed=extract_date(ls,text)
+    normalized=normalize_date(printed)
     if not subject:
-        for line in text.splitlines():
-            line=line.strip()
-            if 12<=len(line)<=180 and not re.fullmatch(r"[\d\W]+",line): subject=line; break
-    short=subject or filename or "दस्तावेज़"
-    detailed=f"यह दस्तावेज़ {filename} के रूप में प्राप्त हुआ। "+(f"विषय: {subject}. " if subject else "विषय स्वतः निर्धारित नहीं हो सका। ")+(f"जारीकर्ता: {authority}. " if authority else "जारीकर्ता स्वतः निर्धारित नहीं हो सका। ")+(f"जारी तिथि: {printed}. " if printed else "जारी तिथि स्वतः निर्धारित नहीं हो सकी। ")+"OCR/पाठ निष्कर्षण के आधार पर विवरण तैयार किया गया है।"
+        subject=filename or "दस्तावेज़"
+    short=subject
+    detailed=(f"यह दस्तावेज़ {filename} के रूप में प्राप्त हुआ। "
+              +(f"विषय: {subject}. " if subject else "विषय स्वतः निर्धारित नहीं हो सका। ")
+              +(f"जारीकर्ता: {authority}. " if authority else "जारीकर्ता स्वतः निर्धारित नहीं हो सका। ")
+              +(f"जारी तिथि: {printed}. " if printed else "जारी तिथि स्वतः निर्धारित नहीं हो सकी। ")
+              +"OCR/पाठ निष्कर्षण के आधार पर विवरण तैयार किया गया है।")
     category_key="other"
     if re.search(r"स्पॉट\s*नामांकन|नामांकन|admission|OFSS",text,re.I): category_key="admission"
     elif re.search(r"बिहार\s*विद्यालय\s*परीक्षा\s*समिति|BSEB",text,re.I): category_key="bseb"
     category="Admission" if category_key=="admission" else ("BSEB" if category_key=="bseb" else "Other")
-    return subject[:1000],authority[:500],ref_no[:250],printed,normalize_date(printed),short[:500],detailed[:4000],category_key,category
+    confidence="HIGH" if subject and (printed or authority) else "MEDIUM"
+    return subject[:1000],authority[:500],ref_no[:250],printed,normalized,short[:500],detailed[:4000],category_key,category,confidence
 
 def process(row):
     rid=row["id"]; metadata=row.get("metadata") or {}; storage=metadata.get("storage") or {}; key=storage.get("b2_key")
@@ -94,10 +158,10 @@ def process(row):
         text=embedded_pdf_text(data); method="Embedded PDF text"
         if len(re.sub(r"\s+","",text))<80: text=ocr_pdf(data,workdir); method="Tesseract OCR (Hindi+English)"
     if not text: raise RuntimeError("No text could be extracted from PDF")
-    subject,authority,ref_no,printed,normalized,short,detailed,category_key,category=extract_metadata(text,row.get("file_name") or "document")
+    subject,authority,ref_no,printed,normalized,short,detailed,category_key,category,confidence=extract_metadata(text,row.get("file_name") or "document")
     payload={
       "id":str(uuid.uuid4()),"source_app":"UMVInputBot","source_location":"Telegram","source_message_id":str(rid),"original_filename":row.get("file_name"),"display_filename":row.get("file_name"),"mime_type":row.get("mime_type"),"file_size":len(data),"file_checksum":storage.get("sha256"),"private_drive_file_id":storage.get("drive_file_id"),"private_drive_url":(f"https://drive.google.com/file/d/{storage.get('drive_file_id')}/view" if storage.get("drive_file_id") else None),"public_file_url":"",
-      "reference_number":ref_no or None,"issue_date_as_printed":printed or None,"normalized_issue_date":normalized,"received_at":row.get("received_at"),"issuing_authority":authority or None,"subject":subject or None,"short_description":short,"detailed_summary":detailed,"category":category,"subcategory":None,"priority":"NORMAL","required_action":"None","deadline_as_printed":None,"normalized_deadline":None,"affected_entities":[],"financial_amount":None,"full_text_ocr":text,"extraction_method":method,"extraction_confidence":"HIGH" if subject and printed else "MEDIUM","sensitive":False,"useful":True,"duplicate":False,"duplicate_reason":None,"processing_status":"Completed","forwarding_status":"Not Forwarded","approved_for_publication":False,"category_key":category_key,"category_source":"rule","category_confidence":"HIGH" if category_key!="other" else "LOW","ai_suggestion_status":"Not Requested","publication_status":"Unpublished","publication_reason":"Awaiting publication workflow","public_revision":0
+      "reference_number":ref_no or None,"issue_date_as_printed":printed or None,"normalized_issue_date":normalized,"received_at":row.get("received_at"),"issuing_authority":authority or None,"subject":subject or None,"short_description":short,"detailed_summary":detailed,"category":category,"subcategory":None,"priority":"NORMAL","required_action":"None","deadline_as_printed":None,"normalized_deadline":None,"affected_entities":[],"financial_amount":None,"full_text_ocr":text,"extraction_method":method,"extraction_confidence":confidence,"sensitive":False,"useful":True,"duplicate":False,"duplicate_reason":None,"processing_status":"Completed","forwarding_status":"Not Forwarded","approved_for_publication":False,"category_key":category_key,"category_source":"rule","category_confidence":"HIGH" if category_key!="other" else "LOW","ai_suggestion_status":"Not Requested","publication_status":"Unpublished","publication_reason":"Awaiting publication workflow","public_revision":0
     }
     created=db_insert(payload); actual_id=created.get("id",payload["id"])
     db_patch("telegram_intake",rid,{"status":"Processed","metadata":{**metadata,"document_id":actual_id,"processed_at":datetime.now(timezone.utc).isoformat()}})
