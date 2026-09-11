@@ -2,6 +2,8 @@ name: Global Storage Worker
 
 on:
   workflow_dispatch:
+  repository_dispatch:
+    types: [document-recovery]
   push:
     branches:
       - main
@@ -38,4 +40,5 @@ jobs:
           GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
           GOOGLE_REFRESH_TOKEN: ${{ secrets.GOOGLE_REFRESH_TOKEN }}
           GOOGLE_DRIVE_BACKUP_FOLDER_ID: ${{ secrets.GOOGLE_DRIVE_BACKUP_FOLDER_ID }}
+          RECOVERY_DOCUMENT_ID: ${{ github.event.client_payload.document_id || '' }}
         run: python global-automation/scripts/storage/storage_worker.py
