@@ -2,6 +2,12 @@ name: Global Storage Worker
 
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - '.github/workflows/global-storage-worker.yml'
+      - 'global-automation/scripts/storage/**'
   schedule:
     - cron: '*/5 * * * *'
 
