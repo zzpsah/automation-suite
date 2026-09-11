@@ -13,9 +13,18 @@ Reusable OCR and document-understanding layer for Indian government documents. T
 4. `correction.py` applies conservative whitespace, label, and date-format corrections.
 5. `sarkari_normalizer.py` extracts metadata and canonicalizes known authority/date values.
 6. `subject_extractor.py` handles multi-line subjects and stops at common administrative/footer labels.
-7. `ocr_service.py` returns text, metadata, method, filename, and service version.
+7. `ocr_service.py` calculates evidence-backed metadata quality and returns text, metadata, method, filename, and service version.
 
 Storage/intake/publication systems remain outside this package.
+
+## Quality scoring
+Confidence is now quality-based rather than a simple count of populated fields. Each core field is checked for basic validity and whether its extracted value is present in the OCR evidence. The current weights are subject 30%, authority 30%, reference 15%, and issue date 25%.
+
+- `HIGH`: score >= 0.80
+- `MEDIUM`: score >= 0.45
+- `LOW`: score < 0.45
+
+This score is an extraction-quality signal only. It is not an approval or publication decision. Future versions may add field-specific validators without changing the public contract.
 
 ## Design principles
 - Never invent a missing field.
@@ -31,21 +40,6 @@ Storage/intake/publication systems remain outside this package.
 ## Training / improvement strategy
 This project is rule-and-corpus driven rather than claiming model training from a small local dataset. Improvement happens through a growing labelled corpus of real document text and expected metadata.
 
-### Corpus fields
-Each JSONL case should contain `name`, `text`, and `expected` fields.
-
-### Error buckets
-- Devanagari character substitutions
-- मात्रा/हलन्त errors
-- broken words and spacing
-- `विषय`, `पत्रांक`, `ज्ञापांक`, `दिनांक` label variants
-- dates in `dd.mm.yyyy`, `dd/mm/yyyy`, `dd-mm-yyyy`
-- Hindi/English mixed headers
-- authority spelling variants (`परिषद` / `परिषद्`)
-- scanned stamps/signatures/noise
-- multi-line subjects
-- footer/copy-to text accidentally captured as subject
-
 ### Upgrade loop
 `real document → OCR sample → identify error → add correction/extractor → add regression case → CI → benchmark → release`
 
@@ -58,14 +52,7 @@ from ocr.ocr_service import process_file
 result = process_file("document.pdf", "work")
 ```
 
-The result includes `text`, `subject`, `authority`, `reference_number`, `issue_date`, `office`, `department`, `category`, `confidence`, `extraction_method`, `filename`, and `ocr_service_version`. Missing values remain `None`.
-
-## Language-pack roadmap
-1. Bihar Education — current
-2. Bihar Government — departments, districts, common offices
-3. Other State Governments — state-specific packs
-4. Central Government — ministries, departments, common office terminology
-5. Cross-government common entities and document types
+The result includes `text`, `subject`, `authority`, `reference_number`, `issue_date`, `office`, `department`, `category`, `confidence`, `confidence_details`, `extraction_method`, `filename`, and `ocr_service_version`. Missing values remain `None`.
 
 ## Future OCR backends
 Tesseract is the current free baseline and must remain supported. Future backends may include PaddleOCR, OCR-VL models, or another local/open model. New backends should implement the same text-extraction contract and be evaluated against the corpus before becoming the default.
@@ -89,9 +76,9 @@ Tesseract is the current free baseline and must remain supported. Future backend
 - [x] Authority alias normalization baseline.
 - [x] Multi-line subject extraction baseline.
 - [x] Shared correction layer.
+- [x] Quality-based confidence baseline.
 - [ ] Add real Bihar Education OCR samples with provenance.
 - [ ] Add page-level OCR diagnostics.
-- [ ] Improve confidence scoring based on field quality, not only field count.
 - [ ] Add pluggable OCR backend interface.
 - [ ] Add document-type taxonomy versioning.
 - [ ] Benchmark every backend against the same corpus.
