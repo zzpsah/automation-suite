@@ -1,0 +1,29 @@
+name: Global Document Pipeline Health
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '*/10 * * * *'
+  push:
+    paths:
+      - 'global-automation/scripts/document/pipeline_health.py'
+      - '.github/workflows/global-document-pipeline-health.yml'
+
+concurrency:
+  group: global-document-pipeline-health
+  cancel-in-progress: true
+
+jobs:
+  health:
+    name: Check pipeline consistency
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+      - name: Install dependencies
+        run: python -m pip install --disable-pip-version-check requests
+      - name: Run read-only health checks
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: python global-automation/scripts/document/pipeline_health.py
