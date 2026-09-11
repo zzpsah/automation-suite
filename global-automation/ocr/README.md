@@ -35,20 +35,19 @@ OCR text + geometry
         ↓
 Region Alignment / Consensus
         ↓
-Layout Intelligence
- ├── lines
+Document Structure Intelligence
+ ├── explicit blocks
+ ├── reading order
  ├── columns
  ├── headers / footers
- └── table-like structures
+ ├── tables
+ ├── sections / annexures (planned)
+ └── cross-page continuity (planned)
         ↓
 Visual Artifact Intelligence
  ├── signature candidates
  ├── stamp / seal candidates
  └── annotation candidates
-        ↓
-Multi-page Intelligence
- ├── repeated headers / footers
- └── continuation signals
         ↓
 Layout-preserving Reconstruction
         ↓
@@ -62,6 +61,22 @@ Consumer project
 ```
 
 **Important:** OCR must not simply flatten a government document into a text blob. The target representation is **OCR → geometry → layout blocks → document structure → formatted text/HTML/Markdown/JSON**. Original evidence remains preserved.
+
+## Document structure intelligence
+
+Implemented baseline in `document_structure.py`:
+
+- explicit `DocumentStructure` and `StructureBlock` models
+- deterministic page ordering
+- page-level block generation from geometry-aware OCR spans
+- column-aware block ordering
+- conservative table recognition integration
+- structural block labels such as header/footer/body/heading-or-label
+- JSON-safe serialization through `structure_to_dict()`
+
+The structure model is intentionally evidence-preserving. It records what the layout engine inferred and its confidence; it does not rewrite OCR evidence or invent missing cells.
+
+Current limitation: the baseline column detector and table detector are heuristic. High-fidelity reading-order optimization, merged cells, irregular tables, nested sections and annexure boundaries remain planned.
 
 ## Core runtime pipeline
 
@@ -116,8 +131,7 @@ Implemented under `global-automation/ocr/`:
 - `region_consensus.py` — region disagreement/consensus diagnostics.
 - `text_reconstruction.py` — line grouping, horizontal spacing and paragraph-aware reconstruction.
 - `layout_intelligence.py` — column detection, conservative table-cell detection and structural block labels.
-
-The reconstruction layer preserves visual ordering and spacing where geometry is available. It is not yet a pixel-perfect renderer and does not silently invent missing cells/content.
+- `document_structure.py` — explicit page/block structure and deterministic reading order.
 
 ## Visual artifact intelligence
 
@@ -217,6 +231,7 @@ Implemented foundation:
 - geometry-aware region alignment
 - layout-preserving reconstruction
 - column and conservative table intelligence
+- explicit document structure model and reading order
 - signature/stamp/annotation candidate intelligence
 - multi-page repeated-element intelligence
 - separate image-processing benchmark foundation
@@ -233,6 +248,7 @@ Not yet release-certified:
 - full multi-column reading-order optimizer
 - high-fidelity table reconstruction
 - section/annexure/attachment boundary model
+- cross-page entity/section continuity graph
 
 ## Release gates
 
@@ -243,22 +259,24 @@ A change is not considered production-ready merely because code exists. Release 
 3. OCR CER/WER benchmark
 4. Hindi + English + Sarkari terminology golden set
 5. field-level confidence benchmark
-6. backend comparison where applicable
-7. latency/resource checks
-8. artifact version + SHA-256 verification
-9. consumer API compatibility
-10. source-evidence preservation
+6. structure-level benchmark
+7. backend comparison where applicable
+8. latency/resource checks
+9. artifact version + SHA-256 verification
+10. consumer API compatibility
+11. source-evidence preservation
 
 Never report a gate as passed without actual execution or verified CI evidence.
 
 ## Roadmap / next recovery point
 
-1. Build **true document structure intelligence**: explicit blocks, multi-column reading order, tables, headers/footers, sections and annexures.
-2. Add pixel-aware optional vision backend for handwriting/signature/stamp/seal detection while preserving evidence-safe routing semantics.
+1. Upgrade structure intelligence to a **global reading-order optimizer** with robust multi-column and mixed-layout handling.
+2. Add explicit section, annexure, attachment and table schemas including merged/irregular cells.
 3. Add multi-page structure graph and cross-page entity continuity.
-4. Add real reviewed Bihar Education image/PDF corpus with provenance.
-5. Add CER/WER, field-level and structure-level golden benchmarks.
-6. Calibrate backend confidence and release policy.
-7. Add pinned PaddleOCR production artifact once benchmarked.
-8. Add validated local/open VLM adapter without changing the consumer API.
-9. Expand Bihar and cross-government language packs.
+4. Add pixel-aware optional vision backend for handwriting/signature/stamp/seal detection while preserving evidence-safe routing semantics.
+5. Add real reviewed Bihar Education image/PDF corpus with provenance.
+6. Add CER/WER, field-level and structure-level golden benchmarks.
+7. Calibrate backend confidence and release policy.
+8. Add pinned PaddleOCR production artifact once benchmarked.
+9. Add validated local/open VLM adapter without changing the consumer API.
+10. Expand Bihar and cross-government language packs.
