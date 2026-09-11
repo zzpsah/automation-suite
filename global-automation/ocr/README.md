@@ -1,8 +1,13 @@
-# Global Sarkari OCR
+# Government Document Vision & OCR Platform (GovDoc Vision)
 
 **Standalone shared OCR and government-document understanding layer.**
 
-This component is deliberately independent of any one school, portal, bot, storage provider, database, or workflow. The school document pipeline is only one consumer. Future OCR-related projects should reuse this engine instead of copying or forking OCR logic.
+**Canonical product name:** Government Document Vision & OCR Platform  
+**Short name:** GovDoc Vision  
+**Engineering shorthand:** Global OCR  
+**Package path:** `global-automation/ocr/`
+
+The engineering shorthand “Global OCR” may be used informally, but documentation and architecture should use **GovDoc Vision** as the canonical name. This component is deliberately independent of any one school, portal, bot, storage provider, database, or workflow. The school document pipeline is only one consumer. Future OCR-related projects should reuse this engine instead of copying or forking OCR logic.
 
 ## Independence contract
 
@@ -15,7 +20,7 @@ Use `ocr_service.process_pdf(pdf_path, work_dir)` or `ocr_service.process_file(f
 ## Core runtime pipeline
 
 ```text
-PDF
+PDF / Image
  ↓
 OCR service
  ↓
@@ -28,6 +33,8 @@ OCR engine (embedded text → Tesseract fallback)
 Correction
  ↓
 Sarkari normalizer + subject extraction
+ ↓
+Government Document Intelligence
  ↓
 District/office resolver + taxonomy
  ↓
