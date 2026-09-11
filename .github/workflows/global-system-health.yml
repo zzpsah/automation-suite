@@ -11,51 +11,48 @@ jobs:
     name: Telegram API
     runs-on: windows-latest
     steps:
-      - name: Checkout
-        uses: actions/checkout@v5
+      - uses: actions/checkout@v5
       - name: Telegram diagnostics
         shell: pwsh
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
         run: ./global-automation/scripts/telegram/Get-TelegramWebhook.ps1 -BotToken $env:TELEGRAM_BOT_TOKEN
-      - name: Report result
-        if: success()
+
+  input_gateway:
+    name: Telegram Input Gateway
+    runs-on: windows-latest
+    steps:
+      - name: Check gateway
         shell: pwsh
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
         run: |
-          @'
-          ## 🟢 Telegram API
-          **Status:** Healthy  
-          **Check:** Telegram Bot API diagnostics completed successfully.
-          '@ | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append -Encoding utf8
+          $url = "$env:SUPABASE_URL/functions/v1/telegram-input-v2"
+          $r = Invoke-RestMethod -Method Get -Uri $url
+          $r | ConvertTo-Json -Depth 5
+          if (-not $r.ok) { throw 'Gateway health check failed.' }
+          if ($r.version -ne 2) { throw "Unexpected gateway version: $($r.version)" }
+          if (-not $r.telegram_configured) { throw 'Telegram token is not configured in Supabase.' }
+          if (-not $r.supabase_configured) { throw 'Supabase credentials are not configured in the Edge Function.' }
+          Write-Host 'Telegram Input Gateway v2 is configured and reachable.'
 
   supabase:
     name: Supabase API
     runs-on: windows-latest
     steps:
-      - name: Checkout
-        uses: actions/checkout@v5
+      - uses: actions/checkout@v5
       - name: Supabase diagnostics
         shell: pwsh
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
         run: ./global-automation/scripts/supabase/Test-Supabase.ps1 -SupabaseUrl $env:SUPABASE_URL -ServiceRoleKey $env:SUPABASE_SERVICE_ROLE_KEY
-      - name: Report result
-        if: success()
-        shell: pwsh
-        run: |
-          @'
-          ## 🟢 Supabase API
-          **Status:** Healthy  
-          **Check:** Supabase API and authenticated database diagnostics completed successfully.
-          '@ | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append -Encoding utf8
 
   storage:
     name: Global Storage (B2 + Drive)
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
-        uses: actions/checkout@v5
+      - uses: actions/checkout@v5
       - name: Install storage dependencies
         run: python -m pip install --disable-pip-version-check boto3 requests
       - name: Storage diagnostics
@@ -68,16 +65,6 @@ jobs:
           GOOGLE_REFRESH_TOKEN: ${{ secrets.GOOGLE_REFRESH_TOKEN }}
           GOOGLE_DRIVE_BACKUP_FOLDER_ID: ${{ secrets.GOOGLE_DRIVE_BACKUP_FOLDER_ID }}
         run: python global-automation/scripts/storage/storage_health.py
-      - name: Report result
-        if: success()
-        shell: bash
-        run: |
-          cat >> "$GITHUB_STEP_SUMMARY" <<'EOF'
-          ## 🟢 Global Storage
-          **Status:** Healthy  
-          **Primary:** Backblaze B2 — write/read/delete verification passed.  
-          **Backup:** Google Drive — OAuth and backup-folder verification passed.
-          EOF
 
   configuration:
     name: Global Configuration
@@ -115,49 +102,29 @@ jobs:
           }
           $missing = $required.GetEnumerator() | Where-Object { [string]::IsNullOrWhiteSpace($_.Value) } | Select-Object -ExpandProperty Key
           if ($missing) { throw "Missing required repository secret(s): $($missing -join ', ')" }
-          Write-Host "All required global automation secrets are present. Secret values are not displayed."
-      - name: Report result
-        if: success()
-        shell: pwsh
-        run: |
-          @'
-          ## 🟢 Global Configuration
-          **Status:** Healthy  
-          **Check:** All required global secrets are configured. Secret values are never displayed.
-          '@ | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append -Encoding utf8
+          Write-Host 'All required global automation secrets are present. Secret values are not displayed.'
 
   dashboard:
     name: Health Dashboard
     if: always()
-    needs: [telegram, supabase, storage, configuration]
+    needs: [telegram, input_gateway, supabase, storage, configuration]
     runs-on: ubuntu-latest
     steps:
       - name: Build health dashboard
         shell: bash
         env:
           TELEGRAM_STATUS: ${{ needs.telegram.result }}
+          GATEWAY_STATUS: ${{ needs.input_gateway.result }}
           SUPABASE_STATUS: ${{ needs.supabase.result }}
           STORAGE_STATUS: ${{ needs.storage.result }}
           CONFIG_STATUS: ${{ needs.configuration.result }}
         run: |
-          status_icon() {
-            case "$1" in
-              success) echo "🟢 Healthy" ;;
-              *) echo "🔴 Failed" ;;
-            esac
-          }
-
-          OVERALL="success"
-          for S in "$TELEGRAM_STATUS" "$SUPABASE_STATUS" "$STORAGE_STATUS" "$CONFIG_STATUS"; do
-            [ "$S" = "success" ] || OVERALL="failure"
+          status_icon() { [ "$1" = "success" ] && echo '🟢 Healthy' || echo '🔴 Failed'; }
+          OVERALL='success'
+          for S in "$TELEGRAM_STATUS" "$GATEWAY_STATUS" "$SUPABASE_STATUS" "$STORAGE_STATUS" "$CONFIG_STATUS"; do
+            [ "$S" = 'success' ] || OVERALL='failure'
           done
-
-          if [ "$OVERALL" = "success" ]; then
-            OVERALL_LABEL="🟢 ALL SYSTEMS HEALTHY"
-          else
-            OVERALL_LABEL="🔴 SYSTEM CHECK FAILED"
-          fi
-
+          [ "$OVERALL" = 'success' ] && OVERALL_LABEL='🟢 ALL SYSTEMS HEALTHY' || OVERALL_LABEL='🔴 SYSTEM CHECK FAILED'
           cat > "$GITHUB_STEP_SUMMARY" <<EOF
           # 🏥 Global System Health
 
@@ -166,6 +133,7 @@ jobs:
           | Component | Status | Role |
           |---|---|---|
           | Telegram API | $(status_icon "$TELEGRAM_STATUS") | Input / transport |
+          | Telegram Input Gateway v2 | $(status_icon "$GATEWAY_STATUS") | Intake / validation |
           | Supabase API | $(status_icon "$SUPABASE_STATUS") | Metadata / control plane |
           | Backblaze B2 | $(status_icon "$STORAGE_STATUS") | **Primary storage** |
           | Google Drive | $(status_icon "$STORAGE_STATUS") | **Backup storage** |
@@ -173,28 +141,8 @@ jobs:
 
           ## Architecture
 
-          \`\`\`
-          Telegram → Supabase Edge Function → Backblaze B2 (PRIMARY)
-                                               ↓
-                                        Google Drive (BACKUP)
-                                               ↓
-                                      SHA-256 verification
-                                               ↓
-                                      Supabase metadata
-                                               ↓
-                                      GitHub monitoring
-          \`\`\`
-
-          ## Result
-
-          **Telegram:** $TELEGRAM_STATUS  
-          **Supabase:** $SUPABASE_STATUS  
-          **Storage:** $STORAGE_STATUS  
-          **Configuration:** $CONFIG_STATUS  
+          Telegram → Input Gateway v2 → Backblaze B2 (PRIMARY) → Google Drive (BACKUP) → SHA-256 → Supabase metadata → GitHub monitoring
 
           > No credentials or secret values are exposed in this report.
           EOF
-
-          if [ "$OVERALL" != "success" ]; then
-            exit 1
-          fi
+          [ "$OVERALL" = 'success' ] || exit 1
