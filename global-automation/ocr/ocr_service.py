@@ -5,9 +5,9 @@ from dataclasses import asdict
 from pathlib import Path
 from typing import Any
 
-from .diagnostics import diagnose_page_text
+from .diagnostics import diagnose_pages
 from .language_packs.bihar_office_resolver import resolve_office
-from .ocr_engine import extract_document_text, ocr_image_detailed
+from .ocr_engine import extract_document_pages, ocr_image_detailed
 from .sarkari_normalizer import extract_metadata
 from .subject_extractor import extract_multiline_subject
 from .taxonomy import taxonomy_info
@@ -17,7 +17,6 @@ _IMAGE_SUFFIXES = {".png", ".jpg", ".jpeg", ".tif", ".tiff", ".bmp", ".webp"}
 
 
 def score_metadata_quality(metadata: dict[str, Any], text: str) -> dict[str, Any]:
-    """Score extracted fields by quality/validity, not merely field count."""
     checks = {}
     subject, authority = metadata.get("subject"), metadata.get("authority")
     reference, date = metadata.get("reference_number"), metadata.get("issue_date")
@@ -35,7 +34,7 @@ def score_metadata_quality(metadata: dict[str, Any], text: str) -> dict[str, Any
     return {"level": level, "score": round(total, 2), "fields": checks, "evidence": evidence}
 
 
-def _assemble_result(path: Path, text: str, *, method: str, extra: dict[str, Any] | None = None) -> dict[str, Any]:
+def _assemble_result(path: Path, text: str, *, method: str, page_texts: list[str], extra: dict[str, Any] | None = None) -> dict[str, Any]:
     metadata = extract_metadata(text)
     result = asdict(metadata)
     subject = extract_multiline_subject(text)
@@ -45,13 +44,9 @@ def _assemble_result(path: Path, text: str, *, method: str, extra: dict[str, Any
     result["confidence"] = result["confidence_details"]["level"]
     result["taxonomy"] = taxonomy_info(result.get("category"))
     result["bihar_office"] = resolve_office(text)
-    result["page_diagnostics"] = [asdict(diagnose_page_text(1, text))]
-    result.update({
-        "text": text,
-        "extraction_method": method,
-        "filename": path.name,
-        "ocr_service_version": OCR_SERVICE_VERSION,
-    })
+    result["page_diagnostics"] = diagnose_pages(page_texts)
+    result["pages"] = [{"page_number": i, "text": page} for i, page in enumerate(page_texts, 1)]
+    result.update({"text": text, "extraction_method": method, "filename": path.name, "ocr_service_version": OCR_SERVICE_VERSION})
     if extra:
         result.update(extra)
     return result
@@ -64,8 +59,9 @@ def process_pdf(pdf_path: str, work_dir: str, *, min_embedded_chars: int = 80) -
         raise FileNotFoundError(pdf_path)
     if path.suffix.lower() != ".pdf":
         raise ValueError("process_pdf accepts PDF files only")
-    text, method = extract_document_text(str(path), work_dir, min_embedded_chars=min_embedded_chars)
-    return _assemble_result(path, text, method=method)
+    page_texts, method = extract_document_pages(str(path), work_dir, min_embedded_chars=min_embedded_chars)
+    text = "\n\n".join(page_texts)
+    return _assemble_result(path, text, method=method, page_texts=page_texts)
 
 
 def process_image(image_path: str, work_dir: str, *, language: str = "hin+eng", psm: int = 6, strategy: str = "auto") -> dict[str, Any]:
@@ -76,7 +72,7 @@ def process_image(image_path: str, work_dir: str, *, language: str = "hin+eng", 
     if path.suffix.lower() not in _IMAGE_SUFFIXES:
         raise ValueError("process_image accepts common raster image files only")
     ocr = ocr_image_detailed(str(path), lang=language, psm=psm, strategy=strategy)
-    return _assemble_result(path, ocr["text"], method="tesseract-image-quality-aware", extra={"ocr": ocr})
+    return _assemble_result(path, ocr["text"], method="tesseract-image-quality-aware", page_texts=[ocr["text"]], extra={"ocr": ocr})
 
 
 def process_file(file_path: str, work_dir: str, *, min_embedded_chars: int = 80, language: str = "hin+eng", psm: int = 6, strategy: str = "auto") -> dict[str, Any]:
