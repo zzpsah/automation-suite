@@ -1,4 +1,4 @@
-"""Pluggable OCR backend contract for the shared OCR service."""
+"""Pluggable OCR backend contract and deterministic backend registry."""
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -9,6 +9,7 @@ from typing import Protocol
 class OCRResult:
     text: str
     backend: str
+    # Backends that expose confidence MUST normalize it to [0, 1].
     confidence: float | None = None
 
 
@@ -32,7 +33,26 @@ class TesseractBackend:
         return OCRResult(text=ocr_image(image_path, lang=language, psm=psm), backend=self.name)
 
 
+# Factories are used so optional backends are imported only when selected.
 _BACKENDS: dict[str, type[OCRBackend]] = {"tesseract": TesseractBackend}
+
+
+def register_backend(name: str, backend: type[OCRBackend], *, replace: bool = False) -> None:
+    """Register a backend explicitly; accidental replacement is rejected."""
+    if not name or not getattr(backend, "name", None):
+        raise ValueError("Backend name and backend.name are required")
+    if name != backend.name:
+        raise ValueError("Registry name must match backend.name")
+    if name in _BACKENDS and not replace:
+        raise ValueError(f"OCR backend already registered: {name}")
+    _BACKENDS[name] = backend
+
+
+def register_optional_backends() -> None:
+    """Register built-in optional adapters without importing their dependencies."""
+    from .backends.paddleocr import PaddleOCRBackend
+
+    register_backend(PaddleOCRBackend.name, PaddleOCRBackend)
 
 
 def list_backends() -> tuple[str, ...]:
@@ -46,11 +66,7 @@ def _language_supported(backend: OCRBackend, language: str) -> bool:
 
 
 def get_backend(name: str = "tesseract", *, language: str | None = None) -> OCRBackend:
-    """Resolve a backend and optionally validate requested language support.
-
-    Backend names are explicit and deterministic. Unsupported names or language
-    combinations fail closed rather than silently selecting another engine.
-    """
+    """Resolve a backend and optionally validate requested language support."""
     try:
         backend = _BACKENDS[name]()
     except KeyError as exc:
@@ -61,11 +77,7 @@ def get_backend(name: str = "tesseract", *, language: str | None = None) -> OCRB
 
 
 def resolve_backend(*, preferred: str = "tesseract", language: str = "hin+eng") -> OCRBackend:
-    """Choose a compatible registered backend deterministically.
-
-    The preferred backend wins when compatible. Otherwise the first compatible
-    registered backend is selected. If none are compatible, fail closed.
-    """
+    """Choose a compatible backend deterministically, failing closed if none exist."""
     if preferred in _BACKENDS:
         backend = get_backend(preferred)
         if _language_supported(backend, language):
@@ -75,3 +87,15 @@ def resolve_backend(*, preferred: str = "tesseract", language: str = "hin+eng") 
         if _language_supported(backend, language):
             return backend
     raise ValueError(f"No OCR backend supports language {language!r}")
+
+
+__all__ = [
+    "OCRResult",
+    "OCRBackend",
+    "TesseractBackend",
+    "register_backend",
+    "register_optional_backends",
+    "list_backends",
+    "get_backend",
+    "resolve_backend",
+]
