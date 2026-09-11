@@ -9,7 +9,7 @@ A single repository for the school's reusable automation systems and production 
 | `global-automation/` | Shared GitHub Actions, storage, document processing and system automation | [Global Automation README](global-automation/README.md) |
 | `global-automation/scripts/document/` | **School Document Pipeline**: storage → OCR/text extraction → metadata → publication | [School Document Pipeline README](global-automation/scripts/document/README.md) |
 | `global-automation/scripts/storage/` | Telegram → Backblaze B2 → Google Drive storage layer | [Storage README](global-automation/scripts/storage/README.md) |
-| `global-automation/ocr/` | Separate reusable Global Sarkari OCR project | [OCR README](global-automation/ocr/README.md) |
+| `global-automation/govdoc-ocr/` | **GovDOC OCR Engine**: reusable OCR, normalization and government-document metadata extraction | [GovDOC OCR README](global-automation/govdoc-ocr/README.md) |
 | `phone-printer/` | Android phone → hotspot → Windows PC → USB printer bridge | — |
 | `paint-gemini-app/` | PyQt6 image editor with drawing tools and AI assistance | — |
 | `browser-portal-automation/` | Browser-based portal collection, attachment processing, OCR, classification and archiving | — |
@@ -37,6 +37,9 @@ Telegram / existing Drive intake
             |
             v
    Global Document Processor
+            |
+            v
+       GovDOC OCR Engine
             |
             v
       Supabase documents
@@ -94,4 +97,4 @@ Each production subsystem should have a local README explaining:
 8. security rules
 9. links to related school resources
 
-The **Global Sarkari OCR** project is intentionally maintained separately from the School Document Pipeline. The school pipeline may consume it as a reusable dependency, but OCR model/language-pack improvement must not destabilize production document processing.
+The **GovDOC OCR Engine** is intentionally maintained separately from the School Document Pipeline. The school pipeline may consume it as a reusable OCR dependency, but OCR engine/model/language-pack improvement must not destabilize production document processing.
