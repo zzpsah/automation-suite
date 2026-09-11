@@ -37,7 +37,10 @@ jobs:
           B2_BUCKET_NAME: ${{ secrets.B2_BUCKET_NAME }}
         run: |
           set -euo pipefail
-          endpoint="https://${B2_S3_ENDPOINT}"
+          endpoint="${B2_S3_ENDPOINT}"
+          endpoint="${endpoint#http://}"
+          endpoint="${endpoint#https://}"
+          endpoint="https://${endpoint}"
           echo "Checking bucket access..."
           aws --endpoint-url "$endpoint" s3api head-bucket --bucket "$B2_BUCKET_NAME"
           echo "B2 S3 authentication: OK"
@@ -51,7 +54,10 @@ jobs:
           B2_BUCKET_NAME: ${{ secrets.B2_BUCKET_NAME }}
         run: |
           set -euo pipefail
-          endpoint="https://${B2_S3_ENDPOINT}"
+          endpoint="${B2_S3_ENDPOINT}"
+          endpoint="${endpoint#http://}"
+          endpoint="${endpoint#https://}"
+          endpoint="https://${endpoint}"
           key="_health-check/github-actions-${GITHUB_RUN_ID}.txt"
           printf 'UMV B2 health check %s\n' "$GITHUB_RUN_ID" > /tmp/b2-health.txt
           aws --endpoint-url "$endpoint" s3 cp /tmp/b2-health.txt "s3://${B2_BUCKET_NAME}/${key}"
