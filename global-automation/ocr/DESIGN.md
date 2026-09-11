@@ -1,4 +1,13 @@
-# Global Sarkari OCR — Design & Upgrade Guide
+# Government Document Vision & OCR Platform (GovDoc Vision) — Design & Upgrade Guide
+
+## Naming convention
+
+- **Canonical product name:** Government Document Vision & OCR Platform
+- **Short product name:** GovDoc Vision
+- **Engineering shorthand:** Global OCR
+- **Package:** `global-automation/ocr/`
+
+“Global OCR” is retained as an engineering shorthand for continuity, but GovDoc Vision is the canonical name for architecture, documentation, releases, and future integrations.
 
 ## Purpose
 Reusable OCR and document-understanding layer for Indian government documents. The first language/domain pack is Bihar Education; the architecture is intentionally extensible to Bihar Government, other states, and Central Government.
@@ -14,7 +23,8 @@ Reusable OCR and document-understanding layer for Indian government documents. T
 5. `correction.py` applies conservative whitespace, label, and date-format corrections.
 6. `sarkari_normalizer.py` extracts metadata and canonicalizes known authority/date values.
 7. `subject_extractor.py` handles multi-line subjects and stops at common administrative/footer labels.
-8. `ocr_service.py` calculates evidence-backed metadata quality and returns text, metadata, method, filename, and service version.
+8. Government Document Intelligence extracts evidence-backed authority, subject, document type, actions, deadlines and short description.
+9. `ocr_service.py` calculates evidence-backed metadata quality and returns text, metadata, method, filename, and service version.
 
 Storage/intake/publication systems remain outside this package.
 
@@ -66,6 +76,7 @@ Result fields include `text`, `subject`, `authority`, `reference_number`, `issue
 - [x] Quality-based confidence baseline.
 - [x] Pluggable backend contract.
 - [x] Conservative image preprocessing baseline.
+- [x] Government Document Intelligence baseline.
 - [ ] Add real Bihar Education OCR samples with provenance.
 - [ ] Add page-level OCR diagnostics.
 - [ ] Add document-type taxonomy versioning.
