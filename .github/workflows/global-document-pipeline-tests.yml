@@ -1,0 +1,29 @@
+name: Global Document Pipeline Tests
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'global-automation/scripts/document/**'
+      - '.github/workflows/global-document-pipeline-tests.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  tests:
+    name: Offline document pipeline checks
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+      - name: Install Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+      - name: Install dependencies
+        run: python -m pip install --disable-pip-version-check requests pypdf
+      - name: Compile document scripts
+        run: python -m compileall -q global-automation/scripts/document
+      - name: Run offline smoke test
+        run: python global-automation/scripts/document/pipeline_smoke_test.py
