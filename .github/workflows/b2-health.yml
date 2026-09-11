@@ -3,6 +3,10 @@ name: Backblaze B2 Storage Health
 on:
   workflow_dispatch:
 
+env:
+  # B2 S3 endpoint is public configuration, not a secret.
+  B2_S3_ENDPOINT: https://s3.us-east-005.backblazeb2.com
+
 jobs:
   b2:
     name: Backblaze B2
@@ -12,56 +16,32 @@ jobs:
         env:
           B2_KEY_ID: ${{ secrets.B2_KEY_ID }}
           B2_APPLICATION_KEY: ${{ secrets.B2_APPLICATION_KEY }}
-          B2_S3_ENDPOINT: ${{ secrets.B2_S3_ENDPOINT }}
           B2_BUCKET_NAME: ${{ secrets.B2_BUCKET_NAME }}
         run: |
           set -euo pipefail
           missing=()
-          for name in B2_KEY_ID B2_APPLICATION_KEY B2_S3_ENDPOINT B2_BUCKET_NAME; do
+          for name in B2_KEY_ID B2_APPLICATION_KEY B2_BUCKET_NAME; do
             if [ -z "${!name:-}" ]; then missing+=("$name"); fi
           done
           if [ ${#missing[@]} -gt 0 ]; then
             echo "Missing required secret(s): ${missing[*]}"
             exit 1
           fi
-          echo "All four B2 configuration secrets are present. Values are not displayed."
+          echo "B2 credentials and bucket configuration are present. Secret values are not displayed."
+          echo "Using canonical B2 S3 endpoint: ${B2_S3_ENDPOINT}"
 
       - name: Install AWS CLI
         run: python -m pip install --upgrade awscli
-
-      - name: Normalize B2 endpoint
-        id: endpoint
-        env:
-          B2_S3_ENDPOINT: ${{ secrets.B2_S3_ENDPOINT }}
-        run: |
-          set -euo pipefail
-          endpoint="$B2_S3_ENDPOINT"
-          endpoint="$(printf '%s' "$endpoint" | tr -d '\r\n' | sed 's/^['"'"'"'"'"'//; s/['"'"'"'"'"'$]//')"
-          endpoint="$(printf '%s' "$endpoint" | sed -E 's#^[[:space:]]+##; s#[[:space:]]+$##')"
-          while [[ "$endpoint" == https://https://* ]]; do endpoint="${endpoint#https://}"; done
-          while [[ "$endpoint" == http://http://* ]]; do endpoint="${endpoint#http://}"; done
-          while [[ "$endpoint" == https://http://* ]]; do endpoint="${endpoint#https://}"; done
-          while [[ "$endpoint" == http://https://* ]]; do endpoint="${endpoint#http://}"; done
-          endpoint="${endpoint#https://}"
-          endpoint="${endpoint#http://}"
-          endpoint="${endpoint%/}"
-          if [[ -z "$endpoint" || "$endpoint" == *[[:space:]]* || "$endpoint" == *://* ]]; then
-            echo "B2_S3_ENDPOINT is malformed. Store only the hostname, for example: s3.us-east-005.backblazeb2.com"
-            exit 1
-          fi
-          echo "Normalized B2 endpoint: https://${endpoint}"
-          printf 'endpoint=https://%s\n' "$endpoint" >> "$GITHUB_OUTPUT"
 
       - name: Verify B2 S3 authentication and bucket access
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.B2_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.B2_APPLICATION_KEY }}
           B2_BUCKET_NAME: ${{ secrets.B2_BUCKET_NAME }}
-          B2_ENDPOINT: ${{ steps.endpoint.outputs.endpoint }}
         run: |
           set -euo pipefail
           echo "Checking bucket access..."
-          aws --endpoint-url "$B2_ENDPOINT" s3api head-bucket --bucket "$B2_BUCKET_NAME"
+          aws --endpoint-url "$B2_S3_ENDPOINT" s3api head-bucket --bucket "$B2_BUCKET_NAME"
           echo "B2 S3 authentication: OK"
           echo "Bucket access: OK"
 
@@ -70,15 +50,19 @@ jobs:
           AWS_ACCESS_KEY_ID: ${{ secrets.B2_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.B2_APPLICATION_KEY }}
           B2_BUCKET_NAME: ${{ secrets.B2_BUCKET_NAME }}
-          B2_ENDPOINT: ${{ steps.endpoint.outputs.endpoint }}
         run: |
           set -euo pipefail
           key="_health-check/github-actions-${GITHUB_RUN_ID}.txt"
           printf 'UMV B2 health check %s\n' "$GITHUB_RUN_ID" > /tmp/b2-health.txt
-          aws --endpoint-url "$B2_ENDPOINT" s3 cp /tmp/b2-health.txt "s3://${B2_BUCKET_NAME}/${key}"
-          aws --endpoint-url "$B2_ENDPOINT" s3api head-object --bucket "$B2_BUCKET_NAME" --key "$key"
-          aws --endpoint-url "$B2_ENDPOINT" s3 rm "s3://${B2_BUCKET_NAME}/${key}"
+          cleanup() {
+            aws --endpoint-url "$B2_S3_ENDPOINT" s3 rm "s3://${B2_BUCKET_NAME}/${key}" >/dev/null 2>&1 || true
+          }
+          trap cleanup EXIT
+          aws --endpoint-url "$B2_S3_ENDPOINT" s3 cp /tmp/b2-health.txt "s3://${B2_BUCKET_NAME}/${key}"
+          aws --endpoint-url "$B2_S3_ENDPOINT" s3api head-object --bucket "$B2_BUCKET_NAME" --key "$key"
           echo "B2 write: OK"
           echo "B2 read/head: OK"
+          aws --endpoint-url "$B2_S3_ENDPOINT" s3 rm "s3://${B2_BUCKET_NAME}/${key}"
+          trap - EXIT
           echo "B2 delete: OK"
           echo "Backblaze B2 storage health: GREEN"
