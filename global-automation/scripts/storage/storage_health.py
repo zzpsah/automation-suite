@@ -3,12 +3,13 @@ import os
 import sys
 import boto3
 import requests
+from botocore.config import Config
 
 B2_ENDPOINT = "https://s3.us-east-005.backblazeb2.com"
 B2_BUCKET = os.environ.get("B2_BUCKET_NAME", "Education-Dept-Files")
 
 def require(name):
-    value = os.environ.get(name, "")
+    value = os.environ.get(name, "").strip()
     if not value:
         raise RuntimeError(f"Missing required secret: {name}")
     return value
@@ -17,11 +18,18 @@ def require(name):
 def check_b2():
     key = require("B2_KEY_ID")
     secret = require("B2_APPLICATION_KEY")
-    s3 = boto3.client("s3", endpoint_url=B2_ENDPOINT, aws_access_key_id=key, aws_secret_access_key=secret, region_name="us-east-005")
+    s3 = boto3.client(
+        "s3", endpoint_url=B2_ENDPOINT, region_name="us-east-005",
+        aws_access_key_id=key, aws_secret_access_key=secret,
+        config=Config(signature_version="s3v4"),
+    )
     s3.head_bucket(Bucket=B2_BUCKET)
-    health_key = "_health-check/global-system-health.txt"
-    s3.put_object(Bucket=B2_BUCKET, Key=health_key, Body=b"UMV global health check\n", ContentType="text/plain")
-    s3.head_object(Bucket=B2_BUCKET, Key=health_key)
+    health_key = f"_health-check/global-system-health-{os.environ.get('GITHUB_RUN_ID','manual')}.txt"
+    body = b"UMV global health check\n"
+    s3.put_object(Bucket=B2_BUCKET, Key=health_key, Body=body, ContentType="text/plain")
+    obj = s3.get_object(Bucket=B2_BUCKET, Key=health_key)
+    if obj["Body"].read() != body:
+        raise RuntimeError("B2 read verification failed")
     s3.delete_object(Bucket=B2_BUCKET, Key=health_key)
     print("Backblaze B2: GREEN (auth/read/write/delete)")
 
@@ -31,12 +39,18 @@ def check_drive():
     client_secret = require("GOOGLE_CLIENT_SECRET")
     refresh = require("GOOGLE_REFRESH_TOKEN")
     folder = require("GOOGLE_DRIVE_BACKUP_FOLDER_ID")
-    token = requests.post("https://oauth2.googleapis.com/token", data={"client_id": client_id, "client_secret": client_secret, "refresh_token": refresh, "grant_type": "refresh_token"}, timeout=30)
+    token = requests.post(
+        "https://oauth2.googleapis.com/token",
+        data={"client_id": client_id, "client_secret": client_secret,
+              "refresh_token": refresh, "grant_type": "refresh_token"}, timeout=30)
     token.raise_for_status()
     access = token.json().get("access_token")
     if not access:
         raise RuntimeError("Google OAuth did not return access token")
-    r = requests.get(f"https://www.googleapis.com/drive/v3/files/{folder}", headers={"Authorization": f"Bearer {access}"}, params={"fields": "id,name,mimeType,trashed"}, timeout=30)
+    r = requests.get(
+        f"https://www.googleapis.com/drive/v3/files/{folder}",
+        headers={"Authorization": f"Bearer {access}"},
+        params={"fields": "id,name,mimeType,trashed"}, timeout=30)
     r.raise_for_status()
     data = r.json()
     if data.get("mimeType") != "application/vnd.google-apps.folder" or data.get("trashed"):
@@ -47,12 +61,12 @@ def check_drive():
 def main():
     check_b2()
     check_drive()
-    print("Global storage health: GREEN")
+    print("GLOBAL STORAGE: GREEN")
 
 
 if __name__ == "__main__":
     try:
         main()
     except Exception as exc:
-        print(f"Global storage health: RED — {exc}")
+        print(f"Global storage health: RED — {type(exc).__name__}: {str(exc)[:300]}")
         sys.exit(1)
