@@ -29,22 +29,16 @@ def _gray_pixels(image):
 
 
 def _estimate_skew(gray) -> float:
-    """Estimate small page skew from dark-pixel covariance.
-
-    It is intentionally conservative: large rotations are left to an
-    orientation-capable backend rather than guessed by preprocessing.
-    """
+    """Estimate small page skew from dark-pixel covariance."""
     import statistics
-
     w, h = gray.size
     if w < 80 or h < 80:
         return 0.0
     sample = gray.resize((min(w, 500), min(h, 500)))
-    threshold = 180
     points = []
     for y in range(sample.height):
         for x in range(sample.width):
-            if sample.getpixel((x, y)) < threshold:
+            if sample.getpixel((x, y)) < 180:
                 points.append((x, y))
     if len(points) < 200:
         return 0.0
@@ -67,7 +61,6 @@ def _estimate_skew(gray) -> float:
 def analyze_image(image_path: str) -> dict[str, object]:
     """Return privacy-safe image quality measurements."""
     from PIL import Image, ImageStat
-
     with Image.open(image_path) as source:
         image = source.copy()
         gray = _gray_pixels(image)
@@ -78,30 +71,32 @@ def analyze_image(image_path: str) -> dict[str, object]:
         skew = _estimate_skew(gray)
         width, height = image.size
     return asdict(ImageProfile(
-        width=width,
-        height=height,
-        mean_luma=round(mean, 2),
-        contrast=round(contrast, 2),
-        dark_ratio=round(dark, 4),
-        estimated_skew_degrees=skew,
-        needs_upscale=min(width, height) < 1400,
-        needs_deskew=abs(skew) >= 0.7,
+        width=width, height=height, mean_luma=round(mean, 2), contrast=round(contrast, 2),
+        dark_ratio=round(dark, 4), estimated_skew_degrees=skew,
+        needs_upscale=min(width, height) < 1400, needs_deskew=abs(skew) >= 0.7,
     ))
 
 
-def prepare_variants(image_path: str, output_dir: str, *, strategy: str = "auto", max_dimension: int = 2600) -> list[str]:
+def prepare_variants(image_path: str, output_dir: str, *, strategy: str = "auto", max_dimension: int = 2600, min_dimension: int = 1400) -> list[str]:
     """Create deterministic OCR candidates and return them in preference order."""
     from PIL import Image, ImageEnhance, ImageFilter, ImageOps
-
     if strategy not in {"auto", "quality", "fast"}:
         raise ValueError("strategy must be auto, quality, or fast")
+    if max_dimension < min_dimension:
+        raise ValueError("max_dimension must be >= min_dimension")
     source = Path(image_path)
     out = Path(output_dir)
     out.mkdir(parents=True, exist_ok=True)
     with Image.open(source) as opened:
         image = ImageOps.exif_transpose(opened).convert("RGB")
-        if max(image.size) > max_dimension:
-            scale = max_dimension / max(image.size)
+        smallest = min(image.size)
+        largest = max(image.size)
+        scale = 1.0
+        if smallest < min_dimension:
+            scale = min_dimension / smallest
+        if largest * scale > max_dimension:
+            scale = max_dimension / largest
+        if abs(scale - 1.0) > 0.01:
             image = image.resize((round(image.width * scale), round(image.height * scale)), Image.Resampling.LANCZOS)
         gray = ImageOps.grayscale(image)
         profile = analyze_image(image_path)
@@ -119,8 +114,6 @@ def prepare_variants(image_path: str, output_dir: str, *, strategy: str = "auto"
             enhanced = out / "enhanced.png"
             contrast.save(enhanced, format="PNG", optimize=True)
             paths.append(str(enhanced))
-            # A binary candidate is useful for faded monochrome scans but is
-            # deliberately last because hard thresholding can hurt Devanagari.
             threshold = contrast.point(lambda p: 255 if p >= 185 else 0)
             binary = out / "threshold.png"
             threshold.save(binary, format="PNG", optimize=True)
