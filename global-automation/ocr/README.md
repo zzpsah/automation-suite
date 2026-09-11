@@ -22,6 +22,7 @@ from ocr import (
     extract_evidence_relations, check_runtime,
     build_release_manifest, verify_release_manifest,
     OCRPlatformError, emit_event, backup_sqlite, restore_sqlite,
+    ResourceLimits, OCRConcurrencyGate,
 )
 ```
 
@@ -37,6 +38,8 @@ Government Document → OCR text + geometry → Structure/Sections/Tables
                          Golden Search Regression Gate
                                       ↓
                      Release Manifest + Operations + DR
+                                      ↓
+                         Resource Safety / Admission Gate
 ```
 
 **Evidence rule:** derived output retains source block IDs, entity IDs, document IDs and page provenance. Original OCR evidence is never rewritten; reconstruction, search, clustering and cross-document intelligence never invent source content.
@@ -63,6 +66,14 @@ Large model binaries remain outside Git when appropriate; releases must referenc
 
 Backups must be stored separately from the live database and tested periodically by restoring to an isolated destination. A successful backup operation alone is not a disaster-recovery certification; operational retention, off-host copies, access controls and restore drills remain deployment responsibilities.
 
+## P32 — Resource safety / fail-fast protection
+
+`resource_limits.py` adds dependency-free admission controls so a single oversized or highly concurrent workload cannot consume unbounded OCR resources. Defaults are conservative: 50 MB per input file, 100 pages, 40 million image pixels, 2 million OCR text characters, and 2 concurrent jobs.
+
+`check_file_size()`, `check_page_count()`, `check_image_pixels()` and `check_text_size()` fail closed with machine-readable `ResourceLimitError`. `OCRConcurrencyGate` is non-blocking: when all worker slots are busy it fails immediately with `ConcurrencyLimitError` instead of allowing an unbounded queue. Limits are configurable per deployment and do not alter source documents.
+
+P32 is a safety/admission layer; it does not claim that the OCR service automatically enforces every limit internally yet. Consumer/server integration should apply these checks before expensive processing, with timeout/cancellation integration in the next hardening step.
+
 ## Search evolution / production hardening path
 
 ```text
@@ -87,6 +98,7 @@ P34 Full production certification gate
 - `errors.py` — stable platform error taxonomy.
 - `observability.py` — structured, privacy-safe operation events.
 - `backup.py` — SQLite backup, integrity check and atomic restore.
+- `resource_limits.py` — file/page/pixel/text admission limits and fail-fast concurrency gate.
 
 ## Production gate
 
@@ -103,5 +115,6 @@ No CI pass, OCR accuracy claim, benchmark pass, disaster-recovery certification 
 5. Run `check_runtime()` with deployment-required backends enabled.
 6. Verify the release manifest before deployment.
 7. Back up persistent search data and perform an isolated restore drill.
-8. Preserve original source files and all page/block/entity provenance.
-9. Record every material production decision here immediately after implementation.
+8. Apply P32 resource limits before expensive OCR work and configure worker concurrency for the deployment.
+9. Preserve original source files and all page/block/entity provenance.
+10. Record every material production decision here immediately after implementation.
