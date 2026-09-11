@@ -1,0 +1,21 @@
+name: Supabase Health
+
+on:
+  workflow_dispatch:
+
+jobs:
+  health:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Test Supabase REST API
+        shell: pwsh
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: |
+          ./global-automation/scripts/supabase/Test-Supabase.ps1 `
+            -SupabaseUrl $env:SUPABASE_URL `
+            -ServiceRoleKey $env:SUPABASE_SERVICE_ROLE_KEY
