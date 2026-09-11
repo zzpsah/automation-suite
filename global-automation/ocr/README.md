@@ -11,7 +11,7 @@ This README records the current architecture, implementation state, constraints,
 ## Stable consumer API
 
 ```python
-from ocr import process_file, process_pdf, process_image, reconstruct_document, reconstruct_markdown
+from ocr import process_file, process_pdf, process_image, reconstruct_document, reconstruct_markdown, build_cross_document_graph
 ```
 
 ## Architecture
@@ -19,10 +19,10 @@ from ocr import process_file, process_pdf, process_image, reconstruct_document, 
 ```text
 Government Document → OCR text + geometry → Structure/Sections/Tables
         → Multi-page Structure Graph → Intelligent Reconstruction
-        → Document Understanding Graph → Consumer project
+        → Document Understanding Graph → Cross-Document Graph → Consumer project
 ```
 
-**Evidence rule:** derived output retains source block IDs and page provenance. Original OCR evidence is never rewritten; reconstruction only joins explicitly linked blocks and never invents content.
+**Evidence rule:** derived output retains source block IDs, entity IDs, document IDs and page provenance. Original OCR evidence is never rewritten; reconstruction and cross-document intelligence never invent source content.
 
 ## P17 — Intelligent reconstruction
 
@@ -48,6 +48,20 @@ No reconstruction decision is treated as semantic or legal truth.
 
 `document_understanding.py` provides conservative reference/date/email/authority entities and relations derived only from recognized source text and supplied structure-graph edges.
 
+## P19 — Cross-document intelligence
+
+`cross_document.py` provides the first conservative cross-document graph layer. It accepts multiple P18 `DocumentUnderstandingGraph` objects keyed by stable document IDs and creates relationships only from **exact normalized entity-value matches** across different documents.
+
+Supported baseline relationships:
+
+- `shared_reference` — exact normalized reference entity match.
+- `shared_contact` — exact normalized email entity match.
+- `shared_authority` — exact normalized authority entity match.
+
+Normalization is limited to surrounding whitespace, repeated whitespace and Unicode-aware case folding. Original entity values and IDs remain untouched.
+
+P19 deliberately does **not** infer same-case identity, chronology, causality, legal supersession, or document relationships from dates alone. Every relation retains source/target document IDs, source/target entity IDs, confidence and a deterministic evidence reason.
+
 ## Implemented modules
 
 - `document_structure.py` — explicit page/block structure.
@@ -57,10 +71,11 @@ No reconstruction decision is treated as semantic or legal truth.
 - `structure_graph.py` — adjacent-page continuation and entity-continuity graph.
 - `intelligent_reconstruction.py` — source-traceable graph-aware reconstruction.
 - `document_understanding.py` — conservative semantic entities and graph relations.
+- `cross_document.py` — conservative exact-match cross-document relations.
 
 ## Release status
 
-P17 implementation and regression tests are committed, but **production certification is not claimed** until the repository CI run completes successfully and broader document reconstruction benchmarks are executed.
+P19 implementation, public API export and regression tests are committed. **Production certification is not claimed** until repository CI and broader structure/semantic benchmarks complete successfully.
 
 ## Roadmap
 
@@ -71,4 +86,5 @@ P17 implementation and regression tests are committed, but **production certific
 5. Build reviewed corpus and structure/semantic golden benchmarks.
 6. Calibrate confidence and release policy.
 7. Add validated optional vision/VLM backends.
-8. Expand cross-document intelligence after single-document gates pass.
+8. Expand P19 with explicit textual relationship markers such as “in continuation of” and “supersedes”, only when directly evidenced.
+9. Add persistent cross-document indexing, clustering and query APIs after single-document gates pass.
