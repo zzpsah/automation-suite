@@ -1,0 +1,54 @@
+name: System Health
+
+on:
+  workflow_dispatch:
+
+jobs:
+  telegram:
+    name: Telegram API
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+      - name: Telegram diagnostics
+        shell: pwsh
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+        run: ./global-automation/scripts/telegram/Get-TelegramWebhook.ps1 -BotToken $env:TELEGRAM_BOT_TOKEN
+
+  supabase:
+    name: Supabase API
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+      - name: Supabase diagnostics
+        shell: pwsh
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: ./global-automation/scripts/supabase/Test-Supabase.ps1 -SupabaseUrl $env:SUPABASE_URL -ServiceRoleKey $env:SUPABASE_SERVICE_ROLE_KEY
+
+  configuration:
+    name: Required secrets
+    runs-on: windows-latest
+    steps:
+      - name: Validate secret presence
+        shell: pwsh
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_WEBHOOK_SECRET: ${{ secrets.TELEGRAM_WEBHOOK_SECRET }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          AUTHORIZED_TELEGRAM_USER_IDS: ${{ secrets.AUTHORIZED_TELEGRAM_USER_IDS }}
+        run: |
+          $required = @{
+            TELEGRAM_BOT_TOKEN = $env:TELEGRAM_BOT_TOKEN
+            TELEGRAM_WEBHOOK_SECRET = $env:TELEGRAM_WEBHOOK_SECRET
+            SUPABASE_URL = $env:SUPABASE_URL
+            SUPABASE_SERVICE_ROLE_KEY = $env:SUPABASE_SERVICE_ROLE_KEY
+            AUTHORIZED_TELEGRAM_USER_IDS = $env:AUTHORIZED_TELEGRAM_USER_IDS
+          }
+          $missing = $required.GetEnumerator() | Where-Object { [string]::IsNullOrWhiteSpace($_.Value) } | Select-Object -ExpandProperty Key
+          if ($missing) { throw "Missing required repository secret(s): $($missing -join ', ')" }
+          Write-Host "All required repository secrets are present. Secret values are not displayed."
