@@ -11,17 +11,22 @@ concurrency:
 
 jobs:
   notify:
-    name: Published document → Telegram output bot
+    name: Published document → eLettersBot private PDF delivery
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v5
       - name: Install dependencies
-        run: python -m pip install --disable-pip-version-check requests
+        run: python -m pip install --disable-pip-version-check requests boto3
       - name: Send published document notifications
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
           TELEGRAM_OUTPUT_BOT_TOKEN: ${{ secrets.TELEGRAM_OUTPUT_BOT_TOKEN }}
+          TELEGRAM_OUTPUT_BOT_USERNAME: eLettersBot
           TELEGRAM_NOTIFICATION_CHAT_IDS: ${{ secrets.TELEGRAM_NOTIFICATION_CHAT_IDS }}
-        run: python global-automation/scripts/document/telegram_publication_notifier.py
+          B2_KEY_ID: ${{ secrets.B2_KEY_ID }}
+          B2_APPLICATION_KEY: ${{ secrets.B2_APPLICATION_KEY }}
+          B2_S3_ENDPOINT: ${{ secrets.B2_S3_ENDPOINT }}
+          B2_BUCKET_NAME: ${{ secrets.B2_BUCKET_NAME }}
+        run: python global-automation/scripts/document/telegram_publication_notifier_v2.py
