@@ -1,3 +1,5 @@
+import json
+
 from ocr.cross_document import CrossDocumentGraph, CrossDocumentRelation
 from ocr.document_clustering import build_candidate_clusters, candidate_clusters_to_dict
 
@@ -52,4 +54,5 @@ def test_result_is_deterministic_and_json_safe():
     first = candidate_clusters_to_dict(build_candidate_clusters(graph))
     second = candidate_clusters_to_dict(build_candidate_clusters(graph))
     assert first == second
-    assert isinstance(first["clusters"][0]["document_ids"], tuple)
+    assert isinstance(first["clusters"][0]["document_ids"], list)
+    json.dumps(first)
