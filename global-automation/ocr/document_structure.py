@@ -37,7 +37,7 @@ class StructureBlock:
         return self.y + self.height
 
 
-a@dataclass(frozen=True)
+@dataclass(frozen=True)
 class DocumentStructure:
     pages: tuple[dict, ...]
     blocks: tuple[StructureBlock, ...]
