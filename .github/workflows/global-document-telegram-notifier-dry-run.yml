@@ -1,0 +1,28 @@
+name: Global Document Telegram Notifier Dry Run
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'global-automation/scripts/document/telegram_publication_notifier.py'
+      - 'global-automation/scripts/document/telegram_notifier_dry_run.py'
+      - '.github/workflows/global-document-telegram-notifier-dry-run.yml'
+
+jobs:
+  dry-run:
+    name: Render notification without sending
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+      - name: Install dependency
+        run: python -m pip install --disable-pip-version-check requests
+      - name: Execute dry run
+        env:
+          TELEGRAM_NOTIFICATION_CHAT_IDS: ''
+        run: python global-automation/scripts/document/telegram_notifier_dry_run.py | tee telegram-notification-dry-run.txt
+      - name: Upload dry-run artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: telegram-notification-dry-run
+          path: telegram-notification-dry-run.txt
