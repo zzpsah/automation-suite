@@ -29,6 +29,25 @@ jobs:
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
         run: ./global-automation/scripts/supabase/Test-Supabase.ps1 -SupabaseUrl $env:SUPABASE_URL -ServiceRoleKey $env:SUPABASE_SERVICE_ROLE_KEY
 
+  storage:
+    name: Global Storage (B2 + Drive)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+      - name: Install storage dependencies
+        run: python -m pip install --disable-pip-version-check boto3 requests
+      - name: Storage diagnostics
+        env:
+          B2_KEY_ID: ${{ secrets.B2_KEY_ID }}
+          B2_APPLICATION_KEY: ${{ secrets.B2_APPLICATION_KEY }}
+          B2_BUCKET_NAME: ${{ secrets.B2_BUCKET_NAME }}
+          GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
+          GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
+          GOOGLE_REFRESH_TOKEN: ${{ secrets.GOOGLE_REFRESH_TOKEN }}
+          GOOGLE_DRIVE_BACKUP_FOLDER_ID: ${{ secrets.GOOGLE_DRIVE_BACKUP_FOLDER_ID }}
+        run: python global-automation/scripts/storage/storage_health.py
+
   configuration:
     name: Required secrets
     runs-on: windows-latest
@@ -41,6 +60,13 @@ jobs:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
           AUTHORIZED_TELEGRAM_USER_IDS: ${{ secrets.AUTHORIZED_TELEGRAM_USER_IDS }}
+          B2_KEY_ID: ${{ secrets.B2_KEY_ID }}
+          B2_APPLICATION_KEY: ${{ secrets.B2_APPLICATION_KEY }}
+          B2_BUCKET_NAME: ${{ secrets.B2_BUCKET_NAME }}
+          GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
+          GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
+          GOOGLE_REFRESH_TOKEN: ${{ secrets.GOOGLE_REFRESH_TOKEN }}
+          GOOGLE_DRIVE_BACKUP_FOLDER_ID: ${{ secrets.GOOGLE_DRIVE_BACKUP_FOLDER_ID }}
         run: |
           $required = @{
             TELEGRAM_BOT_TOKEN = $env:TELEGRAM_BOT_TOKEN
@@ -48,7 +74,14 @@ jobs:
             SUPABASE_URL = $env:SUPABASE_URL
             SUPABASE_SERVICE_ROLE_KEY = $env:SUPABASE_SERVICE_ROLE_KEY
             AUTHORIZED_TELEGRAM_USER_IDS = $env:AUTHORIZED_TELEGRAM_USER_IDS
+            B2_KEY_ID = $env:B2_KEY_ID
+            B2_APPLICATION_KEY = $env:B2_APPLICATION_KEY
+            B2_BUCKET_NAME = $env:B2_BUCKET_NAME
+            GOOGLE_CLIENT_ID = $env:GOOGLE_CLIENT_ID
+            GOOGLE_CLIENT_SECRET = $env:GOOGLE_CLIENT_SECRET
+            GOOGLE_REFRESH_TOKEN = $env:GOOGLE_REFRESH_TOKEN
+            GOOGLE_DRIVE_BACKUP_FOLDER_ID = $env:GOOGLE_DRIVE_BACKUP_FOLDER_ID
           }
           $missing = $required.GetEnumerator() | Where-Object { [string]::IsNullOrWhiteSpace($_.Value) } | Select-Object -ExpandProperty Key
           if ($missing) { throw "Missing required repository secret(s): $($missing -join ', ')" }
-          Write-Host "All required repository secrets are present. Secret values are not displayed."
+          Write-Host "All required global automation secrets are present. Secret values are not displayed."
