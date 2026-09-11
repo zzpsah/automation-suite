@@ -29,20 +29,39 @@ jobs:
       - name: Install AWS CLI
         run: python -m pip install --upgrade awscli
 
+      - name: Normalize B2 endpoint
+        id: endpoint
+        env:
+          B2_S3_ENDPOINT: ${{ secrets.B2_S3_ENDPOINT }}
+        run: |
+          set -euo pipefail
+          endpoint="$B2_S3_ENDPOINT"
+          endpoint="$(printf '%s' "$endpoint" | tr -d '\r\n' | sed 's/^['"'"'"'"'"'//; s/['"'"'"'"'"'$]//')"
+          endpoint="$(printf '%s' "$endpoint" | sed -E 's#^[[:space:]]+##; s#[[:space:]]+$##')"
+          while [[ "$endpoint" == https://https://* ]]; do endpoint="${endpoint#https://}"; done
+          while [[ "$endpoint" == http://http://* ]]; do endpoint="${endpoint#http://}"; done
+          while [[ "$endpoint" == https://http://* ]]; do endpoint="${endpoint#https://}"; done
+          while [[ "$endpoint" == http://https://* ]]; do endpoint="${endpoint#http://}"; done
+          endpoint="${endpoint#https://}"
+          endpoint="${endpoint#http://}"
+          endpoint="${endpoint%/}"
+          if [[ -z "$endpoint" || "$endpoint" == *[[:space:]]* || "$endpoint" == *://* ]]; then
+            echo "B2_S3_ENDPOINT is malformed. Store only the hostname, for example: s3.us-east-005.backblazeb2.com"
+            exit 1
+          fi
+          echo "Normalized B2 endpoint: https://${endpoint}"
+          printf 'endpoint=https://%s\n' "$endpoint" >> "$GITHUB_OUTPUT"
+
       - name: Verify B2 S3 authentication and bucket access
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.B2_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.B2_APPLICATION_KEY }}
-          B2_S3_ENDPOINT: ${{ secrets.B2_S3_ENDPOINT }}
           B2_BUCKET_NAME: ${{ secrets.B2_BUCKET_NAME }}
+          B2_ENDPOINT: ${{ steps.endpoint.outputs.endpoint }}
         run: |
           set -euo pipefail
-          endpoint="${B2_S3_ENDPOINT}"
-          endpoint="${endpoint#http://}"
-          endpoint="${endpoint#https://}"
-          endpoint="https://${endpoint}"
           echo "Checking bucket access..."
-          aws --endpoint-url "$endpoint" s3api head-bucket --bucket "$B2_BUCKET_NAME"
+          aws --endpoint-url "$B2_ENDPOINT" s3api head-bucket --bucket "$B2_BUCKET_NAME"
           echo "B2 S3 authentication: OK"
           echo "Bucket access: OK"
 
@@ -50,19 +69,15 @@ jobs:
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.B2_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.B2_APPLICATION_KEY }}
-          B2_S3_ENDPOINT: ${{ secrets.B2_S3_ENDPOINT }}
           B2_BUCKET_NAME: ${{ secrets.B2_BUCKET_NAME }}
+          B2_ENDPOINT: ${{ steps.endpoint.outputs.endpoint }}
         run: |
           set -euo pipefail
-          endpoint="${B2_S3_ENDPOINT}"
-          endpoint="${endpoint#http://}"
-          endpoint="${endpoint#https://}"
-          endpoint="https://${endpoint}"
           key="_health-check/github-actions-${GITHUB_RUN_ID}.txt"
           printf 'UMV B2 health check %s\n' "$GITHUB_RUN_ID" > /tmp/b2-health.txt
-          aws --endpoint-url "$endpoint" s3 cp /tmp/b2-health.txt "s3://${B2_BUCKET_NAME}/${key}"
-          aws --endpoint-url "$endpoint" s3api head-object --bucket "$B2_BUCKET_NAME" --key "$key"
-          aws --endpoint-url "$endpoint" s3 rm "s3://${B2_BUCKET_NAME}/${key}"
+          aws --endpoint-url "$B2_ENDPOINT" s3 cp /tmp/b2-health.txt "s3://${B2_BUCKET_NAME}/${key}"
+          aws --endpoint-url "$B2_ENDPOINT" s3api head-object --bucket "$B2_BUCKET_NAME" --key "$key"
+          aws --endpoint-url "$B2_ENDPOINT" s3 rm "s3://${B2_BUCKET_NAME}/${key}"
           echo "B2 write: OK"
           echo "B2 read/head: OK"
           echo "B2 delete: OK"
