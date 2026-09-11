@@ -20,7 +20,7 @@ def test_timeline_sorts_explicit_dates_and_attaches_same_block_reference():
         ),
         "doc-a": graph(
             entity("r1", "reference", "REF-1", 1, "b1"),
-            entity("d1", "01/09/2026", "date", 1, "b1", 0.86),
+            entity("d1", "date", "01/09/2026", 1, "b1", 0.86),
         ),
     })
     assert [event.document_id for event in result.events] == ["doc-a", "doc-b"]
