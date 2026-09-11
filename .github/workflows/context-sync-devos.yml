@@ -6,12 +6,10 @@ on:
       - devos-p10-context-sync-test
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
-  sync:
-    uses: zzpsah/chatgpt-development-os/.github/workflows/context-sync.yml@main
-    with:
-      context_directory: .ai
+  smoke:
+    uses: zzpsah/chatgpt-development-os/.github/workflows/reusable-smoke.yml@main
     permissions:
-      contents: write
+      contents: read
