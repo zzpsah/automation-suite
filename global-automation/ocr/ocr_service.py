@@ -5,13 +5,15 @@ from dataclasses import asdict
 from pathlib import Path
 from typing import Any
 
+from .diagnostics import diagnose_page_text
 from .language_packs.bihar_office_resolver import resolve_office
-from .ocr_engine import extract_document_text
+from .ocr_engine import extract_document_text, ocr_image_detailed
 from .sarkari_normalizer import extract_metadata
 from .subject_extractor import extract_multiline_subject
 from .taxonomy import taxonomy_info
 
-OCR_SERVICE_VERSION = "1.4"
+OCR_SERVICE_VERSION = "1.5"
+_IMAGE_SUFFIXES = {".png", ".jpg", ".jpeg", ".tif", ".tiff", ".bmp", ".webp"}
 
 
 def score_metadata_quality(metadata: dict[str, Any], text: str) -> dict[str, Any]:
@@ -33,14 +35,7 @@ def score_metadata_quality(metadata: dict[str, Any], text: str) -> dict[str, Any
     return {"level": level, "score": round(total, 2), "fields": checks, "evidence": evidence}
 
 
-def process_pdf(pdf_path: str, work_dir: str, *, min_embedded_chars: int = 80) -> dict[str, Any]:
-    """Extract document text and metadata without project/database dependencies."""
-    path = Path(pdf_path)
-    if not path.exists():
-        raise FileNotFoundError(pdf_path)
-    if path.suffix.lower() != ".pdf":
-        raise ValueError("process_pdf currently accepts PDF files only")
-    text, method = extract_document_text(str(path), work_dir, min_embedded_chars=min_embedded_chars)
+def _assemble_result(path: Path, text: str, *, method: str, extra: dict[str, Any] | None = None) -> dict[str, Any]:
     metadata = extract_metadata(text)
     result = asdict(metadata)
     subject = extract_multiline_subject(text)
@@ -50,9 +45,45 @@ def process_pdf(pdf_path: str, work_dir: str, *, min_embedded_chars: int = 80) -
     result["confidence"] = result["confidence_details"]["level"]
     result["taxonomy"] = taxonomy_info(result.get("category"))
     result["bihar_office"] = resolve_office(text)
-    result.update({"text": text, "extraction_method": method, "filename": path.name, "ocr_service_version": OCR_SERVICE_VERSION})
+    result["page_diagnostics"] = [asdict(diagnose_page_text(1, text))]
+    result.update({
+        "text": text,
+        "extraction_method": method,
+        "filename": path.name,
+        "ocr_service_version": OCR_SERVICE_VERSION,
+    })
+    if extra:
+        result.update(extra)
     return result
 
 
-def process_file(file_path: str, work_dir: str, *, min_embedded_chars: int = 80) -> dict[str, Any]:
-    return process_pdf(file_path, work_dir, min_embedded_chars=min_embedded_chars)
+def process_pdf(pdf_path: str, work_dir: str, *, min_embedded_chars: int = 80) -> dict[str, Any]:
+    """Process a PDF without project/database dependencies."""
+    path = Path(pdf_path)
+    if not path.exists():
+        raise FileNotFoundError(pdf_path)
+    if path.suffix.lower() != ".pdf":
+        raise ValueError("process_pdf accepts PDF files only")
+    text, method = extract_document_text(str(path), work_dir, min_embedded_chars=min_embedded_chars)
+    return _assemble_result(path, text, method=method)
+
+
+def process_image(image_path: str, work_dir: str, *, language: str = "hin+eng", psm: int = 6, strategy: str = "auto") -> dict[str, Any]:
+    """Process a standalone image using quality-aware preprocessing."""
+    path = Path(image_path)
+    if not path.exists():
+        raise FileNotFoundError(image_path)
+    if path.suffix.lower() not in _IMAGE_SUFFIXES:
+        raise ValueError("process_image accepts common raster image files only")
+    ocr = ocr_image_detailed(str(path), lang=language, psm=psm, strategy=strategy)
+    return _assemble_result(path, ocr["text"], method="tesseract-image-quality-aware", extra={"ocr": ocr})
+
+
+def process_file(file_path: str, work_dir: str, *, min_embedded_chars: int = 80, language: str = "hin+eng", psm: int = 6, strategy: str = "auto") -> dict[str, Any]:
+    """Process either a PDF or image through the same stable consumer API."""
+    suffix = Path(file_path).suffix.lower()
+    if suffix == ".pdf":
+        return process_pdf(file_path, work_dir, min_embedded_chars=min_embedded_chars)
+    if suffix in _IMAGE_SUFFIXES:
+        return process_image(file_path, work_dir, language=language, psm=psm, strategy=strategy)
+    raise ValueError(f"Unsupported document type: {suffix or 'unknown'}")
