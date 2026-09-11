@@ -1,0 +1,12 @@
+{
+  "schema_version": 1,
+  "policy": "pinned-only",
+  "default_backend": "tesseract",
+  "allow_implicit_latest": false,
+  "checksum_algorithm": "sha256",
+  "backends": {
+    "tesseract": {"enabled": true, "artifact_manifest": "artifacts/manifest.json"},
+    "paddleocr": {"enabled": false, "artifact_manifest": "artifacts/manifest.json"},
+    "vlm": {"enabled": false, "artifact_manifest": "artifacts/manifest.json"}
+  }
+}
