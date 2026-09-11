@@ -26,6 +26,7 @@ GOOGLE_CLIENT_ID = os.environ["GOOGLE_CLIENT_ID"]
 GOOGLE_CLIENT_SECRET = os.environ["GOOGLE_CLIENT_SECRET"]
 GOOGLE_REFRESH_TOKEN = os.environ["GOOGLE_REFRESH_TOKEN"]
 DRIVE_FOLDER_ID = os.environ["GOOGLE_DRIVE_BACKUP_FOLDER_ID"]
+RECOVERY_DOCUMENT_ID = os.environ.get("RECOVERY_DOCUMENT_ID", "").strip()
 
 HEADERS = {"apikey": SUPABASE_KEY, "Authorization": f"Bearer {SUPABASE_KEY}"}
 
@@ -198,7 +199,14 @@ def process_record(row):
 
 
 def main():
-    query = "telegram_intake?select=*&file_id=not.is.null&or=(status.eq.Received,status.eq.Storage%20Failed,status.eq.Storage%20Partial)&order=received_at.asc&limit=10"
+    if RECOVERY_DOCUMENT_ID:
+        query = (
+            "telegram_intake?select=*&id=eq."
+            + quote(RECOVERY_DOCUMENT_ID, safe="")
+            + "&file_id=not.is.null&limit=1"
+        )
+    else:
+        query = "telegram_intake?select=*&file_id=not.is.null&or=(status.eq.Received,status.eq.Storage%20Failed,status.eq.Storage%20Partial)&order=received_at.asc&limit=10"
     rows = db_get(query)
     processed = 0
     failed = 0
@@ -221,7 +229,7 @@ def main():
                 },
             )
             print(f"Record {row['id']}: storage failed: {exc}")
-    print(f"Storage worker complete: processed={processed}, failed={failed}, candidates={len(rows)}")
+    print(f"Storage worker complete: processed={processed}, failed={failed}, candidates={len(rows)}, targeted={bool(RECOVERY_DOCUMENT_ID)}")
     if failed:
         return 1
     return 0
