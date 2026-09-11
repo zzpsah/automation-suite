@@ -13,6 +13,8 @@ from .vision_intelligence import VisualArtifact, detect_visual_artifacts, summar
 from .multipage_intelligence import PageStructure, analyze_pages
 from .document_structure import DocumentStructure, StructureBlock, build_document_structure, build_page_structure, structure_to_dict
 from .reading_order import ReadingOrderBlock, optimize_reading_order
+from .section_intelligence import SectionBoundary, detect_section_boundaries, section_boundaries_to_dict
+from .table_schema import StructuredTableCell, StructuredTable, build_table, table_to_dict
 
 __all__ = [
     "extract_document_text", "extract_embedded_pdf_text", "ocr_image", "ocr_image_detailed", "render_pdf",
@@ -27,4 +29,6 @@ __all__ = [
     "PageStructure", "analyze_pages",
     "DocumentStructure", "StructureBlock", "build_document_structure", "build_page_structure", "structure_to_dict",
     "ReadingOrderBlock", "optimize_reading_order",
+    "SectionBoundary", "detect_section_boundaries", "section_boundaries_to_dict",
+    "StructuredTableCell", "StructuredTable", "build_table", "table_to_dict",
 ]
