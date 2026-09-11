@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Government Document Vision Image Benchmark Case",
+  "type": "object",
+  "required": ["id", "image", "category"],
+  "properties": {
+    "id": {"type": "string", "minLength": 1},
+    "image": {"type": "string", "minLength": 1},
+    "category": {
+      "type": "string",
+      "enum": ["rotation", "deskew", "resolution", "contrast", "noise", "blur", "background", "perspective", "hindi", "mixed", "table", "stamp", "old_scan", "multi_page"]
+    },
+    "ground_truth_text": {"type": ["string", "null"]},
+    "expected_rotation_degrees": {"type": ["number", "null"]},
+    "expected_skew_degrees": {"type": ["number", "null"]},
+    "notes": {"type": ["string", "null"]}
+  },
+  "additionalProperties": false
+}
