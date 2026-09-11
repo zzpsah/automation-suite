@@ -12,32 +12,25 @@ from typing import Any
 
 from .ocr_engine import extract_document_text
 from .sarkari_normalizer import extract_metadata
+from .subject_extractor import extract_multiline_subject
 
-OCR_SERVICE_VERSION = "1.0"
+OCR_SERVICE_VERSION = "1.1"
 
 
-def process_pdf(
-    pdf_path: str,
-    work_dir: str,
-    *,
-    min_embedded_chars: int = 80,
-) -> dict[str, Any]:
-    """Extract document text and Sarkari metadata from a PDF.
-
-    The result is deliberately independent of Supabase, Telegram, B2,
-    Google Drive, or any consuming application's database schema.
-    """
+def process_pdf(pdf_path: str, work_dir: str, *, min_embedded_chars: int = 80) -> dict[str, Any]:
+    """Extract document text and Sarkari metadata from a PDF."""
     path = Path(pdf_path)
     if not path.exists():
         raise FileNotFoundError(pdf_path)
     if path.suffix.lower() != ".pdf":
         raise ValueError("process_pdf currently accepts PDF files only")
 
-    text, method = extract_document_text(
-        str(path), work_dir, min_embedded_chars=min_embedded_chars
-    )
+    text, method = extract_document_text(str(path), work_dir, min_embedded_chars=min_embedded_chars)
     metadata = extract_metadata(text)
     result = asdict(metadata)
+    subject = extract_multiline_subject(text)
+    if subject:
+        result["subject"] = subject
     result.update({
         "text": text,
         "extraction_method": method,
@@ -47,20 +40,6 @@ def process_pdf(
     return result
 
 
-def process_file(
-    file_path: str,
-    work_dir: str,
-    *,
-    min_embedded_chars: int = 80,
-) -> dict[str, Any]:
-    """Stable generic entry point for future consumers.
-
-    PDF is the first supported document type. Additional formats/backends can
-    be added behind this function without forcing downstream projects to
-    change their integration contract.
-    """
-    return process_pdf(
-        file_path,
-        work_dir,
-        min_embedded_chars=min_embedded_chars,
-    )
+def process_file(file_path: str, work_dir: str, *, min_embedded_chars: int = 80) -> dict[str, Any]:
+    """Stable generic entry point for future consumers."""
+    return process_pdf(file_path, work_dir, min_embedded_chars=min_embedded_chars)
