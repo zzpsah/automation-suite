@@ -2,8 +2,8 @@
 """Identify safely recoverable School Document Pipeline records.
 
 This utility is intentionally conservative: it reports stale/failed records and
-never changes documents automatically. Recovery is performed by the existing
-workers on their next eligible run or by an explicit operator action.
+never changes documents automatically. The lifecycle resolver classifies the
+observed evidence; existing workers remain responsible for mutations.
 """
 from __future__ import annotations
 
@@ -11,9 +11,16 @@ import os
 import sys
 from collections import Counter
 from datetime import datetime, timedelta, timezone
+from pathlib import Path
 from urllib.parse import quote
 
 import requests
+
+ROOT = Path(__file__).resolve().parents[3]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+
+from global_automation_scripts_document_state_resolver import resolve_state
 
 BASE = os.environ["SUPABASE_URL"].rstrip("/")
 KEY = os.environ["SUPABASE_SERVICE_ROLE_KEY"]
@@ -34,28 +41,33 @@ def main() -> int:
         + quote(cutoff, safe="")
         + "&status=in.(Received,Stored,Processing Failed,Storage Failed,Storage Partial)&order=received_at.asc&limit=500"
     )
+    docs = get(
+        "documents?select=id,source_message_id,processing_status,publication_status,approved_for_publication,delivery_status&limit=500"
+    )
     counts = Counter(str(r.get("status") or "NULL") for r in rows)
+    docs_by_source = {str(d.get("source_message_id")): d for d in docs if d.get("source_message_id")}
     recoverable = []
+    state_counts = Counter()
+
     for row in rows:
-        status = row.get("status")
-        metadata = row.get("metadata") or {}
-        storage = metadata.get("storage") or {}
-        if status in {"Received", "Storage Failed", "Storage Partial"}:
-            recoverable.append((row["id"], status, "storage-worker"))
-        elif status == "Processing Failed":
-            recoverable.append((row["id"], status, "document-processor"))
-        elif status == "Stored" and storage.get("b2_status") == "AVAILABLE":
-            recoverable.append((row["id"], status, "document-processor"))
+        doc = docs_by_source.get(str(row.get("id")))
+        if doc is None:
+            doc = {"id": str(row.get("id")), "processing_status": "", "publication_status": ""}
+        state = resolve_state(doc, row)
+        state_counts[state.state] += 1
+        if state.next_action != "none":
+            recoverable.append((row["id"], row.get("status"), state.state, state.next_action, state.reason))
 
     print("=== SCHOOL DOCUMENT PIPELINE RECOVERY ===")
     print(f"checked_at={now.isoformat()}")
     print(f"stale_cutoff={cutoff}")
     print(f"records={len(rows)}")
     print(f"status_counts={dict(counts)}")
+    print(f"resolved_states={dict(state_counts)}")
     print(f"recoverable={len(recoverable)}")
-    for rid, status, worker in recoverable[:100]:
-        print(f"RECOVERABLE id={rid} status={status} worker={worker}")
-    # This is a diagnostic workflow, not an automatic mutation mechanism.
+    for rid, status, state, worker, reason in recoverable[:100]:
+        print(f"RECOVERABLE id={rid} status={status} state={state} worker={worker} reason={reason}")
+    # Diagnostic only: resolver is read-only and workers own side effects.
     return 0
 
 
