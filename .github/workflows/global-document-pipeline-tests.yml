@@ -5,6 +5,7 @@ on:
   push:
     paths:
       - 'global-automation/scripts/document/**'
+      - 'global-automation/govdoc-ocr/**'
       - '.github/workflows/global-document-pipeline-tests.yml'
 
 permissions:
@@ -23,7 +24,12 @@ jobs:
           python-version: '3.12'
       - name: Install dependencies
         run: python -m pip install --disable-pip-version-check requests pypdf boto3
-      - name: Compile document scripts
-        run: python -m compileall -q global-automation/scripts/document
-      - name: Run offline smoke test
+      - name: Compile document and GovDOC OCR scripts
+        run: |
+          python -m compileall -q global-automation/scripts/document
+          python -m compileall -q global-automation/govdoc-ocr
+      - name: Run GovDOC OCR smoke test
+        working-directory: global-automation/govdoc-ocr
+        run: python smoke_test.py
+      - name: Run offline pipeline smoke test
         run: python global-automation/scripts/document/pipeline_smoke_test.py
