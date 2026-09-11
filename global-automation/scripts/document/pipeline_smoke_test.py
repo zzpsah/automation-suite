@@ -2,11 +2,13 @@
 """Offline smoke tests for the School Document Pipeline.
 
 These tests do not contact Supabase, Telegram, B2, Google Drive, or publish data.
-They validate deterministic helpers and the evidence-based lifecycle resolver.
+They validate deterministic helpers, the Supabase insert wrapper contract, and
+the evidence-based lifecycle resolver.
 """
 from __future__ import annotations
 
 import importlib.util
+import os
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[3]
@@ -26,6 +28,13 @@ def load_module(name: str, path: Path):
 
 
 def main() -> int:
+    # document_processor reads production credentials at import time. Supply
+    # inert values so this test remains completely offline and side-effect free.
+    os.environ.setdefault("SUPABASE_URL", "https://offline.invalid")
+    os.environ.setdefault("SUPABASE_SERVICE_ROLE_KEY", "offline-test-key")
+    os.environ.setdefault("B2_KEY_ID", "offline-b2-key")
+    os.environ.setdefault("B2_APPLICATION_KEY", "offline-b2-app-key")
+
     processor = load_module("document_processor", PROCESSOR_PATH)
     resolver = load_module("pipeline_state_resolver", RESOLVER_PATH)
     checks = []
@@ -42,6 +51,37 @@ def main() -> int:
         checks.append(("context_filename_helper_present", False))
 
     checks.append(("checksum_helper_present", any(hasattr(processor, n) for n in ("sha256_file", "file_sha256"))))
+
+    class FakeResponse:
+        def __init__(self, data):
+            self._data = data
+
+        def raise_for_status(self):
+            return None
+
+        def json(self):
+            return self._data
+
+    original_post = processor.requests.post
+    captured = {}
+
+    def fake_post(url, headers=None, json=None, timeout=None):
+        captured.update({"url": url, "headers": headers or {}, "json": json, "timeout": timeout})
+        return FakeResponse([{"id": "offline-document-id"}])
+
+    try:
+        processor.requests.post = fake_post
+        inserted = processor.db_insert("documents", {"id": "offline-document-id", "subject": "test"})
+        checks.append((
+            "db_insert_contract",
+            inserted.get("id") == "offline-document-id"
+            and captured.get("url") == "https://offline.invalid/rest/v1/documents"
+            and captured.get("headers", {}).get("Prefer") == "return=representation"
+            and captured.get("headers", {}).get("Content-Type") == "application/json"
+            and captured.get("timeout") == 30,
+        ))
+    finally:
+        processor.requests.post = original_post
 
     resolver_cases = [
         ("intake", {"id": "1"}, {"id": "i1", "metadata": {}}, "INTAKE_RECEIVED", "storage"),
