@@ -6,6 +6,7 @@ from .sarkari_normalizer import SarkariMetadata, extract_metadata, normalize_sar
 from .backend_policy import choose_backend, choose_from_benchmarks
 from .field_confidence import FieldConfidence, score_field, score_fields
 from .region_alignment import OCRSpan, align_regions
+from .region_consensus import RegionDisagreement, compare_regions
 
 __all__ = [
     "extract_document_text",
@@ -26,4 +27,6 @@ __all__ = [
     "score_fields",
     "OCRSpan",
     "align_regions",
+    "RegionDisagreement",
+    "compare_regions",
 ]
