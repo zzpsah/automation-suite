@@ -2,6 +2,9 @@ name: Global Document Telegram Notifier
 
 on:
   workflow_dispatch:
+  workflow_run:
+    workflows: ["Global Document Publication"]
+    types: [completed]
   schedule:
     - cron: '*/5 * * * *'
 
@@ -12,6 +15,9 @@ concurrency:
 jobs:
   notify:
     name: Published document → eLettersBot private PDF delivery
+    # Run immediately after a successful publication, while retaining the
+    # five-minute reconciliation poll for missed/late events.
+    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
