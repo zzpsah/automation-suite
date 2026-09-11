@@ -69,9 +69,11 @@ For every material development step:
 
 ## Government Document Vision & OCR Platform — current recovery point
 
-The OCR platform's document-structure layer now includes a deterministic **global reading-order optimizer**. Structure blocks carry geometry, and `reading_order.py` orders headers, body columns and footers across pages without modifying source OCR evidence. Explicit column assignments are preferred; geometry is used when a block has no explicit column. The implementation is heuristic and not yet release-certified.
+The canonical development branch is `feature/global-ocr-platform` and PR #6 remains the single canonical PR. The OCR platform now has P19 cross-document relations, P20 conservative candidate clustering, a reusable deterministic global search index, and P21 evidence-only reference/date timeline intelligence. Search remains separate from clustering, and all derived layers preserve document/page/block/entity provenance.
 
-**Next OCR recovery step:** explicit section/annexure/attachment and robust table schemas, including merged/irregular cells, followed by multi-page structure continuity.
+P20 deliberately does not claim same legal-case identity. P21 does not assign legal meaning to dates; it only orders explicitly extracted date entities and attaches same-block reference evidence. Current development is **not production-certified** until the full OCR suite and CI are actually verified.
+
+**Next OCR recovery step:** verify the full regression suite/CI, then add persistent search adapters and metadata filters before semantic/vector retrieval.
 
 ## School Document Pipeline
 
