@@ -5,6 +5,7 @@ on:
   push:
     paths:
       - 'global-automation/scripts/document/**'
+      - 'global-automation/ocr/**'
       - '.github/workflows/global-document-processor.yml'
   schedule:
     - cron: '*/5 * * * *'
@@ -15,7 +16,7 @@ concurrency:
 
 jobs:
   process:
-    name: B2 → OCR → Supabase
+    name: B2 → Global Sarkari OCR → Supabase
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -29,11 +30,17 @@ jobs:
       - name: Install Python dependencies
         run: python -m pip install --disable-pip-version-check boto3 requests pypdf
 
-      - name: Process stored Telegram documents
+      - name: Verify OCR runtime
+        run: |
+          tesseract --version
+          tesseract --list-langs | grep -E '^(hin|eng)$'
+          python -m py_compile global-automation/ocr/*.py global-automation/scripts/document/document_processor_v2.py
+
+      - name: Process stored Telegram PDF documents
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
           B2_KEY_ID: ${{ secrets.B2_KEY_ID }}
           B2_APPLICATION_KEY: ${{ secrets.B2_APPLICATION_KEY }}
           B2_BUCKET_NAME: ${{ secrets.B2_BUCKET_NAME }}
-        run: python global-automation/scripts/document/document_processor.py
+        run: python global-automation/scripts/document/document_processor_v2.py
