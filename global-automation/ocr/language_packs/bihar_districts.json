@@ -1,6 +1,6 @@
 {
   "name": "Bihar Government District Vocabulary",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "locale": "hi-IN",
   "source_basis": "Government of Bihar district and education listings",
   "divisions": {
@@ -12,8 +12,7 @@
     "Darbhanga": ["Darbhanga", "दरभंगा"],
     "Kosi": ["Kosi", "कोसी"],
     "Magadh": ["Magadh", "मगध"],
-    "Munger": ["Munger", "मुंगेर"],
-    "Magadh": ["Magadh", "मगध"]
+    "Munger": ["Munger", "मुंगेर"]
   },
   "districts": {
     "Araria": ["Araria", "अररिया"],
@@ -25,7 +24,7 @@
     "Bhojpur": ["Bhojpur", "भोजपुर", "Ara", "आरा"],
     "Buxar": ["Buxar", "बक्सर"],
     "Darbhanga": ["Darbhanga", "दरभंगा"],
-    "East Champaran": ["East Champaran", "E. Champaran", "East Champaran", "पूर्वी चंपारण", "पूर्वी चम्पारण", "Motihari", "मोतिहारी"],
+    "East Champaran": ["East Champaran", "E. Champaran", "पूर्वी चंपारण", "पूर्वी चम्पारण", "Motihari", "मोतिहारी"],
     "Gaya": ["Gaya", "Gaya Ji", "गया", "गया जी"],
     "Gopalganj": ["Gopalganj", "गोपालगंज"],
     "Jamui": ["Jamui", "जमुई"],
@@ -47,8 +46,8 @@
     "Saharsa": ["Saharsa", "सहरसा"],
     "Samastipur": ["Samastipur", "समस्तीपुर"],
     "Saran": ["Saran", "सारण", "Chhapra", "छपरा"],
-    "Sheikhpura": ["Sheikhpura", "शेखपुरा", "Shekhpura", "शेखपुरा"],
-    "Sheohar": ["Sheohar", "शिवहर", "Sheohar"],
+    "Sheikhpura": ["Sheikhpura", "शेखपुरा", "Shekhpura"],
+    "Sheohar": ["Sheohar", "शिवहर"],
     "Sitamarhi": ["Sitamarhi", "सीतामढ़ी", "सीतामढ़ी"],
     "Siwan": ["Siwan", "सिवान"],
     "Supaul": ["Supaul", "सुपौल"],
