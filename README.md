@@ -67,9 +67,15 @@ For every material development step:
 
 **If DevOS learns it during development and it matters for future engineering, it belongs in GitHub.** This includes architecture decisions, APIs, data flow, benchmarks, model/artifact policy, security boundaries, limitations, migration notes, release gates, recovery instructions, and roadmap state.
 
+## Government Document Vision & OCR Platform — current recovery point
+
+The OCR platform's document-structure layer now includes a deterministic **global reading-order optimizer**. Structure blocks carry geometry, and `reading_order.py` orders headers, body columns and footers across pages without modifying source OCR evidence. Explicit column assignments are preferred; geometry is used when a block has no explicit column. The implementation is heuristic and not yet release-certified.
+
+**Next OCR recovery step:** explicit section/annexure/attachment and robust table schemas, including merged/irregular cells, followed by multi-page structure continuity.
+
 ## School Document Pipeline
 
-The production document system for **UCHCH MADHYAMIK VIDALAY, TETAHALI**, UDISE `10160203806`, BSEB College Code `42369`.
+The production document system for **UCHCH MADHYAMIK VIDALAYA, TETAHALI**, UDISE `10160203806`, BSEB College Code `42369`.
 
 ### System flow
 
