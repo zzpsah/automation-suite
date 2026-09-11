@@ -1,0 +1,6 @@
+# Lightweight image preprocessing (optional for embedded-text-only workloads)
+Pillow>=10,<13
+
+# Optional OCR backend; install only when PaddleOCR is required.
+# paddleocr
+# paddlepaddle

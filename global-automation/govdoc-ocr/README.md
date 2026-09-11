@@ -1,110 +1,89 @@
-# GovDOC OCR Engine
+# GovDOC OCR Engine / GovDOC Vision
 
-Reusable OCR and document-understanding engine for Indian government documents.
-
-## What this is
-
-`GovDOC OCR Engine` is the shared OCR component used by government-document automation projects in this repository.
-
-It is **not** the School Document Pipeline itself. The pipeline can call this engine to read a PDF/image and receive OCR text plus structured government-document metadata.
-
-## Simple product view
-
-```text
-PDF / scanned image
-        |
-        v
-   GovDOC OCR Engine
-        |
-        +--> OCR text
-        +--> Hindi + English recognition
-        +--> cleanup / normalization
-        +--> government-document field extraction
-        +--> confidence information
-        |
-        v
-Calling application / document pipeline
-```
+Reusable OCR, image-processing and government-document intelligence engine for Indian government documents.
 
 ## Current capabilities
 
-- PDF text extraction when usable text is already embedded.
-- Scanned-PDF OCR using Hindi + English Tesseract.
-- Conservative OCR cleanup and normalization.
-- Government-document metadata extraction:
-  - `subject`
-  - `authority`
-  - `reference_number`
-  - `issue_date`
-  - `office`
-  - `department`
-  - `category`
-  - `confidence`
-- Filename and extraction-method information.
-- Bihar Education domain/language-pack foundation.
-- Rule-and-corpus based improvement with regression tests.
-- Stable consumer API through `ocr_service.py`.
-- Replaceable OCR backends without forcing downstream projects to rewrite their integration.
+- PDF embedded-text extraction
+- scanned-PDF OCR
+- Hindi + English Tesseract baseline
+- optional PaddleOCR backend
+- direct JPG/JPEG/PNG/TIFF/WebP image input
+- conservative image preprocessing
+- page-level OCR results and preprocessing diagnostics
+- raw + normalized text
+- evidence-based government-document intelligence
+- subject, authority, document type, actions and deadlines
+- Bihar district/office vocabulary foundation
+- correction/normalization architecture
+- storage-neutral keyword search boundary
+- stable `ocr_service.py` consumer interface
 
-## Stable interface
-
-Consumers should use the shared service rather than copying OCR logic:
+## Service examples
 
 ```python
-from ocr.ocr_service import process_pdf
+from ocr.ocr_service import process_pdf, process_image, process_document
+
 result = process_pdf(pdf_path, work_dir)
+image_result = process_image(image_path, work_dir)
+any_result = process_document(path, work_dir)
 ```
 
-The service returns OCR text, extracted metadata, extraction method, filename, and OCR service version. Missing fields are valid and must not be invented.
+Existing PDF consumers remain supported. New consumers can process common image formats without coupling the engine to Telegram, Supabase, B2 or Drive.
 
-## Current backend
+## OCR backend policy
 
-Tesseract Hindi + English is the current free baseline. Future backends such as PaddleOCR or OCR-VL/local models may be evaluated against the same corpus before becoming a default.
+Tesseract Hindi + English remains the free/default baseline. PaddleOCR is optional and loaded only when selected. Future OCR-VL/local vision backends can implement the same backend contract. The engine must not require every backend for normal operation.
+
+## Government intelligence
+
+The intelligence layer runs after OCR/normalization and is evidence-first. It prefers explicit header authority and labelled subjects, classifies document type from source evidence, extracts actionable source lines and dates, and does not invent missing metadata. OCR confidence is never publication approval.
+
+## Bihar language intelligence
+
+The Bihar pack is a versioned vocabulary foundation for education/government documents. It covers administrative labels, BSEB/OFSS terminology, education offices, district aliases, school terminology and common Hindi/English variants. The pack and resolver are being expanded using reviewed real-document corrections and regression tests.
+
+## Search boundary
+
+`search.py` provides deterministic keyword/metadata retrieval today. It is intentionally storage-neutral and is designed to be connected later to Postgres full-text search and real pgvector embeddings. No fake semantic search is claimed.
 
 ## Architecture boundary
 
-GovDOC OCR Engine owns:
+```text
+Input PDF / Image
+       ↓
+Document Router
+       ↓
+Embedded Text OR Image Preprocessing
+       ↓
+OCR Backend (Tesseract / optional PaddleOCR / future Vision)
+       ↓
+Raw OCR + Page Results
+       ↓
+Normalization / Correction
+       ↓
+Government Document Intelligence
+       ↓
+Metadata + Evidence + Diagnostics
+       ↓
+Search / Calling Application
+```
 
-- OCR
-- preprocessing/normalization
-- government-domain vocabulary and language packs
-- metadata extraction
-- OCR diagnostics and confidence
-- OCR tests and benchmarks
+GovDOC owns OCR, preprocessing, normalization, language packs, intelligence, diagnostics and search interfaces. Calling applications own storage, Supabase lifecycle, publication, Telegram and business rules.
 
-Calling applications own:
+## Improvement loop
 
-- Telegram intake
-- Supabase records
-- Backblaze B2 / Google Drive storage
-- publication and approval
-- notifications
-- portal/business rules
+`real document → OCR → identify error → language/rule correction → regression test → benchmark → deploy`
 
-This separation lets the OCR engine improve independently without destabilizing production workflows.
+Preserve source text and correction provenance. Do not silently rewrite raw OCR.
 
-## Project identity
+## Future / experimental
 
-- **Display name:** GovDOC OCR Engine
-- **Short name:** GovDOC OCR
-- **Folder:** `global-automation/govdoc-ocr/`
-- **Role:** reusable OCR engine / document-understanding component
+- stronger automatic multi-backend scoring
+- advanced table/layout/stamp/signature detection
+- handwriting recognition
+- semantic/vector retrieval with real embeddings
+- larger reviewed Bihar corpus
+- OCR-VL/local multimodal models
 
-## Development branch
-
-Active OCR development may continue on `feature/global-sarkari-ocr` until intentionally promoted to the stable branch.
-
-## Related production system
-
-The School Document Pipeline lives under `global-automation/scripts/document/` and may consume GovDOC OCR as a reusable component. OCR experimentation/model improvement must remain independently deployable.
-
-## Design rules
-
-- Never invent a missing field.
-- Preserve source wording whenever possible.
-- Separate raw OCR, normalization, extraction, classification, and publication.
-- OCR confidence is not publication approval.
-- Keep OCR independent of storage and application infrastructure.
-- Prefer deterministic rules before adding a model.
-- Every new correction should become a regression test.
-- Text-only Telegram records are not automatically treated as PDF OCR jobs.
+See `docs/GOVDOC_VISION_ROADMAP.md` for the capability record and upgrade plan.
