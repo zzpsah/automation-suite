@@ -25,6 +25,20 @@ Telegram intake → Supabase intake → Backblaze B2 primary → Google Drive ba
 6. Check Drive filename synchronization.
 7. Inspect audit history before manual correction.
 
+## Guarded automatic recovery
+
+The recovery workflow now resolves lifecycle state first and may dispatch **only storage recovery** automatically.
+
+- `RECOVERY_DISPATCH=true` enables dispatch; the default script behavior remains read-only.
+- Storage dispatch uses GitHub `repository_dispatch` with event type `document-recovery` and a specific `document_id`.
+- The storage worker receives `RECOVERY_DOCUMENT_ID` and processes only that intake record when targeted.
+- The storage worker remains retry-safe: existing B2/Drive objects are reused instead of blindly re-uploaded.
+- Processing failures are still manual (`RECOVERY_REQUIRED`) and are not auto-reprocessed.
+- Publication and Telegram delivery are not auto-triggered by this recovery path; their eligibility/side effects stay with their own workers.
+- If the GitHub dispatch fails, the recovery run fails visibly rather than pretending the recovery occurred.
+
+This is deliberate: recovery can delegate a verified storage repair, but it must not manufacture publication eligibility or duplicate downstream side effects.
+
 ## Operational invariants
 
 A healthy published document should have:
