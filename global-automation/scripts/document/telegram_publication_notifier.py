@@ -5,6 +5,7 @@ Notification is deliberately separate from publication: a Telegram failure must
 never roll back a successfully published document. Audit rows make delivery
 idempotent and retryable.
 """
+import html
 import json
 import os
 import sys
@@ -15,9 +16,24 @@ import requests
 
 SUPABASE_URL = os.environ["SUPABASE_URL"].rstrip("/")
 SUPABASE_KEY = os.environ["SUPABASE_SERVICE_ROLE_KEY"]
-TELEGRAM_TOKEN = os.environ["TELEGRAM_BOT_TOKEN"]
+TELEGRAM_TOKEN = os.environ["TELEGRAM_OUTPUT_BOT_TOKEN"]
 CONFIGURED_CHAT_IDS = [x.strip() for x in os.environ.get("TELEGRAM_NOTIFICATION_CHAT_IDS", "").split(",") if x.strip()]
 HEADERS = {"apikey": SUPABASE_KEY, "Authorization": f"Bearer {SUPABASE_KEY}"}
+
+TAG_MAP = {
+    "admission": ["#नामांकन", "#SpotAdmission", "#OFSS", "#Admission"],
+    "bseb": ["#BSEB", "#बिहारविद्यालयपरीक्षासमिति", "#Board"],
+    "academic": ["#Academic", "#शैक्षणिक", "#विद्यालय"],
+    "exam": ["#Exam", "#परीक्षा", "#BSEB"],
+    "scholarship": ["#Scholarship", "#छात्रवृत्ति", "#Student"],
+    "salary": ["#Salary", "#वेतन", "#Finance"],
+    "service": ["#Service", "#सेवा", "#Teacher"],
+    "establishment": ["#Establishment", "#स्थापना", "#Office"],
+    "training": ["#Training", "#प्रशिक्षण", "#Teacher"],
+    "transfer": ["#Transfer", "#स्थानांतरण", "#Service"],
+    "holiday": ["#Holiday", "#अवकाश", "#School"],
+    "other": ["#OfficialDocument", "#सरकारीदस्तावेज"],
+}
 
 
 def db_get(path):
@@ -46,7 +62,24 @@ def telegram(method, payload):
 
 
 def esc(value):
-    return str(value or "—").replace("<", "&lt;").replace(">", "&gt;").replace("&", "&amp;")
+    return html.escape(str(value or "—"), quote=False)
+
+
+def display_date(value):
+    if not value:
+        return "पहचान नहीं हो सकी"
+    return str(value)[:10]
+
+
+def tags_for(doc):
+    category_key = str(doc.get("category_key") or "other").strip().lower()
+    tags = TAG_MAP.get(category_key, TAG_MAP["other"])
+    subject = str(doc.get("subject") or "").lower()
+    if "नामांकन" in subject or "admission" in subject or "spot" in subject:
+        tags = list(dict.fromkeys(tags + ["#नामांकन", "#Admission"]))
+    if "परीक्षा" in subject or "exam" in subject:
+        tags = list(dict.fromkeys(tags + ["#परीक्षा", "#Exam"]))
+    return " ".join(tags[:8])
 
 
 def recipients(intake_rows):
@@ -69,25 +102,37 @@ def already_sent(document_id, chat_id):
     return bool(db_get(q))
 
 
-def format_message(doc):
+def format_message(doc, serial_no):
+    authority = doc.get("issuing_authority")
+    if not authority or str(authority).strip().lower() in {"unknown", "n/a", "na", "—"}:
+        authority = "जारीकर्ता पहचान नहीं हो सका"
+
+    short_description = doc.get("short_description") or "दस्तावेज़ के विषय के आधार पर संक्षिप्त विवरण उपलब्ध नहीं है।"
+    subject = doc.get("subject") or "विषय पहचान नहीं हो सका"
+    category = doc.get("category") or doc.get("category_key") or "अन्य"
+
     return (
-        "<b>📢 Document Published</b>\n\n"
-        f"<b>विषय:</b> {esc(doc.get('subject'))}\n"
-        f"<b>जारीकर्ता:</b> {esc(doc.get('issuing_authority'))}\n"
+        "<b>📢 नया सरकारी दस्तावेज़ प्रकाशित</b>\n\n"
+        f"<b>क्रमांक:</b> {serial_no}\n"
+        f"<b>जारी तिथि:</b> {esc(display_date(doc.get('normalized_issue_date')))}\n"
+        f"<b>अपलोड तिथि:</b> {esc(display_date(doc.get('received_at') or doc.get('published_at')))}\n"
+        f"<b>जारीकर्ता विभाग/प्राधिकरण:</b> {esc(authority)}\n\n"
+        f"<b>विषय:</b> {esc(subject)}\n\n"
+        f"<b>यह किस बारे में है:</b> {esc(short_description)}\n\n"
+        f"<b>प्रकार:</b> {esc(category)}\n"
+        f"<b>खोज टैग:</b> {esc(tags_for(doc))}\n\n"
         f"<b>पत्रांक:</b> {esc(doc.get('reference_number'))}\n"
-        f"<b>जारी तिथि:</b> {esc(doc.get('normalized_issue_date'))}\n"
-        f"<b>श्रेणी:</b> {esc(doc.get('category'))}\n"
         f"<b>फ़ाइल:</b> {esc(doc.get('display_filename') or doc.get('original_filename'))}\n\n"
-        f"<b>Public Link:</b> {esc(doc.get('public_file_url'))}"
+        f"🔗 <b>दस्तावेज़ देखें:</b> {esc(doc.get('public_file_url'))}"
     )
 
 
 def main():
     rows = db_get(
-        "documents?select=id,original_filename,display_filename,subject,issuing_authority,reference_number,normalized_issue_date,category,public_file_url,publication_status,approved_for_publication&publication_status=eq.Published&approved_for_publication=is.true&order=published_at.desc&limit=50"
+        "documents?select=id,original_filename,display_filename,subject,short_description,issuing_authority,reference_number,normalized_issue_date,received_at,published_at,category,category_key,public_file_url,publication_status,approved_for_publication&publication_status=eq.Published&approved_for_publication=is.true&order=received_at.desc.nullslast,published_at.desc.nullslast,normalized_issue_date.desc.nullslast&limit=50"
     )
     sent = failed = skipped = 0
-    for doc in rows:
+    for serial_index, doc in enumerate(rows, start=1):
         if not doc.get("public_file_url"):
             skipped += 1
             continue
@@ -100,14 +145,12 @@ def main():
         if not targets:
             skipped += 1
             continue
-        message = format_message(doc)
+        message = format_message(doc, serial_index)
         for chat_id in targets:
             if already_sent(doc["id"], chat_id):
                 continue
             try:
                 telegram("sendMessage", {"chat_id": chat_id, "text": message, "parse_mode": "HTML", "disable_web_page_preview": False})
-                # Telegram can fetch the public URL directly; this sends the actual PDF/document
-                # rather than making the recipient open the archive first.
                 telegram("sendDocument", {"chat_id": chat_id, "document": doc["public_file_url"], "caption": f"📎 {doc.get('display_filename') or doc.get('original_filename') or 'Published document'}"})
                 db_insert_audit({
                     "document_id": doc["id"],
@@ -115,7 +158,7 @@ def main():
                     "actor_type": "system",
                     "from_status": {"publication_status": "Published"},
                     "to_status": {"telegram": "Sent"},
-                    "details": {"chat_id": chat_id, "sent_at": datetime.now(timezone.utc).isoformat()},
+                    "details": {"chat_id": chat_id, "sent_at": datetime.now(timezone.utc).isoformat(), "serial_no": serial_index},
                 })
                 sent += 1
                 print(f"Notified {chat_id} for {doc['id']}")
