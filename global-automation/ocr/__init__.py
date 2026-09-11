@@ -7,6 +7,7 @@ from .backend_policy import choose_backend, choose_from_benchmarks
 from .field_confidence import FieldConfidence, score_field, score_fields
 from .region_alignment import OCRSpan, align_regions
 from .region_consensus import RegionDisagreement, compare_regions
+from .text_reconstruction import ReconstructionLine, group_lines, reconstruct_text
 
 __all__ = [
     "extract_document_text",
@@ -29,4 +30,7 @@ __all__ = [
     "align_regions",
     "RegionDisagreement",
     "compare_regions",
+    "ReconstructionLine",
+    "group_lines",
+    "reconstruct_text",
 ]
