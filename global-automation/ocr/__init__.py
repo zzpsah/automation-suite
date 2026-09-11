@@ -4,6 +4,7 @@ from .ocr_engine import extract_document_text, extract_embedded_pdf_text, ocr_im
 from .ocr_service import process_file, process_image, process_pdf
 from .sarkari_normalizer import SarkariMetadata, extract_metadata, normalize_sarkari_text
 from .backend_policy import choose_backend, choose_from_benchmarks
+from .field_confidence import FieldConfidence, score_field, score_fields
 
 __all__ = [
     "extract_document_text",
@@ -19,4 +20,7 @@ __all__ = [
     "normalize_sarkari_text",
     "choose_backend",
     "choose_from_benchmarks",
+    "FieldConfidence",
+    "score_field",
+    "score_fields",
 ]
