@@ -2,15 +2,16 @@
 """Deliver published PDFs through the dedicated eLettersBot.
 
 Uses the intake row referenced by documents.source_message_id to locate the
-private B2 object. Legacy published rows without a B2 intake object are skipped
-rather than failing the whole notification run.
+private B2 object. PDF bytes are uploaded directly to Telegram; no storage URL
+is included in the notification.
 """
 import html
 import io
 import os
 import sys
+import uuid
 from datetime import datetime, timezone
-from urllib.parse import quote
+from urllib.parse import quote, urlparse
 
 import boto3
 import requests
@@ -23,7 +24,10 @@ CONFIGURED_CHAT_IDS = [x.strip() for x in os.environ.get("TELEGRAM_NOTIFICATION_
 B2_KEY_ID = os.environ["B2_KEY_ID"]
 B2_APP_KEY = os.environ["B2_APPLICATION_KEY"]
 B2_BUCKET = os.environ.get("B2_BUCKET_NAME", "Education-Dept-Files")
-B2_ENDPOINT = os.environ.get("B2_S3_ENDPOINT", "https://s3.us-east-005.backblazeb2.com")
+DEFAULT_B2_ENDPOINT = "https://s3.us-east-005.backblazeb2.com"
+_configured_endpoint = (os.environ.get("B2_S3_ENDPOINT") or "").strip().strip('"').strip("'")
+_parsed_endpoint = urlparse(_configured_endpoint)
+B2_ENDPOINT = _configured_endpoint if _parsed_endpoint.scheme in {"http", "https"} and _parsed_endpoint.netloc else DEFAULT_B2_ENDPOINT
 HEADERS = {"apikey": SUPABASE_KEY, "Authorization": f"Bearer {SUPABASE_KEY}"}
 
 TAG_MAP = {
@@ -141,7 +145,12 @@ def find_intake_for_document(doc):
     source_message_id = str(doc.get("source_message_id") or "").strip()
     if not source_message_id:
         return []
-    # The processor stores telegram_intake.id in documents.source_message_id.
+    # Only UUID-shaped source_message_id values can be telegram_intake primary keys.
+    # Legacy rows may contain values such as chat_id:message_id; skip those safely.
+    try:
+        uuid.UUID(source_message_id)
+    except ValueError:
+        return []
     return db_get("telegram_intake?select=id,telegram_chat_id,metadata&limit=1&id=eq." + quote(source_message_id, safe=""))
 
 
@@ -150,11 +159,12 @@ def main():
     rows = db_get("documents?select=id,source_message_id,original_filename,display_filename,subject,short_description,issuing_authority,reference_number,normalized_issue_date,received_at,published_at,category,category_key,publication_status,approved_for_publication&publication_status=eq.Published&approved_for_publication=is.true&order=received_at.desc.nullslast,published_at.desc.nullslast,normalized_issue_date.desc.nullslast&limit=50")
     sent = failed = skipped = 0
     serial_no = 0
+    print(f"B2 endpoint configured: {urlparse(B2_ENDPOINT).netloc}")
     for doc in rows:
         intake = find_intake_for_document(doc)
         if not intake:
             skipped += 1
-            print(f"Skipping legacy/non-intake document={doc['id']}: no telegram_intake linkage")
+            print(f"Skipping document={doc['id']}: no valid telegram_intake linkage")
             continue
         object_key = ((intake[0].get("metadata") or {}).get("storage") or {}).get("b2_key")
         if not object_key:
