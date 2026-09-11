@@ -7,6 +7,7 @@ observed evidence; existing workers remain responsible for mutations.
 """
 from __future__ import annotations
 
+import importlib.util
 import os
 import sys
 from collections import Counter
@@ -14,13 +15,14 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from urllib.parse import quote
 
-import requests
-
 ROOT = Path(__file__).resolve().parents[3]
-if str(ROOT) not in sys.path:
-    sys.path.insert(0, str(ROOT))
-
-from global_automation_scripts_document_state_resolver import resolve_state
+RESOLVER_PATH = ROOT / "global-automation" / "scripts" / "document" / "pipeline_state_resolver.py"
+spec = importlib.util.spec_from_file_location("pipeline_state_resolver", RESOLVER_PATH)
+if spec is None or spec.loader is None:
+    raise RuntimeError("Unable to load pipeline_state_resolver.py")
+resolver = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(resolver)
+resolve_state = resolver.resolve_state
 
 BASE = os.environ["SUPABASE_URL"].rstrip("/")
 KEY = os.environ["SUPABASE_SERVICE_ROLE_KEY"]
@@ -31,6 +33,10 @@ def get(path: str):
     r = requests.get(f"{BASE}/rest/v1/{path}", headers=HEADERS, timeout=30)
     r.raise_for_status()
     return r.json()
+
+
+# Import requests after resolver loading so this module remains easy to load in tests.
+import requests
 
 
 def main() -> int:
