@@ -19,6 +19,8 @@ from .structure_graph import StructureNode, StructureEdge, StructureGraph, build
 from .document_understanding import UnderstandingEntity, UnderstandingRelation, DocumentUnderstandingGraph, build_understanding_graph, understanding_graph_to_dict
 from .intelligent_reconstruction import ReconstructedBlock, ReconstructedDocument, reconstruct_document, reconstruct_markdown, reconstructed_to_dict
 from .cross_document import CrossDocumentRelation, CrossDocumentGraph, build_cross_document_graph, cross_document_graph_to_dict
+from .document_clustering import CandidateCluster, CandidateClusterResult, build_candidate_clusters, candidate_clusters_to_dict
+from .search_index import SearchDocument, SearchEntity, SearchHit, DocumentSearchIndex, build_search_index, normalize_query, search_to_dict
 
 __all__ = [
     "extract_document_text", "extract_embedded_pdf_text", "ocr_image", "ocr_image_detailed", "render_pdf",
@@ -32,4 +34,6 @@ __all__ = [
     "UnderstandingEntity", "UnderstandingRelation", "DocumentUnderstandingGraph", "build_understanding_graph", "understanding_graph_to_dict",
     "ReconstructedBlock", "ReconstructedDocument", "reconstruct_document", "reconstruct_markdown", "reconstructed_to_dict",
     "CrossDocumentRelation", "CrossDocumentGraph", "build_cross_document_graph", "cross_document_graph_to_dict",
+    "CandidateCluster", "CandidateClusterResult", "build_candidate_clusters", "candidate_clusters_to_dict",
+    "SearchDocument", "SearchEntity", "SearchHit", "DocumentSearchIndex", "build_search_index", "normalize_query", "search_to_dict",
 ]

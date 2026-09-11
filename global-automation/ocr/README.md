@@ -11,7 +11,12 @@ This README records the current architecture, implementation state, constraints,
 ## Stable consumer API
 
 ```python
-from ocr import process_file, process_pdf, process_image, reconstruct_document, reconstruct_markdown, build_cross_document_graph
+from ocr import (
+    process_file, process_pdf, process_image,
+    reconstruct_document, reconstruct_markdown,
+    build_cross_document_graph, build_candidate_clusters,
+    build_search_index, DocumentSearchIndex,
+)
 ```
 
 ## Architecture
@@ -19,10 +24,11 @@ from ocr import process_file, process_pdf, process_image, reconstruct_document, 
 ```text
 Government Document → OCR text + geometry → Structure/Sections/Tables
         → Multi-page Structure Graph → Intelligent Reconstruction
-        → Document Understanding Graph → Cross-Document Graph → Consumer project
+        → Document Understanding Graph → Global Search Index
+        → Cross-Document Graph → Candidate Clusters → Consumer project
 ```
 
-**Evidence rule:** derived output retains source block IDs, entity IDs, document IDs and page provenance. Original OCR evidence is never rewritten; reconstruction and cross-document intelligence never invent source content.
+**Evidence rule:** derived output retains source block IDs, entity IDs, document IDs and page provenance. Original OCR evidence is never rewritten; reconstruction, search and cross-document intelligence never invent source content.
 
 ## P17 — Intelligent reconstruction
 
@@ -40,17 +46,13 @@ The baseline is deliberately conservative:
 
 No reconstruction decision is treated as semantic or legal truth.
 
-## P16 — Multi-page structure graph
-
-`structure_graph.py` provides deterministic adjacent-page continuation and entity-continuity edges using explicit blocks, boundaries, token overlap and similarity. It preserves source evidence.
-
 ## P18 — Document understanding graph
 
 `document_understanding.py` provides conservative reference/date/email/authority entities and relations derived only from recognized source text and supplied structure-graph edges.
 
 ## P19 — Cross-document intelligence
 
-`cross_document.py` provides the first conservative cross-document graph layer. It accepts multiple P18 `DocumentUnderstandingGraph` objects keyed by stable document IDs and creates relationships only from **exact normalized entity-value matches** across different documents.
+`cross_document.py` accepts multiple P18 `DocumentUnderstandingGraph` objects keyed by stable document IDs and creates relationships only from exact normalized entity-value matches across different documents.
 
 Supported baseline relationships:
 
@@ -58,9 +60,64 @@ Supported baseline relationships:
 - `shared_contact` — exact normalized email entity match.
 - `shared_authority` — exact normalized authority entity match.
 
-Normalization is limited to surrounding whitespace, repeated whitespace and Unicode-aware case folding. Original entity values and IDs remain untouched.
+P19 deliberately does **not** infer same-case identity, chronology, causality, legal supersession, or document relationships from dates alone.
 
-P19 deliberately does **not** infer same-case identity, chronology, causality, legal supersession, or document relationships from dates alone. Every relation retains source/target document IDs, source/target entity IDs, confidence and a deterministic evidence reason.
+## P20 — Candidate clustering
+
+`document_clustering.py` converts P19 evidence edges into deterministic **candidate clusters**. A cluster is an evidence group, **not** a claim that the documents are the same legal case.
+
+Default safety policy:
+
+- a `shared_reference` can establish a candidate cluster
+- `shared_authority` alone is too broad and does not establish a cluster
+- multiple independent supporting evidence types can establish a candidate cluster
+- relation IDs, document IDs, relation types, confidence and evidence count are retained
+- cluster ordering and IDs are deterministic
+
+This gives consumers a reusable operation such as “find the candidate document group supported by this reference” without embedding case-group logic in School, Telegram or portal projects.
+
+## Global Search — reusable platform capability
+
+`search_index.py` is intentionally **separate from P20**. Search is a platform service that every future project can consume.
+
+The baseline `DocumentSearchIndex` supports:
+
+- Unicode/Hindi text search
+- exact entity matching
+- entity containment and token-overlap matching
+- document/block text matching
+- deterministic relevance ordering
+- configurable result limit
+- page/block/entity provenance in every hit
+- storage-independent indexing
+- JSON-compatible serialization helpers
+
+Example:
+
+```python
+index = build_search_index(document_graphs, blocks=source_blocks)
+hits = index.search("पत्रांक 123", limit=20)
+```
+
+Every `SearchHit` retains `document_id`, `page_number`, `block_id`, match type, matched value, score and optional entity provenance. Normalization is used only for matching and never overwrites source text.
+
+### Search evolution path
+
+```text
+Current: in-memory deterministic index
+        ↓
+Persistent adapter (Supabase/Postgres/SQLite)
+        ↓
+Metadata + field filters
+        ↓
+Cross-document/cluster-aware queries
+        ↓
+Optional semantic/vector retrieval
+        ↓
+Hybrid keyword + semantic ranking
+```
+
+The storage layer is deliberately not coupled to the OCR core. A future project should persist the same search contract rather than inventing a project-specific index format.
 
 ## Implemented modules
 
@@ -71,20 +128,21 @@ P19 deliberately does **not** infer same-case identity, chronology, causality, l
 - `structure_graph.py` — adjacent-page continuation and entity-continuity graph.
 - `intelligent_reconstruction.py` — source-traceable graph-aware reconstruction.
 - `document_understanding.py` — conservative semantic entities and graph relations.
+- `search_index.py` — reusable deterministic global document/entity search.
 - `cross_document.py` — conservative exact-match cross-document relations.
+- `document_clustering.py` — conservative candidate document groups from P19 evidence.
 
 ## Release status
 
-P19 implementation, public API export and regression tests are committed. **Production certification is not claimed** until repository CI and broader structure/semantic benchmarks complete successfully.
+P19, P20 candidate clustering, and the baseline global search contract have implementation/tests/documentation on the development branch. **Production certification is not claimed** until repository CI and broader structure/semantic/search benchmarks complete successfully.
 
-## Roadmap
+## Roadmap / recovery notes
 
-1. Complete graph-aware reconstruction with richer Markdown/HTML/JSON table rendering while preserving evidence.
-2. Upgrade table detection for merged/irregular cells and explicit row/column geometry.
-3. Upgrade reading order to graph-based global optimization.
-4. Expand validated Bihar government entity/field extraction.
-5. Build reviewed corpus and structure/semantic golden benchmarks.
-6. Calibrate confidence and release policy.
-7. Add validated optional vision/VLM backends.
-8. Expand P19 with explicit textual relationship markers such as “in continuation of” and “supersedes”, only when directly evidenced.
-9. Add persistent cross-document indexing, clustering and query APIs after single-document gates pass.
+1. Run and verify the full OCR regression suite and CI after the P19/P20/search changes.
+2. Add persistent search adapters without coupling storage into OCR core.
+3. Add structured metadata/field filters to search.
+4. Expand cross-document relationship markers such as “in continuation of” and “supersedes” only when directly evidenced.
+5. Add reviewed search golden benchmarks for Hindi, mixed-language references, OCR errors and government terminology.
+6. Add case/reference timeline intelligence after search and clustering gates.
+7. Add optional semantic/vector and hybrid retrieval only after deterministic search remains the evidence baseline.
+8. Keep consumer projects thin: consume global OCR/search/cluster APIs; do not duplicate OCR or search business logic.
