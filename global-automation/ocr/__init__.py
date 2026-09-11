@@ -15,6 +15,7 @@ from .document_structure import DocumentStructure, StructureBlock, build_documen
 from .reading_order import ReadingOrderBlock, optimize_reading_order
 from .section_intelligence import SectionBoundary, detect_section_boundaries, section_boundaries_to_dict
 from .table_schema import StructuredTableCell, StructuredTable, build_table, table_to_dict
+from .structure_graph import StructureNode, StructureEdge, StructureGraph, build_structure_graph, structure_graph_to_dict
 
 __all__ = [
     "extract_document_text", "extract_embedded_pdf_text", "ocr_image", "ocr_image_detailed", "render_pdf",
@@ -31,4 +32,5 @@ __all__ = [
     "ReadingOrderBlock", "optimize_reading_order",
     "SectionBoundary", "detect_section_boundaries", "section_boundaries_to_dict",
     "StructuredTableCell", "StructuredTable", "build_table", "table_to_dict",
+    "StructureNode", "StructureEdge", "StructureGraph", "build_structure_graph", "structure_graph_to_dict",
 ]
