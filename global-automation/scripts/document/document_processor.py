@@ -21,9 +21,7 @@ def db_patch(table,rid,payload):
 def db_insert(table,payload):
     """Insert one Supabase row and return the created representation."""
     r=requests.post(f"{SUPABASE_URL}/rest/v1/{table}",headers={**HEADERS,"Content-Type":"application/json","Prefer":"return=representation"},json=payload,timeout=30)
-    r.raise_for_status()
-    data=r.json()
-    return data[0] if data else payload
+    r.raise_for_status(); data=r.json(); return data[0] if data else payload
 
 def claim_intake(record_id):
     """Atomically claim one eligible intake row so concurrent runs cannot OCR it twice."""
@@ -173,5 +171,16 @@ def main():
         except Exception as exc:
             failed+=1; md=row.get("metadata") or {}; db_patch("telegram_intake",row["id"],{"status":"Processing Failed","metadata":{**md,"processing_error":str(exc)[:1200],"processing_error_at":datetime.now(timezone.utc).isoformat()}}); print(f"Record {row['id']}: processing failed: {exc}")
     print(f"Document processor complete: processed={processed}, failed={failed}, skipped={skipped}, candidates={len(rows)}"); return 1 if failed else 0
+
+# Opt-in integration point: the existing processor remains the safety fallback,
+# while GovDOC Vision becomes the primary extractor when explicitly enabled.
+# Keeping this opt-in prevents an OCR-engine dependency from changing legacy
+# production behavior until the release gate is verified in the target runtime.
+if os.environ.get("GOVDOC_VISION_ENABLED", "0").strip().lower() in {"1", "true", "yes"}:
+    try:
+        from govdoc_ocr_adapter import install as install_govdoc_vision
+        install_govdoc_vision(sys.modules[__name__])
+    except Exception as exc:
+        print(f"GovDOC Vision integration unavailable; using legacy extractor: {exc}", file=sys.stderr)
 
 if __name__=="__main__": sys.exit(main())
