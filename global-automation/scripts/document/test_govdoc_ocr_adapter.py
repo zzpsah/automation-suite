@@ -5,6 +5,8 @@ from __future__ import annotations
 import importlib.util
 from pathlib import Path
 
+import pytest
+
 ROOT = Path(__file__).resolve().parents[3]
 ADAPTER = ROOT / "global-automation/scripts/document/govdoc_ocr_adapter.py"
 
@@ -49,15 +51,14 @@ def test_adapter_maps_govdoc_and_preserves_legacy_fields():
             return ("legacy subject", "legacy authority", "REF-123", "25-06-2026", "2026-06-25", "legacy short", "legacy detail", "other", "Other", "MEDIUM")
 
     adapter.install(Processor)
-    data = b"same-document"
-    assert Processor.ocr_pdf(data, "/tmp", "notice.pdf") == "GovDOC subject"
+    assert Processor.ocr_pdf(data=b"same-document", workdir="/tmp", filename="notice.pdf") == "सरकारी विद्यालय सूचना"
     result = Processor.extract_metadata("सरकारी विद्यालय सूचना", "notice.pdf")
     assert result[0] == "GovDOC subject"
     assert result[1] == "शिक्षा विभाग, बिहार सरकार"
     assert result[2:5] == ("REF-123", "25-06-2026", "2026-06-25")
     assert result[7:9] == ("admission", "Admission")
     assert result[9] == "HIGH"
-    assert calls == [(data, "notice.pdf")]
+    assert calls == [(b"same-document", "notice.pdf")]
 
 
 def test_adapter_routes_jpeg_to_govdoc_image_service():
@@ -106,7 +107,7 @@ def test_adapter_cache_isolated_by_filename():
     assert calls == ["a.pdf", "b.pdf"]
 
 
-def test_adapter_falls_back_when_govdoc_fails():
+def test_adapter_fails_closed_when_govdoc_fails():
     adapter = load_adapter()
 
     def failing_service(data, filename):
@@ -124,6 +125,8 @@ def test_adapter_falls_back_when_govdoc_fails():
             return ("legacy", "authority", "ref", "date", "normalized", "short", "detail", "other", "Other", "MEDIUM")
 
     adapter.install(Processor)
-    assert Processor.embedded_pdf_text(b"x") == "legacy embedded"
-    assert Processor.ocr_pdf(b"x", "/tmp") == "legacy ocr"
+    with pytest.raises(RuntimeError, match="OCR unavailable"):
+        Processor.embedded_pdf_text(b"x")
+    with pytest.raises(RuntimeError, match="OCR unavailable"):
+        Processor.ocr_pdf(b"x", "/tmp")
     assert Processor.extract_metadata("unknown", "x.pdf")[0] == "legacy"
