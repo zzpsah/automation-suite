@@ -20,6 +20,7 @@ CHECKS = [
     ("compile_govdoc_ocr_alias", [sys.executable, "-m", "compileall", "-q", "global-automation/govdoc_ocr"]),
     ("govdoc_tests", [sys.executable, "-m", "pytest", "-q", "global-automation/govdoc-ocr/tests"]),
     ("adapter_contract_tests", [sys.executable, "-m", "pytest", "-q", "global-automation/scripts/document/test_govdoc_ocr_adapter.py"]),
+    ("resilience_contract_tests", [sys.executable, "-m", "pytest", "-q", "global-automation/scripts/document/test_govdoc_resilience.py"]),
     ("govdoc_smoke", [sys.executable, "global-automation/govdoc-ocr/smoke_test.py"]),
     ("pipeline_offline_smoke", [sys.executable, "global-automation/scripts/document/pipeline_smoke_test.py"]),
 ]
