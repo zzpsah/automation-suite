@@ -23,6 +23,11 @@ def test_backend_policy_is_deterministic():
     assert choose_backend(available=("tesseract", "paddleocr"), quality_score=.1).backend == "paddleocr"
 
 
+def test_backend_result_regions_are_serializable():
+    result = OCRRegion("region-1", (0, 1, 20, 30), "परीक्षा", .95, source="tesseract")
+    assert result.to_dict() == {"id":"region-1","bbox":[0,1,20,30],"text":"परीक्षा","confidence":.95,"block_type":None,"source":"tesseract"}
+
+
 def test_layout_order_and_table_evidence():
     regions = [
         {"id":"b","bbox":[120,100,200,130],"text":"उत्तर"},
