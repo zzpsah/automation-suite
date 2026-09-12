@@ -50,7 +50,7 @@ def main() -> int:
             filename = row.get("file_name") or doc.get("original_filename") or "document.pdf"
             result = govdoc._run(data, filename); text = (result.get("text") or "").strip()
             if not text: raise RuntimeError("GovDOC returned no OCR text")
-            subject, authority, ref_no, printed, normalized, detailed, short, category_key, category, confidence = processor.extract_metadata(text, filename)
+            subject, authority, ref_no, printed, normalized, short, detailed, category_key, category, confidence = processor.extract_metadata(text, filename)
             info = result.get("metadata") or {}; dtype = info.get("document_type") or {}
             category_key = dtype.get("value") or category_key or "other"
             category = {"admission":"Admission","examination":"Examination","transfer":"Transfer","service":"Service","training":"Training","scholarship":"Scholarship","holiday":"Holiday","other":"Other"}.get(category_key, category_key)
