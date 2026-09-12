@@ -39,8 +39,10 @@ def main() -> int:
     for doc in legacy:
         doc_id, msg_id = doc["id"], doc.get("source_message_id")
         try:
-            intake = db_get(f"telegram_intake?select=id,file_name,metadata&document_id=eq.{quote(str(doc_id), safe='')}&limit=1")
-            if not intake: raise RuntimeError(f"telegram_intake row not found for document_id={doc_id}")
+            # telegram_intake.document_id is not populated by the legacy writer;
+            # the canonical association is stored in intake.metadata.document_id.
+            intake = db_get(f"telegram_intake?select=id,file_name,metadata&metadata->>document_id=eq.{quote(str(doc_id), safe='')}&limit=1")
+            if not intake: raise RuntimeError(f"telegram_intake row not found for metadata.document_id={doc_id}")
             row = intake[0]; storage = (row.get("metadata") or {}).get("storage") or {}; key = storage.get("b2_key")
             if not key or storage.get("b2_status") != "AVAILABLE": raise RuntimeError("verified B2 object is unavailable")
             data = client.get_object(Bucket=B2_BUCKET, Key=key)["Body"].read()
@@ -48,7 +50,7 @@ def main() -> int:
             filename = row.get("file_name") or doc.get("original_filename") or "document.pdf"
             result = govdoc._run(data, filename); text = (result.get("text") or "").strip()
             if not text: raise RuntimeError("GovDOC returned no OCR text")
-            subject, authority, ref_no, printed, normalized, short, detailed, category_key, category, confidence = processor.extract_metadata(text, filename)
+            subject, authority, ref_no, printed, normalized, detailed, short, category_key, category, confidence = processor.extract_metadata(text, filename)
             info = result.get("metadata") or {}; dtype = info.get("document_type") or {}
             category_key = dtype.get("value") or category_key or "other"
             category = {"admission":"Admission","examination":"Examination","transfer":"Transfer","service":"Service","training":"Training","scholarship":"Scholarship","holiday":"Holiday","other":"Other"}.get(category_key, category_key)
