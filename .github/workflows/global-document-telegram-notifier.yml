@@ -27,7 +27,9 @@ jobs:
       - name: Install Python dependencies
         run: python -m pip install --disable-pip-version-check requests boto3 pypdf Pillow
       - name: Run file delivery regression tests
-        run: python -m unittest global-automation/scripts/document/test_telegram_file_delivery.py
+        env:
+          PYTHONPATH: global-automation/scripts/document
+        run: python -m unittest discover -s global-automation/scripts/document -p 'test_*.py'
       - name: Send published document notifications
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
