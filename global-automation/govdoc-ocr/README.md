@@ -68,7 +68,9 @@ These helpers do not own Supabase, Backblaze B2, Telegram, publication, retries 
 
 ## School Document Pipeline integration
 
-`global-automation/scripts/document/document_processor.py` now contains a **safe opt-in GovDOC Vision integration boundary**. Set `GOVDOC_VISION_ENABLED=1` to make the shared GovDOC adapter the primary extractor. If the adapter cannot initialize, the processor logs the condition and retains the existing legacy extractor. This keeps storage, B2, Supabase lifecycle, duplicate detection, retry state and publication ownership in the existing pipeline while the reusable OCR engine is validated in the target runtime.
+`global-automation/scripts/document/document_processor.py` contains a **safe opt-in GovDOC Vision integration boundary**. Set `GOVDOC_VISION_ENABLED=1` to make the shared GovDOC adapter the primary extractor. If the adapter cannot initialize, the processor logs the condition and retains the existing legacy extractor. This keeps storage, B2, Supabase lifecycle, duplicate detection, retry state and publication ownership in the existing pipeline while the reusable OCR engine is validated in the target runtime.
+
+The adapter now propagates the intake's original filename into the GovDOC processing call. This preserves correct document-type routing and keeps the process-local cache isolated by both content checksum and filename. Existing one/two-argument legacy extractor compatibility remains intact through adapter defaults and fallback calls.
 
 The integration is deliberately opt-in until the release gates below have a verified CI/target-runtime result. This is a release-safety decision, not a claim that production OCR has already been validated.
 
