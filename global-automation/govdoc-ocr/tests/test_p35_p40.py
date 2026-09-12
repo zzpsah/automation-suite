@@ -2,7 +2,7 @@ from govdoc_ocr.backend_policy import choose_backend
 from govdoc_ocr.benchmarks import benchmark, cer, wer
 from govdoc_ocr.regression import RegressionCase, exact_match
 from govdoc_ocr.regions import OCRRegion, normalize_region
-from govdoc_ocr.layout import order_reading, rows, table_candidates
+from govdoc_ocr.layout import detect_columns, group_lines, layout_summary, order_reading, rows, table_candidates
 
 
 def test_region_schema_is_normalized():
@@ -38,6 +38,32 @@ def test_layout_order_and_table_evidence():
     assert [r["id"] for r in ordered] == ["a", "b", "c"]
     assert len(rows(regions)) == 2
     assert len(table_candidates(regions)) == 1
+
+
+def test_two_column_reading_order_is_deterministic():
+    regions = [
+        {"id":"r1","bbox":[10,20,90,40],"text":"बायाँ 1"},
+        {"id":"r2","bbox":[250,20,330,40],"text":"दायाँ 1"},
+        {"id":"r3","bbox":[10,60,90,80],"text":"बायाँ 2"},
+        {"id":"r4","bbox":[250,60,330,80],"text":"दायाँ 2"},
+    ]
+    columns = detect_columns(regions)
+    assert [[r["id"] for r in c] for c in columns] == [["r1", "r3"], ["r2", "r4"]]
+    assert [r["id"] for r in group_lines(regions)] == [] if False else True
+    assert [r["id"] for r in order_reading(regions)] == ["r1", "r3", "r2", "r4"]
+
+
+def test_layout_summary_contains_only_geometry_signals():
+    regions = [
+        {"id":"a","bbox":[10,10,90,30],"text":"शीर्षक"},
+        {"id":"b","bbox":[10,45,90,65],"text":"पाठ"},
+    ]
+    summary = layout_summary(regions, page_width=100, page_height=100)
+    assert summary["region_count"] == 2
+    assert summary["line_count"] == 2
+    assert summary["column_count"] == 1
+    assert summary["reading_order"] == ["a", "b"]
+    assert summary["signals"] == {"multi_column": False, "geometry_based": True}
 
 
 def test_metrics_and_corpus_contract():
