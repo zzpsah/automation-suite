@@ -23,6 +23,7 @@ CHECKS = [
     ("resilience_contract_tests", [sys.executable, "-m", "pytest", "-q", "global-automation/scripts/document/test_govdoc_resilience.py"]),
     ("govdoc_smoke", [sys.executable, "global-automation/govdoc-ocr/smoke_test.py"]),
     ("pipeline_offline_smoke", [sys.executable, "global-automation/scripts/document/pipeline_smoke_test.py"]),
+    ("release_gate_contract_tests", [sys.executable, "-m", "pytest", "-q", "global-automation/govdoc-ocr/tests/test_release_gate_contract.py"]),
 ]
 
 
