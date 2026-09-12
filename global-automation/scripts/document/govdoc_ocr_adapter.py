@@ -35,6 +35,7 @@ process_image = _service_module.process_image
 # Cache is deliberately process-local. It avoids duplicate OCR work inside a
 # single pipeline invocation without changing the pipeline's durable storage.
 _CACHE: dict[tuple[str, str], dict[str, Any]] = {}
+_LAST_RESULT: dict[str, Any] | None = None
 _IMAGE_SUFFIXES = {".jpg", ".jpeg", ".png", ".tif", ".tiff", ".webp"}
 
 
@@ -51,9 +52,11 @@ def _suffix_from_bytes(data: bytes) -> str:
 
 
 def _run(data: bytes, filename: str = "document.pdf") -> dict[str, Any]:
+    global _LAST_RESULT
     key = (hashlib.sha256(data).hexdigest(), Path(filename).name)
     if key in _CACHE:
-        return _CACHE[key]
+        _LAST_RESULT = _CACHE[key]
+        return _LAST_RESULT
 
     suffix = Path(filename).suffix.lower()
     if suffix not in _IMAGE_SUFFIXES and filename == "document.pdf":
@@ -66,6 +69,7 @@ def _run(data: bytes, filename: str = "document.pdf") -> dict[str, Any]:
     else:
         result = process_pdf_bytes(data, filename)
     _CACHE[key] = result
+    _LAST_RESULT = result
     return result
 
 
@@ -85,10 +89,25 @@ def _category(info: dict[str, Any]) -> tuple[str, str, str]:
     return value, labels.get(value, value.replace("_", " ").title()), dtype.get("confidence", "LOW")
 
 
+def _provenance(result: dict[str, Any]) -> dict[str, Any]:
+    ocr = result.get("ocr") or {}
+    return {
+        "service": "GovDOC Vision",
+        "service_version": result.get("ocr_service_version"),
+        "extraction_method": result.get("extraction_method"),
+        "backend": ocr.get("backend"),
+        "language": ocr.get("language"),
+        "page_count": len(result.get("pages") or []),
+    }
+
+
 def install(processor_module) -> None:
     original_embedded = processor_module.embedded_pdf_text
     original_ocr = processor_module.ocr_pdf
     original_metadata = processor_module.extract_metadata
+    original_insert = processor_module.db_insert
+    original_patch = processor_module.db_patch
+    original_process = processor_module.process
 
     def embedded(data):
         try:
@@ -105,29 +124,49 @@ def install(processor_module) -> None:
 
     def metadata(text, filename):
         legacy = original_metadata(text, filename)
-        for result in reversed(list(_CACHE.values())):
-            if result.get("text") != text:
-                continue
-            info = result.get("metadata") or {}
-            subject = (info.get("subject") or {}).get("value") or legacy[0]
-            authority = (info.get("authority") or {}).get("value") or legacy[1]
-            short = result.get("short_description") or legacy[5]
-            category_key, category, category_confidence = _category(info)
-            confidence = "HIGH" if category_confidence == "HIGH" and subject and authority else legacy[9]
-            return (
-                subject,
-                authority,
-                legacy[2],
-                legacy[3],
-                legacy[4],
-                short,
-                legacy[6],
-                category_key,
-                category,
-                confidence,
-            )
-        return legacy
+        if _LAST_RESULT is None or _LAST_RESULT.get("text") != text:
+            return legacy
+        info = _LAST_RESULT.get("metadata") or {}
+        subject = (info.get("subject") or {}).get("value") or legacy[0]
+        authority = (info.get("authority") or {}).get("value") or legacy[1]
+        short = _LAST_RESULT.get("short_description") or legacy[5]
+        category_key, category, category_confidence = _category(info)
+        confidence = "HIGH" if category_confidence == "HIGH" and subject and authority else legacy[9]
+        return (
+            subject,
+            authority,
+            legacy[2],
+            legacy[3],
+            legacy[4],
+            short,
+            legacy[6],
+            category_key,
+            category,
+            confidence,
+        )
+
+    def insert(table, payload):
+        if table == "documents" and _LAST_RESULT is not None:
+            payload = dict(payload)
+            payload["extraction_method"] = _LAST_RESULT.get("extraction_method") or payload.get("extraction_method")
+        return original_insert(table, payload)
+
+    def patch(table, rid, payload):
+        if table == "telegram_intake" and payload.get("status") == "Processed" and _LAST_RESULT is not None:
+            payload = dict(payload)
+            metadata = dict(payload.get("metadata") or {})
+            metadata["govdoc_ocr"] = _provenance(_LAST_RESULT)
+            payload["metadata"] = metadata
+        return original_patch(table, rid, payload)
+
+    def process(row):
+        global _LAST_RESULT
+        _LAST_RESULT = None
+        return original_process(row)
 
     processor_module.embedded_pdf_text = embedded
     processor_module.ocr_pdf = ocr
     processor_module.extract_metadata = metadata
+    processor_module.db_insert = insert
+    processor_module.db_patch = patch
+    processor_module.process = process
