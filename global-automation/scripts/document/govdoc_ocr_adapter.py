@@ -5,7 +5,10 @@ Document Pipeline remains responsible for storage, lifecycle and publication.
 Legacy extraction is retained for fields GovDOC does not currently expose.
 """
 from __future__ import annotations
-import hashlib, importlib.util, tempfile
+
+import hashlib
+import importlib.util
+import tempfile
 from pathlib import Path
 from typing import Any
 
@@ -13,7 +16,9 @@ from typing import Any
 def _service():
     root = Path(__file__).resolve().parents[2] / "govdoc-ocr"
     init = root / "__init__.py"
-    spec = importlib.util.spec_from_file_location("govdoc_ocr", init, submodule_search_locations=[str(root)])
+    spec = importlib.util.spec_from_file_location(
+        "govdoc_ocr", init, submodule_search_locations=[str(root)]
+    )
     if spec is None or spec.loader is None:
         raise ImportError("Unable to load GovDOC OCR package")
     module = importlib.util.module_from_spec(spec)
@@ -26,20 +31,27 @@ def _service():
 _service_module = _service()
 process_pdf_bytes = _service_module.process_pdf_bytes
 process_image = _service_module.process_image
-_CACHE: dict[str, dict[str, Any]] = {}
+
+# Cache is deliberately process-local. It avoids duplicate OCR work inside a
+# single pipeline invocation without changing the pipeline's durable storage.
+_CACHE: dict[tuple[str, str], dict[str, Any]] = {}
 _IMAGE_SUFFIXES = {".jpg", ".jpeg", ".png", ".tif", ".tiff", ".webp"}
 
 
 def _suffix_from_bytes(data: bytes) -> str:
-    if data.startswith(b"\xff\xd8\xff"): return ".jpg"
-    if data.startswith(b"\x89PNG\r\n\x1a\n"): return ".png"
-    if data.startswith((b"II*\x00", b"MM\x00*")): return ".tif"
-    if data.startswith(b"RIFF") and data[8:12] == b"WEBP": return ".webp"
+    if data.startswith(b"\xff\xd8\xff"):
+        return ".jpg"
+    if data.startswith(b"\x89PNG\r\n\x1a\n"):
+        return ".png"
+    if data.startswith((b"II*\x00", b"MM\x00*")):
+        return ".tif"
+    if data.startswith(b"RIFF") and data[8:12] == b"WEBP":
+        return ".webp"
     return ".pdf"
 
 
 def _run(data: bytes, filename: str = "document.pdf") -> dict[str, Any]:
-    key = hashlib.sha256(data).hexdigest()
+    key = (hashlib.sha256(data).hexdigest(), Path(filename).name)
     if key in _CACHE:
         return _CACHE[key]
 
@@ -60,7 +72,16 @@ def _run(data: bytes, filename: str = "document.pdf") -> dict[str, Any]:
 def _category(info: dict[str, Any]) -> tuple[str, str, str]:
     dtype = info.get("document_type") or {}
     value = dtype.get("value") or "other"
-    labels = {"admission":"Admission", "examination":"Examination", "transfer":"Transfer", "service":"Service", "training":"Training", "scholarship":"Scholarship", "holiday":"Holiday", "other":"Other"}
+    labels = {
+        "admission": "Admission",
+        "examination": "Examination",
+        "transfer": "Transfer",
+        "service": "Service",
+        "training": "Training",
+        "scholarship": "Scholarship",
+        "holiday": "Holiday",
+        "other": "Other",
+    }
     return value, labels.get(value, value.replace("_", " ").title()), dtype.get("confidence", "LOW")
 
 
@@ -93,7 +114,18 @@ def install(processor_module) -> None:
             short = result.get("short_description") or legacy[5]
             category_key, category, category_confidence = _category(info)
             confidence = "HIGH" if category_confidence == "HIGH" and subject and authority else legacy[9]
-            return (subject, authority, legacy[2], legacy[3], legacy[4], short, legacy[6], category_key, category, confidence)
+            return (
+                subject,
+                authority,
+                legacy[2],
+                legacy[3],
+                legacy[4],
+                short,
+                legacy[6],
+                category_key,
+                category,
+                confidence,
+            )
         return legacy
 
     processor_module.embedded_pdf_text = embedded
