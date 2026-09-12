@@ -49,8 +49,16 @@ def test_two_column_reading_order_is_deterministic():
     ]
     columns = detect_columns(regions)
     assert [[r["id"] for r in c] for c in columns] == [["r1", "r3"], ["r2", "r4"]]
-    assert [r["id"] for r in group_lines(regions)] == [] if False else True
     assert [r["id"] for r in order_reading(regions)] == ["r1", "r3", "r2", "r4"]
+
+
+def test_group_lines_uses_vertical_geometry():
+    regions = [
+        {"id":"b","bbox":[100,11,150,31],"text":"B"},
+        {"id":"a","bbox":[10,10,60,30],"text":"A"},
+        {"id":"c","bbox":[10,50,60,70],"text":"C"},
+    ]
+    assert [[r["id"] for r in line] for line in group_lines(regions)] == [["a", "b"], ["c"]]
 
 
 def test_layout_summary_contains_only_geometry_signals():
