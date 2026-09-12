@@ -70,7 +70,7 @@ These helpers do not own Supabase, Backblaze B2, Telegram, publication, retries 
 
 `global-automation/scripts/document/document_processor.py` contains a **safe opt-in GovDOC Vision integration boundary**. Set `GOVDOC_VISION_ENABLED=1` to make the shared GovDOC adapter the primary extractor. If the adapter cannot initialize, the processor logs the condition and retains the existing legacy extractor. This keeps storage, B2, Supabase lifecycle, duplicate detection, retry state and publication ownership in the existing pipeline while the reusable OCR engine is validated in the target runtime.
 
-The adapter now propagates the intake's original filename into the GovDOC processing call. This preserves correct document-type routing and keeps the process-local cache isolated by both content checksum and filename. Existing one/two-argument legacy extractor compatibility remains intact through adapter defaults and fallback calls.
+The adapter propagates the intake's original filename into the GovDOC processing call. The production processor now passes that filename through both embedded-text and OCR extraction calls. This preserves correct document-type routing and keeps the process-local cache isolated by both content checksum and filename. Existing one/two-argument legacy extractor compatibility remains intact through adapter defaults and fallback calls.
 
 The integration is deliberately opt-in until the release gates below have a verified CI/target-runtime result. This is a release-safety decision, not a claim that production OCR has already been validated.
 
@@ -110,6 +110,15 @@ The product is considered **production-ready only when all required gates are ve
 8. **Evidence gate:** no fabricated text, geometry or metadata; uncertain fields remain uncertain.
 9. **Operational gate:** CI result is independently verified on the final commit; no “green” status is inferred from local code inspection.
 10. **Rollback gate:** disabling `GOVDOC_VISION_ENABLED` restores the legacy extraction path without changing durable storage schema or publication behavior.
+
+### Latest implementation progress
+
+- Synthetic embedded/scanned/mixed PDF fixture coverage is present in `tests/test_pdf_fixtures.py`; OCR-dependent cases are explicitly skippable when the system OCR tools are unavailable.
+- Resilience contract tests cover fail-closed B2 handling, concurrent intake claiming, retry failure recording and publication remaining explicitly unapproved.
+- Release-gate contract tests cover required result keys and sequential page numbering.
+- The deterministic verification runner now executes **9 offline checks** covering compilation, GovDOC tests, adapter contracts, resilience contracts, smoke tests and release-gate contracts.
+- The adapter cache and contract tests explicitly preserve filename isolation, and the production processor now passes the intake filename into both GovDOC extraction paths.
+- A fresh GitHub combined-status result has not yet been observed for the latest implementation commit; an empty status response is not treated as CI success.
 
 ### Current release status
 
