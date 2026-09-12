@@ -2,7 +2,7 @@
 
 Reusable OCR, image-processing and government-document intelligence engine for Indian government documents.
 
-## P35-P42 completed foundation
+## P35-P50 completed foundation
 
 - **P35 — structured OCR regions:** every OCR page exposes a backward-compatible `regions` array using normalized `{id,bbox,text,confidence,block_type,source}` records. Empty geometry is used when a backend cannot provide reliable regions; geometry is never fabricated.
 - **P36 — diagnostics:** OCR pages expose privacy-safe image diagnostics where applicable (dimensions, format, file size, quality/blur proxies, notes). Originals remain untouched.
@@ -11,7 +11,15 @@ Reusable OCR, image-processing and government-document intelligence engine for I
 - **P39 — benchmark metrics:** dependency-free Unicode-safe CER/WER-style edit metrics and exact-match benchmark output are available for offline regression.
 - **P40 — integration contract:** service output, diagnostics, regions, backend policy and regression/benchmark boundaries are documented and covered by focused tests. No storage/publication responsibility moved into GovDOC.
 - **P41 — OCR geometry propagation:** Tesseract can expose word-level bounding boxes through `pytesseract` when available; PaddleOCR geometry is normalized into the same contract. Backend geometry is propagated into `pages[*].regions` without inventing coordinates.
-- **P42 — deterministic layout intelligence:** geometry-aware line grouping, likely-column detection, column-aware reading order and compact layout summaries are available from OCR regions. These are evidence/signals only and do not claim that a semantic table, section or document structure exists.
+- **P42 — deterministic layout intelligence:** geometry-aware line grouping, likely-column detection, column-aware reading order and compact layout summaries are available from OCR regions.
+- **P43 — table intelligence:** repeated x-alignment across multiple visual rows produces table-candidate evidence and candidate column anchors. The engine does not claim a table exists merely from OCR text.
+- **P44 — document structure:** strong lexical signals can classify region candidates as heading-signal/body/unknown. Structure output is explicitly evidence-only.
+- **P45 — metadata/date validation:** date candidates are preserved with source text offsets and calendar-validity status. Invalid dates are flagged rather than silently corrected.
+- **P46 — provenance contract:** storage-neutral `EvidenceRef` pointers can identify source, page, region and field without moving storage responsibility into GovDOC.
+- **P47 — confidence aggregation:** region confidence statistics provide transparent mean/minimum and low-confidence signals; confidence is explicitly not publication approval.
+- **P48 — multipage consistency:** page counts, extraction methods, OCR pages, embedded pages, backend set and mixed-processing signals are summarized without changing page content.
+- **P49 — search index contract:** a compact storage-neutral search record exposes source text plus key government-document metadata for downstream indexing. Persistence remains the caller's responsibility.
+- **P50 — release gate:** dependency-free contract validation checks required result keys and sequential page numbering before a consumer treats a result as structurally valid.
 
 ## Current capabilities
 
@@ -31,23 +39,32 @@ Reusable OCR, image-processing and government-document intelligence engine for I
 - correction/normalization architecture
 - deterministic backend policy
 - geometry-aware layout/reading-order analysis
-- storage-neutral keyword search boundary
+- conservative table/structure/date evidence modules
+- provenance and confidence contracts
+- multipage processing signals
+- storage-neutral search-index contract
+- dependency-free release-gate checks
 - stable `ocr_service.py` consumer interface
+
+## P42-P50 module contract
+
+The P42-P50 helpers are additive and storage-neutral:
+
+- `layout.py` — lines, columns and reading order.
+- `table_intelligence.py` — repeated-column/table evidence.
+- `document_structure.py` — heading/body evidence.
+- `metadata_validation.py` — date candidate and calendar validation.
+- `provenance.py` — explicit source/page/region/field evidence pointers.
+- `confidence.py` — transparent OCR confidence aggregation.
+- `multipage.py` — cross-page processing signals.
+- `search_index.py` — downstream search-record contract; no persistence.
+- `release_gate.py` — minimal structural release checks.
+
+These helpers do not own Supabase, Backblaze B2, Telegram, publication, retries or business rules. They are designed to be consumed safely by the existing School Document Pipeline.
 
 ## OCR geometry contract
 
 `pages[*].regions` is a list of pixel-space bounding boxes `[x1, y1, x2, y2]`. Region text and confidence are backend-derived. Tesseract geometry is optional because `pytesseract` is not a hard dependency. If geometry cannot be obtained reliably, the list remains empty. Coordinates are never guessed from text length or page dimensions.
-
-## P42 layout contract
-
-`layout.py` provides additive helpers over the existing region contract:
-
-- `group_lines(...)` clusters regions into visual lines using vertical overlap and centre-distance signals.
-- `detect_columns(...)` identifies stable horizontal separation when enough regions support it; ambiguous input falls back to one column.
-- `order_reading(...)` preserves the legacy deterministic top-to-bottom/left-to-right behavior for ordinary layouts and reads clearly separated columns top-to-bottom before moving right.
-- `layout_summary(...)` reports region/line/column counts, region IDs by column, reading-order IDs, optional page dimensions and explicit geometry signals.
-
-P42 deliberately does **not** infer semantic headings, tables, signatures or stamps. Geometry is used only where it is actually available, and ambiguous layouts remain conservative.
 
 ## PDF routing contract
 
@@ -67,11 +84,27 @@ The intelligence layer is evidence-first. Missing evidence stays missing; OCR co
 
 Preserve raw OCR and correction provenance. Do not silently rewrite source text.
 
+## Integration priority after P50
+
+P50 completes the requested reusable OCR intelligence foundation. The next engineering priority is **validation and safe integration**, not endless standalone feature expansion:
+
+1. Run the complete GovDOC OCR test suite in CI and locally where dependencies are available.
+2. Exercise real Hindi/English PDF fixtures, including embedded, scanned and mixed pages.
+3. Integrate the stable result contract into the School Document Pipeline without changing storage/publication ownership.
+4. Verify failure, retry and idempotency behavior at the pipeline boundary.
+5. Add reviewed regression documents and benchmark thresholds before production rollout.
+
+## Non-goals
+
+- No invented OCR text or geometry.
+- No automatic publication approval from confidence.
+- No silent correction of source text.
+- No storage/database ownership inside this OCR package.
+- No hard dependency on PaddleOCR.
+- No destructive rewrite of the existing School Document Pipeline.
+
 ## Future / experimental
 
-- table intelligence over verified layout evidence
-- document section/heading structure
-- date/metadata validation
 - advanced stamp/signature detection
 - handwriting recognition
 - semantic/vector retrieval with real embeddings
