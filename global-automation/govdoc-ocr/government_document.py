@@ -1,6 +1,7 @@
-"""Evidence-based Government Document Intelligence v2."""
+"""Evidence-based Government Document Intelligence v3."""
 from __future__ import annotations
 import re
+from .language_packs.bihar_office_resolver import resolve_office
 
 AUTHORITY_HINTS = ("बिहार विद्यालय परीक्षा समिति", "शिक्षा विभाग", "बिहार शिक्षा परियोजना परिषद", "जिला शिक्षा पदाधिकारी", "प्रखंड शिक्षा पदाधिकारी", "जिला कार्यक्रम पदाधिकारी", "राज्य परियोजना निदेशक", "Bihar School Examination Board", "BSEB", "District Education Officer", "Block Education Officer")
 TYPE_RULES = {
@@ -42,4 +43,5 @@ def build_short_description(subject,actions,category):
     return f"{subject.rstrip('.')}। पत्र में संबंधित कार्यवाही/निर्देश के रूप में {actions[0][:220]}।" if actions else f"यह दस्तावेज़ {category} संबंधी सूचना/निर्देश से संबंधित है: {subject.rstrip('.')}."
 def analyze_document(text, normalized_subject=None):
     authority=extract_header_authority(text); subject=extract_official_subject(text,normalized_subject); typ=classify_document(text); actions=extract_actions(text); deadlines=extract_deadlines(text)
-    return {"authority":authority,"subject":subject,"document_type":typ,"actions":actions,"deadlines":deadlines,"short_description":build_short_description(subject['value'],actions,typ['value']),"evidence_policy":"source-backed; no invented metadata"}
+    language_context=resolve_office(text)
+    return {"authority":authority,"subject":subject,"document_type":typ,"actions":actions,"deadlines":deadlines,"language_context":language_context,"short_description":build_short_description(subject['value'],actions,typ['value']),"evidence_policy":"source-backed; no invented metadata"}
