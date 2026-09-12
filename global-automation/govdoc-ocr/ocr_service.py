@@ -9,7 +9,7 @@ from .government_document import analyze_document
 from .sarkari_normalizer import normalize_sarkari_text
 from .diagnostics import inspect_image
 
-OCR_SERVICE_VERSION="4.1"
+OCR_SERVICE_VERSION="4.2"
 
 def _clean(text):
     text=(text or '').replace('\x00',' '); text=re.sub(r'[ \t]+',' ',text); return re.sub(r'\n{3,}','\n\n',text).strip()
@@ -41,8 +41,10 @@ def _ocr_page(image,workdir,page_number,backend_name='tesseract',language='hin+e
     decision,diagnostics=_select_backend(image,backend_name)
     prepared=Path(workdir)/f'prepared-{page_number}.png'
     prep=preprocess_image(str(image),str(prepared),profile='document')
-    result=get_backend(decision.backend).extract_image(str(prepared),language=language); text=_clean(result.text)
-    page={'page_number':page_number,'text':text,'backend':result.backend,'confidence':result.confidence,'preprocessing':prep,'diagnostics':diagnostics,'regions':[],'backend_policy':{'requested':backend_name,'selected':decision.backend,'reason':decision.reason,'escalated':decision.escalated},'extraction_method':f'ocr:{result.backend}'}
+    result=get_backend(decision.backend).extract_image(str(prepared),language=language)
+    text=_clean(result.text)
+    regions=[region.to_dict() for region in result.regions]
+    page={'page_number':page_number,'text':text,'backend':result.backend,'confidence':result.confidence,'preprocessing':prep,'diagnostics':diagnostics,'regions':regions,'backend_policy':{'requested':backend_name,'selected':decision.backend,'reason':decision.reason,'escalated':decision.escalated},'extraction_method':f'ocr:{result.backend}'}
     return text,page,decision
 
 def _ocr_images(images,workdir,backend_name='tesseract',language='hin+eng'):
