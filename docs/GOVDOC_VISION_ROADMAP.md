@@ -15,6 +15,7 @@
 - evidence-based Government Document Intelligence v2
 - conservative government-text normalization
 - Bihar district and education-office vocabulary foundation
+- Bihar education-domain vocabulary and OCR-alias detection
 - storage-neutral keyword search interface
 - compatibility-oriented service API
 
@@ -24,19 +25,43 @@ The School Document Pipeline remains outside this package and continues to own s
 
 Government intelligence is evidence-first. It prioritizes header authority, labelled official subject, document-type evidence, actionable instructions and source dates. Missing evidence stays missing; OCR confidence is not publication approval.
 
-## Bihar language-pack improvement plan
+The intelligence layer is now exercised independently from storage: CI can test OCR, language resolution, intelligence and search without requiring a live B2/Supabase document. This prevents infrastructure/data-integrity failures from being mistaken for OCR regressions.
 
-The Bihar pack is being expanded around real reviewed documents rather than arbitrary word lists. Priority areas:
+## Bihar language pack — v0.3.0
 
-1. education department terminology and abbreviations
-2. BSEB/OFSS admission and examination terminology
-3. DEO/BEO/DPO/RDD office terminology
-4. district/block aliases and spelling variants
-5. school and UDISE terminology
-6. Hindi administrative labels and OCR variants
-7. dates, reference-number labels and common document types
+The Bihar pack is a two-layer vocabulary system:
+
+1. `bihar_districts.json` — district, office and school identity vocabulary.
+2. `bihar_education.json` — education administration, school types, academic terms, staff/service, infrastructure, welfare, document labels, OCR aliases and conservative Unicode normalization.
+
+The resolver:
+
+- normalizes safe Unicode variants before matching
+- detects education-domain terms with source evidence
+- detects known OCR aliases without silently rewriting source text
+- returns canonical district/office keys only when evidence is present
+- marks multiple district/office candidates as ambiguous instead of guessing
+- never infers district/block from a person's name
+- preserves original source wording for downstream consumers
 
 Every accepted correction should become a regression case.
+
+## CI verification boundary
+
+The canonical offline test suite now performs:
+
+- Python compilation of document and GovDOC code
+- backend registration checks
+- Government Intelligence evidence tests
+- Bihar district/office resolution tests
+- OCR-alias detection tests
+- ambiguity/no-guessing tests
+- keyword-search tests
+- real Tesseract image OCR using a generated Hindi/English document sample
+- preprocessing metadata checks
+- existing pipeline smoke tests
+
+The test fixture is intentionally self-contained and does not depend on B2, Supabase, Telegram or private production records.
 
 ## OCR/Vision backend policy
 
