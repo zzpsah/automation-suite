@@ -2,7 +2,7 @@
 
 Reusable OCR, image-processing and government-document intelligence engine for Indian government documents.
 
-## P35-P50 completed foundation
+## P35-P51 completed foundation
 
 - **P35 — structured OCR regions:** every OCR page exposes a backward-compatible `regions` array using normalized `{id,bbox,text,confidence,block_type,source}` records. Empty geometry is used when a backend cannot provide reliable regions; geometry is never fabricated.
 - **P36 — diagnostics:** OCR pages expose privacy-safe image diagnostics where applicable (dimensions, format, file size, quality/blur proxies, notes). Originals remain untouched.
@@ -20,6 +20,7 @@ Reusable OCR, image-processing and government-document intelligence engine for I
 - **P48 — multipage consistency:** page counts, extraction methods, OCR pages, embedded pages, backend set and mixed-processing signals are summarized without changing page content.
 - **P49 — search index contract:** a compact storage-neutral search record exposes source text plus key government-document metadata for downstream indexing. Persistence remains the caller's responsibility.
 - **P50 — release gate:** dependency-free contract validation checks required result keys and sequential page numbering before a consumer treats a result as structurally valid.
+- **P51 — visual-mark triage:** deterministic image evidence can flag pages with combined dark-ink, colored-ink and local-contrast signals for human review. It deliberately does not identify, authenticate or interpret signatures/stamps.
 
 ## Current capabilities
 
@@ -45,14 +46,15 @@ Reusable OCR, image-processing and government-document intelligence engine for I
 - storage-neutral search-index contract
 - dependency-free release-gate checks
 - stable `ocr_service.py` consumer interface
+- evidence-only visual-mark review hints for scanned pages
 
 ## Import compatibility
 
 The canonical implementation remains under `global-automation/govdoc-ocr/`. A lightweight `global-automation/govdoc_ocr/` package alias exposes the stable Python import name `govdoc_ocr` without duplicating implementation files. CI sets `PYTHONPATH` for both the automation root and canonical OCR source tree. A pytest compatibility bootstrap preserves legacy top-level imports used by older tests, while the package import path is the preferred production/test interface. The offline GovDOC smoke test uses the stable package imports directly. The deterministic verification loop also compiles the alias package explicitly.
 
-## P42-P50 module contract
+## P42-P51 module contract
 
-The P42-P50 helpers are additive and storage-neutral:
+The P42-P51 helpers are additive and storage-neutral:
 
 - `layout.py` — lines, columns and reading order.
 - `table_intelligence.py` — repeated-column/table evidence.
@@ -63,6 +65,7 @@ The P42-P50 helpers are additive and storage-neutral:
 - `multipage.py` — cross-page processing signals.
 - `search_index.py` — downstream search-record contract; no persistence.
 - `release_gate.py` — minimal structural release checks.
+- `visual_marks.py` — conservative visual-mark evidence for review triage; no authenticity claim.
 
 These helpers do not own Supabase, Backblaze B2, Telegram, publication, retries or business rules. They are designed to be consumed safely by the existing School Document Pipeline.
 
@@ -116,8 +119,9 @@ The product is considered **production-ready only when all required gates are ve
 - Synthetic embedded/scanned/mixed PDF fixture coverage is present in `tests/test_pdf_fixtures.py`; OCR-dependent cases are explicitly skippable when the system OCR tools are unavailable.
 - Resilience contract tests cover fail-closed B2 handling, concurrent intake claiming, retry failure recording and publication remaining explicitly unapproved.
 - Release-gate contract tests cover required result keys and sequential page numbering.
-- The deterministic verification runner now executes **9 offline checks** covering compilation, GovDOC tests, adapter contracts, resilience contracts, smoke tests and release-gate contracts.
-- The adapter cache and contract tests explicitly preserve filename isolation, and the production processor now passes the intake filename into both GovDOC extraction paths.
+- The deterministic verification runner executes **9 offline checks** covering compilation, GovDOC tests, adapter contracts, resilience contracts, smoke tests and release-gate contracts.
+- The adapter cache and contract tests explicitly preserve filename isolation, and the production processor passes the intake filename into both GovDOC extraction paths.
+- P51 adds visual-mark evidence to OCR pages only for raster/OCR pages; embedded-text pages expose `visual_marks: null` because no image analysis is performed.
 - A fresh GitHub combined-status result has not yet been observed for the latest implementation commit; an empty status response is not treated as CI success.
 
 ### Current release status
@@ -127,15 +131,16 @@ The product is considered **production-ready only when all required gates are ve
 ## Non-goals
 
 - No invented OCR text or geometry.
-- No automatic publication approval from confidence.
+- No automatic publication approval from confidence or visual-mark signals.
 - No silent correction of source text.
 - No storage/database ownership inside this OCR package.
 - No hard dependency on PaddleOCR.
 - No destructive rewrite of the existing School Document Pipeline.
+- No signature/stamp authenticity or identity determination from visual marks.
 
 ## Future / experimental
 
-- advanced stamp/signature detection
+- stronger visual stamp/seal candidate detection using reviewed fixtures
 - handwriting recognition
 - semantic/vector retrieval with real embeddings
 - larger reviewed Bihar corpus
