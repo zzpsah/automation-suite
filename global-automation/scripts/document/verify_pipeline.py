@@ -10,11 +10,17 @@ percentage shown in CI logs is honest and reproducible.
 """
 from __future__ import annotations
 
+import os
 import subprocess
 import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[3]
+PYTHONPATH = os.pathsep.join([
+    str(ROOT / "global-automation"),
+    str(ROOT / "global-automation" / "govdoc-ocr"),
+    os.environ.get("PYTHONPATH", ""),
+]).strip(os.pathsep)
 
 CHECKS = [
     ("compile_document_pipeline", [sys.executable, "-m", "compileall", "-q", "global-automation/scripts/document"]),
@@ -29,7 +35,9 @@ CHECKS = [
 def run(name: str, command: list[str], completed: int, total: int) -> bool:
     percent = int(completed * 100 / total)
     print(f"\n[{percent}%] START {name}", flush=True)
-    result = subprocess.run(command, cwd=ROOT)
+    env = os.environ.copy()
+    env["PYTHONPATH"] = PYTHONPATH
+    result = subprocess.run(command, cwd=ROOT, env=env)
     ok = result.returncode == 0
     next_percent = int((completed + 1) * 100 / total)
     print(f"[{next_percent}%] {name}={'PASS' if ok else 'FAIL'}", flush=True)
