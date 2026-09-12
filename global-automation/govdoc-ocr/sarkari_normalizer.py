@@ -70,6 +70,14 @@ def normalize_labels(text: str) -> str:
 def normalize_phrases(text: str) -> str:
     for src, dst in sorted(PHRASE_ALIASES.items(), key=lambda item: -len(item[0])):
         text = text.replace(src, dst)
+    # Some OCR variants contain the same relationship phrase immediately
+    # after the canonical expansion of "उपरोक्त विषयक". Collapse only this
+    # exact duplicate construction; do not infer or add missing content.
+    text = re.sub(
+        r"उपरोक्त विषय के संबंध में(?:\s+के संबंध में)+",
+        "उपरोक्त विषय के संबंध में",
+        text,
+    )
     return text
 
 
