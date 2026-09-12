@@ -131,12 +131,20 @@ def has_verified_b2(row):
     storage=(row.get("metadata") or {}).get("storage") or {}
     return bool(storage.get("b2_key")) and storage.get("b2_status")=="AVAILABLE"
 
+def success_metadata(metadata, **updates):
+    """Build success metadata without carrying forward stale processing errors."""
+    cleaned=dict(metadata)
+    cleaned.pop("processing_error",None)
+    cleaned.pop("processing_error_at",None)
+    cleaned.update(updates)
+    return cleaned
+
 def process(row):
     rid=row["id"]; metadata=row.get("metadata") or {}; storage=metadata.get("storage") or {}; key=storage.get("b2_key"); original_name=row.get("file_name") or "document"
     if not key or storage.get("b2_status")!="AVAILABLE": raise RuntimeError("Verified B2 object is missing")
     existing=db_get(f"documents?select=id&source_app=eq.UMVInputBot&source_message_id=eq.{quote(str(rid),safe='')}&limit=1")
     if existing:
-        db_patch("telegram_intake",rid,{"status":"Processed","metadata":{**metadata,"document_id":existing[0]["id"]}}); return False
+        db_patch("telegram_intake",rid,{"status":"Processed","metadata":success_metadata(metadata,document_id=existing[0]["id"])}); return False
     data=b2_client().get_object(Bucket=B2_BUCKET,Key=key)["Body"].read()
     if not data: raise RuntimeError("B2 object is empty")
     with tempfile.TemporaryDirectory() as workdir:
@@ -146,9 +154,9 @@ def process(row):
     subject,authority,ref_no,printed,normalized,short,detailed,category_key,category,confidence=extract_metadata(text,original_name); display_name=canonical_filename(original_name,subject,authority,normalized,ref_no); checksum=storage.get("sha256")
     duplicates=db_get(f"documents?select=id,display_filename&file_checksum=eq.{quote(str(checksum),safe='')}&limit=1") if checksum else []
     if duplicates:
-        duplicate_of=duplicates[0]["id"]; db_patch("telegram_intake",rid,{"status":"Processed","metadata":{**metadata,"duplicate_of":duplicate_of,"document_id":duplicate_of,"processed_at":datetime.now(timezone.utc).isoformat()}}); print(f"Duplicate {rid} -> {duplicate_of}"); return False
+        duplicate_of=duplicates[0]["id"]; db_patch("telegram_intake",rid,{"status":"Processed","metadata":success_metadata(metadata,duplicate_of=duplicate_of,document_id=duplicate_of,processed_at=datetime.now(timezone.utc).isoformat())}); print(f"Duplicate {rid} -> {duplicate_of}"); return False
     payload={"id":str(uuid.uuid4()),"source_app":"UMVInputBot","source_location":"Telegram","source_message_id":str(rid),"original_filename":original_name,"display_filename":display_name,"mime_type":row.get("mime_type"),"file_size":len(data),"file_checksum":checksum,"private_drive_file_id":storage.get("drive_file_id"),"private_drive_url":(f"https://drive.google.com/file/d/{storage.get('drive_file_id')}/view" if storage.get("drive_file_id") else None),"public_file_url":"","reference_number":ref_no or None,"issue_date_as_printed":printed or None,"normalized_issue_date":normalized,"received_at":row.get("received_at"),"issuing_authority":authority or None,"subject":subject or None,"short_description":short,"detailed_summary":detailed,"category":category,"subcategory":None,"priority":"NORMAL","required_action":"None","deadline_as_printed":None,"normalized_deadline":None,"affected_entities":[],"financial_amount":None,"full_text_ocr":text,"extraction_method":method,"extraction_confidence":confidence,"sensitive":False,"useful":True,"duplicate":False,"duplicate_reason":None,"processing_status":"Completed","forwarding_status":"Not Forwarded","approved_for_publication":False,"category_key":category_key,"category_source":"rule","category_confidence":"HIGH" if category_key!="other" else "LOW","ai_suggestion_status":"Not Requested","publication_status":"Unpublished","publication_reason":"Awaiting publication workflow","public_revision":0}
-    created=db_insert("documents",payload); actual_id=created.get("id",payload["id"]); db_patch("telegram_intake",rid,{"status":"Processed","metadata":{**metadata,"document_id":actual_id,"display_filename":display_name,"processed_at":datetime.now(timezone.utc).isoformat()}}); print(f"Processed {rid} -> {actual_id} via {method} as {display_name}"); return True
+    created=db_insert("documents",payload); actual_id=created.get("id",payload["id"]); db_patch("telegram_intake",rid,{"status":"Processed","metadata":success_metadata(metadata,document_id=actual_id,display_filename=display_name,processed_at=datetime.now(timezone.utc).isoformat())}); print(f"Processed {rid} -> {actual_id} via {method} as {display_name}"); return True
 
 def main():
     if RECOVERY_DOCUMENT_ID:
