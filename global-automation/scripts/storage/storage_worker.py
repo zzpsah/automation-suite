@@ -66,6 +66,17 @@ def b2_client():
     )
 
 
+def b2_object_exists(s3, key):
+    """Return True only when the B2 object really exists; stale metadata is not trusted."""
+    if not key:
+        return False
+    try:
+        s3.head_object(Bucket=B2_BUCKET, Key=key)
+        return True
+    except Exception:
+        return False
+
+
 def drive_access_token():
     r = requests.post(
         "https://oauth2.googleapis.com/token",
@@ -129,8 +140,18 @@ def process_record(row):
 
     metadata = row.get("metadata") or {}
     storage = metadata.get("storage") or {}
-    if storage.get("b2_status") == "AVAILABLE" and storage.get("drive_status") == "AVAILABLE":
+    s3 = b2_client()
+    b2_key = storage.get("b2_key")
+    b2_available = storage.get("b2_status") == "AVAILABLE" and b2_object_exists(s3, b2_key)
+    drive_available = storage.get("drive_status") == "AVAILABLE" and bool(storage.get("drive_file_id"))
+    if b2_available and drive_available:
         return False
+
+    # If metadata claimed B2 availability but the object is gone, explicitly mark it stale.
+    if storage.get("b2_status") == "AVAILABLE" and b2_key and not b2_object_exists(s3, b2_key):
+        storage["b2_status"] = "MISSING"
+        storage["verified"] = False
+        storage["storage_recovery_reason"] = "B2 metadata said AVAILABLE but head_object could not find the object"
 
     file_info = telegram("getFile", {"file_id": file_id})
     file_path = file_info.get("file_path")
@@ -151,11 +172,8 @@ def process_record(row):
     date_path = datetime.now(timezone.utc).strftime("%Y-%m-%d")
     object_key = f"telegram-intake/{date_path}/{record_id}/{safe_name}"
 
-    s3 = b2_client()
-    try:
-        s3.head_object(Bucket=B2_BUCKET, Key=object_key)
-        b2_status = "AVAILABLE"
-    except Exception:
+    # The canonical key is deterministic for a record, so a missing/stale object is recreated there.
+    if not b2_object_exists(s3, object_key):
         s3.put_object(
             Bucket=B2_BUCKET,
             Key=object_key,
@@ -163,12 +181,14 @@ def process_record(row):
             ContentType=row.get("mime_type") or "application/octet-stream",
             Metadata={"sha256": sha, "telegram-intake-id": str(record_id)},
         )
-        b2_status = "AVAILABLE"
+    if not b2_object_exists(s3, object_key):
+        raise RuntimeError("B2 upload completed without a verifiable object")
+    b2_status = "AVAILABLE"
 
     drive_status = storage.get("drive_status")
     drive_file_id = storage.get("drive_file_id")
     drive_name = f"{sha[:16]}__{safe_name}"
-    if drive_status != "AVAILABLE":
+    if drive_status != "AVAILABLE" or not drive_file_id:
         token = drive_access_token()
         existing = drive_find_by_sha(token, sha[:16])
         if existing:
