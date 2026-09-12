@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Offline smoke test for the canonical GovDOC Vision intelligence layer."""
-from government_document import analyze_document
-from sarkari_normalizer import normalize_sarkari_text
+from govdoc_ocr.government_document import analyze_document
+from govdoc_ocr.sarkari_normalizer import normalize_sarkari_text
 
 text = normalize_sarkari_text(
     "शिक्षा विभाग, बिहार सरकार\n"
