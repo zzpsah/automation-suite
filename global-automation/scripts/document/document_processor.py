@@ -128,6 +128,11 @@ def category_for(text):
 def extract_metadata(text,filename):
     ls=lines(text); subject=extract_subject(ls,text); authority=extract_authority(ls,text); ref_no=extract_reference(ls); printed=extract_date(ls,text); normalized=normalize_date(printed); short=subject[:500]; detailed=(f"यह दस्तावेज़ {filename} के रूप में प्राप्त हुआ। "+(f"विषय: {subject}. " if subject else "विषय स्वतः निर्धारित नहीं हो सका। ")+(f"जारीकर्ता: {authority}. " if authority else "जारीकर्ता स्वतः निर्धारित नहीं हो सका। ")+(f"जारी तिथि: {printed}. " if printed else "जारी तिथि स्वतः निर्धारित नहीं हो सकी। ")+"OCR/पाठ निष्कर्षण के आधार पर विवरण तैयार किया गया है."); category_key,category=category_for(text); confidence="HIGH" if subject and (printed or authority) else "MEDIUM"; return subject,authority,ref_no,printed,normalized,short,detailed,category_key,category,confidence
 
+def has_verified_b2(row):
+    """Return whether the document processor has a verified B2 object to consume."""
+    storage=(row.get("metadata") or {}).get("storage") or {}
+    return bool(storage.get("b2_key")) and storage.get("b2_status")=="AVAILABLE"
+
 def process(row):
     rid=row["id"]; metadata=row.get("metadata") or {}; storage=metadata.get("storage") or {}; key=storage.get("b2_key")
     if not key or storage.get("b2_status")!="AVAILABLE": raise RuntimeError("Verified B2 object is missing")
@@ -156,6 +161,10 @@ def main():
         rows=db_get("telegram_intake?select=*&or=(status.eq.Stored,status.eq.Processing%20Failed)&order=received_at.asc&limit=10")
     processed=failed=skipped=0
     for candidate in rows:
+        if not has_verified_b2(candidate):
+            skipped+=1
+            print(f"Skip {candidate['id']}: no verified B2 object; storage worker owns recovery")
+            continue
         row=claim_intake(candidate["id"])
         if row is None:
             skipped+=1; print(f"Skip {candidate['id']}: already claimed or no longer eligible"); continue
