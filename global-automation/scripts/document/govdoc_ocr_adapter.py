@@ -95,7 +95,9 @@ def install(processor_module) -> None:
     original_embedded = processor_module.embedded_pdf_text
     original_ocr = processor_module.ocr_pdf
     original_metadata = processor_module.extract_metadata
-    original_insert = processor_module.db_insert
+    # Keep the adapter compatible with lightweight/test processor modules that
+    # predate the optional provenance-enrichment db_insert hook.
+    original_insert = getattr(processor_module, "db_insert", None)
 
     def embedded(data, filename="document.pdf"):
         try:
@@ -134,20 +136,22 @@ def install(processor_module) -> None:
             )
         return legacy
 
-    def insert(table, payload):
-        result = _SERVICE_RESULT
-        if table == "documents" and result:
-            enriched = dict(payload)
-            enriched["extraction_method"] = result.get("extraction_method") or enriched.get("extraction_method")
-            enriched["extraction_confidence"] = enriched.get("extraction_confidence") or "MEDIUM"
-            enriched["category_source"] = "GovDOC Vision"
-            enriched["category_confidence"] = ((result.get("metadata") or {}).get("document_type") or {}).get("confidence")
-            enriched["ai_model"] = "GovDOC Vision"
-            enriched["ai_suggested_json"] = result.get("metadata")
-            return original_insert(table, enriched)
-        return original_insert(table, payload)
-
     processor_module.embedded_pdf_text = embedded
     processor_module.ocr_pdf = ocr
     processor_module.extract_metadata = metadata
-    processor_module.db_insert = insert
+
+    if callable(original_insert):
+        def insert(table, payload):
+            result = _SERVICE_RESULT
+            if table == "documents" and result:
+                enriched = dict(payload)
+                enriched["extraction_method"] = result.get("extraction_method") or enriched.get("extraction_method")
+                enriched["extraction_confidence"] = enriched.get("extraction_confidence") or "MEDIUM"
+                enriched["category_source"] = "GovDOC Vision"
+                enriched["category_confidence"] = ((result.get("metadata") or {}).get("document_type") or {}).get("confidence")
+                enriched["ai_model"] = "GovDOC Vision"
+                enriched["ai_suggested_json"] = result.get("metadata")
+                return original_insert(table, enriched)
+            return original_insert(table, payload)
+
+        processor_module.db_insert = insert
