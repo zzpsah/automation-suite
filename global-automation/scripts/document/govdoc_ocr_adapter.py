@@ -72,7 +72,7 @@ def _run(data: bytes, filename: str = "document.pdf") -> dict[str, Any]:
 
 def _category(info: dict[str, Any]) -> tuple[str, str, str]:
     dtype = info.get("document_type") or {}
-    value = dtype.get("value") or "other"
+    raw_value = str(dtype.get("value") or "other").strip().lower()
     labels = {
         "admission": "Admission",
         "examination": "Examination",
@@ -83,10 +83,24 @@ def _category(info: dict[str, Any]) -> tuple[str, str, str]:
         "holiday": "Holiday",
         "other": "Other",
     }
+    # Keep GovDOC's human-readable category label, but only send a key that
+    # exists in the authoritative Supabase taxonomy. This prevents a valid
+    # OCR classification from breaking document creation on an FK constraint.
+    canonical_keys = {
+        "academic", "admission", "attendance", "block_office", "bseb",
+        "building_repair", "computer_science", "data_submission",
+        "deadline_urgent", "district_office", "examination", "finance_accounts",
+        "general_information", "government_order", "infrastructure", "inspection",
+        "meeting", "notice_circular", "other", "payment_fee", "portal_technical",
+        "procurement", "registration", "scholarship", "school_administration",
+        "student", "teacher_staff", "training", "udise",
+    }
+    category_key = raw_value if raw_value in canonical_keys else "other"
+    category = labels.get(raw_value, raw_value.replace("_", " ").title())
     confidence = str(dtype.get("confidence") or "LOW").upper()
     if confidence not in _VALID_CONFIDENCE:
         confidence = "LOW"
-    return value, labels.get(value, value), confidence
+    return category_key, category, confidence
 
 
 def install(processor_module) -> None:
