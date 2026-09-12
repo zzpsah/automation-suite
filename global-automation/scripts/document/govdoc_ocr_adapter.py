@@ -90,16 +90,16 @@ def install(processor_module) -> None:
     original_ocr = processor_module.ocr_pdf
     original_metadata = processor_module.extract_metadata
 
-    def embedded(data):
+    def embedded(data, filename="document.pdf"):
         try:
-            result = _run(data)
+            result = _run(data, filename)
             return result["text"] if "embedded-text" in result["extraction_method"] else ""
         except Exception:
             return original_embedded(data)
 
-    def ocr(data, workdir):
+    def ocr(data, workdir, filename="document.pdf"):
         try:
-            return _run(data)["text"]
+            return _run(data, filename)["text"]
         except Exception:
             return original_ocr(data, workdir)
 
