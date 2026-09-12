@@ -1,0 +1,33 @@
+name: Android Document Scanner Build
+on:
+  push:
+    paths:
+      - 'android-document-scanner/**'
+      - '.github/workflows/android-document-scanner-build.yml'
+  workflow_dispatch:
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: android-document-scanner
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: android-actions/setup-android@v3
+      - name: Install Android SDK
+        run: sdkmanager "platform-tools" "platforms;android-35" "build-tools;35.0.0"
+      - name: Build debug and release APKs
+        run: gradle --no-daemon assembleDebug assembleRelease
+      - name: Run unit tests
+        run: gradle --no-daemon test
+      - name: Upload APKs
+        uses: actions/upload-artifact@v4
+        with:
+          name: DevOS-Document-Scanner-APKs
+          path: |
+            android-document-scanner/app/build/outputs/apk/debug/*.apk
+            android-document-scanner/app/build/outputs/apk/release/*.apk
