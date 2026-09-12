@@ -1,14 +1,30 @@
 from pathlib import Path
+import importlib.util
 import sys
 
 ROOT = Path(__file__).resolve().parents[1]
-PACKS = ROOT / "language_packs"
 sys.path.insert(0, str(ROOT))
 
 from backend import available_backends, get_backend
 from government_document import analyze_document
 from search import search_documents
 from language_packs.bihar_office_resolver import resolve_office
+
+
+def _load_service_package():
+    """Load the hyphenated govdoc-ocr directory under a stable package name."""
+    if "govdoc_ocr" in sys.modules:
+        return sys.modules["govdoc_ocr"]
+    spec = importlib.util.spec_from_file_location(
+        "govdoc_ocr",
+        ROOT / "__init__.py",
+        submodule_search_locations=[str(ROOT)],
+    )
+    package = importlib.util.module_from_spec(spec)
+    sys.modules["govdoc_ocr"] = package
+    assert spec.loader is not None
+    spec.loader.exec_module(package)
+    return package
 
 
 def test_tesseract_backend_registered():
@@ -57,7 +73,9 @@ def test_keyword_search():
 def test_image_ocr_end_to_end(tmp_path):
     """Exercise the real Tesseract path without B2, Supabase, or network data."""
     from PIL import Image, ImageDraw, ImageFont
-    from ocr_service import process_image
+
+    _load_service_package()
+    from govdoc_ocr.ocr_service import process_image
 
     image_path = tmp_path / "sample.png"
     image = Image.new("RGB", (1500, 420), "white")
