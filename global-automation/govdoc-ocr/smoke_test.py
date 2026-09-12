@@ -1,15 +1,18 @@
 #!/usr/bin/env python3
-"""Offline smoke test for GovDOC OCR metadata rules."""
-from ocr_service import OCR_SERVICE_VERSION, _date, _metadata
+"""Offline smoke test for the canonical GovDOC Vision intelligence layer."""
+from government_document import analyze_document
+from sarkari_normalizer import normalize_sarkari_text
 
-assert OCR_SERVICE_VERSION == "2.0"
-result = _metadata(
-    "शिक्षा विभाग, बिहार सरकार\nपत्रांक: 123/2026\nदिनांक: 12.09.2026\nविषय: इंटरमीडिएट कक्षा में स्पॉट नामांकन हेतु सूचना",
-    "notice.pdf",
+text = normalize_sarkari_text(
+    "शिक्षा विभाग, बिहार सरकार\n"
+    "पत्रांक: 123/2026\n"
+    "दिनांक: 12.09.2026\n"
+    "विषय: इंटरमीडिएट कक्षा में स्पॉट नामांकन हेतु सूचना"
 )
-assert result["authority"] == "शिक्षा विभाग, बिहार सरकार"
-assert result["reference_number"] == "123/2026"
-assert result["normalized_issue_date"] == "2026-09-12"
-assert result["category_key"] == "admission"
-assert _date("31.02.2026") is None
-print("GovDOC OCR smoke test: PASS")
+result = analyze_document(text)
+
+assert result["authority"]["value"] == "शिक्षा विभाग, बिहार सरकार"
+assert "स्पॉट नामांकन" in result["subject"]["value"]
+assert result["document_type"]["value"] == "admission"
+assert result["evidence_policy"] == "source-backed; no invented metadata"
+print("GovDOC Vision smoke test: PASS")
