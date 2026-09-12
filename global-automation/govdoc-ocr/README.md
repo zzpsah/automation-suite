@@ -93,7 +93,9 @@ Preserve raw OCR and correction provenance. Do not silently rewrite source text.
 - The previous CI failure was an import-path failure (`ModuleNotFoundError: govdoc_ocr`) plus legacy direct-module imports after the package-relative import cleanup.
 - The stable `govdoc_ocr` alias and pytest compatibility bootstrap are now present on `main`.
 - The workflow is configured to include both `global-automation/govdoc-ocr/**` and `global-automation/govdoc_ocr/**` in push triggers and to expose both paths through `PYTHONPATH`.
-- The latest fix commit was pushed after the failed CI run; GitHub status for that commit has not yet reported a new completed workflow result, so this README does **not** claim CI green.
+- The deterministic verification runner now propagates the same import paths to every subprocess, including smoke tests.
+- Duplicate adapter cache coverage was consolidated into the canonical adapter test suite.
+- No new completed CI result has been verified yet; this README therefore does **not** claim CI green.
 
 ## Integration priority after P50
 
