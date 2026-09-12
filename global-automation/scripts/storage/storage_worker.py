@@ -214,7 +214,15 @@ def process_record(row):
         "verified": True,
         "updated_at": datetime.now(timezone.utc).isoformat(),
     })
-    db_patch(record_id, {"status": "Stored", "metadata": {**metadata, "storage": storage}})
+    # Keep the authoritative relational storage_status column in sync with the
+    # verified storage metadata. This transition is what the instant OCR trigger watches.
+    db_patch(record_id, {
+        "status": "Stored",
+        "storage_status": "Stored",
+        "storage_bucket": B2_BUCKET,
+        "storage_path": object_key,
+        "metadata": {**metadata, "storage": storage},
+    })
     return True
 
 
