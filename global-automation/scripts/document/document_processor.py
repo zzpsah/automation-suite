@@ -132,7 +132,7 @@ def has_verified_b2(row):
     return bool(storage.get("b2_key")) and storage.get("b2_status")=="AVAILABLE"
 
 def process(row):
-    rid=row["id"]; metadata=row.get("metadata") or {}; storage=metadata.get("storage") or {}; key=storage.get("b2_key")
+    rid=row["id"]; metadata=row.get("metadata") or {}; storage=metadata.get("storage") or {}; key=storage.get("b2_key"); original_name=row.get("file_name") or "document"
     if not key or storage.get("b2_status")!="AVAILABLE": raise RuntimeError("Verified B2 object is missing")
     existing=db_get(f"documents?select=id&source_app=eq.UMVInputBot&source_message_id=eq.{quote(str(rid),safe='')}&limit=1")
     if existing:
@@ -143,7 +143,7 @@ def process(row):
         text=embedded_pdf_text(data); method="Embedded PDF text"
         if len(re.sub(r"\s+","",text))<80: text=ocr_pdf(data,workdir); method="Tesseract OCR (Hindi+English)"
     if not text: raise RuntimeError("No text could be extracted from PDF")
-    subject,authority,ref_no,printed,normalized,short,detailed,category_key,category,confidence=extract_metadata(text,row.get("file_name") or "document"); original_name=row.get("file_name") or "document"; display_name=canonical_filename(original_name,subject,authority,normalized,ref_no); checksum=storage.get("sha256")
+    subject,authority,ref_no,printed,normalized,short,detailed,category_key,category,confidence=extract_metadata(text,original_name); display_name=canonical_filename(original_name,subject,authority,normalized,ref_no); checksum=storage.get("sha256")
     duplicates=db_get(f"documents?select=id,display_filename&file_checksum=eq.{quote(str(checksum),safe='')}&limit=1") if checksum else []
     if duplicates:
         duplicate_of=duplicates[0]["id"]; db_patch("telegram_intake",rid,{"status":"Processed","metadata":{**metadata,"duplicate_of":duplicate_of,"document_id":duplicate_of,"processed_at":datetime.now(timezone.utc).isoformat()}}); print(f"Duplicate {rid} -> {duplicate_of}"); return False
