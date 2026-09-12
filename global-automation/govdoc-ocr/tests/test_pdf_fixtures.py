@@ -68,6 +68,7 @@ EMBEDDED_TEXT = (
 def test_embedded_pdf_uses_embedded_page_path():
     result = process_pdf_bytes(_embedded_pdf(EMBEDDED_TEXT), "embedded-fixture.pdf")
     assert len(result["pages"]) == 1
+    assert result["pages"][0]["page_number"] == 1
     assert result["pages"][0]["extraction_method"] == "embedded-text"
     assert "Government notice" in result["pages"][0]["text"]
 
@@ -76,6 +77,7 @@ def test_embedded_pdf_uses_embedded_page_path():
 def test_scanned_pdf_uses_ocr_page_path():
     result = process_pdf_bytes(_scanned_pdf(), "scanned-fixture.pdf")
     assert len(result["pages"]) == 1
+    assert result["pages"][0]["page_number"] == 1
     assert result["pages"][0]["extraction_method"].startswith("ocr:")
     assert result["pages"][0]["text"].strip()
 
@@ -84,7 +86,7 @@ def test_scanned_pdf_uses_ocr_page_path():
 def test_mixed_pdf_preserves_page_order_and_routes_per_page():
     payload = _merge_pdfs(_embedded_pdf(EMBEDDED_TEXT), _scanned_pdf())
     result = process_pdf_bytes(payload, "mixed-fixture.pdf")
-    assert [page["page"] for page in result["pages"]] == [1, 2]
+    assert [page["page_number"] for page in result["pages"]] == [1, 2]
     assert result["pages"][0]["extraction_method"] == "embedded-text"
     assert result["pages"][1]["extraction_method"].startswith("ocr:")
     assert "Government notice" in result["pages"][0]["text"]
