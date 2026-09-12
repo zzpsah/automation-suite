@@ -13,6 +13,9 @@ from pathlib import Path
 from typing import Any
 
 
+_SERVICE_RESULT: dict[str, Any] | None = None
+
+
 def _service():
     root = Path(__file__).resolve().parents[2] / "govdoc-ocr"
     init = root / "__init__.py"
@@ -51,8 +54,10 @@ def _suffix_from_bytes(data: bytes) -> str:
 
 
 def _run(data: bytes, filename: str = "document.pdf") -> dict[str, Any]:
+    global _SERVICE_RESULT
     key = (hashlib.sha256(data).hexdigest(), Path(filename).name)
     if key in _CACHE:
+        _SERVICE_RESULT = _CACHE[key]
         return _CACHE[key]
 
     suffix = Path(filename).suffix.lower()
@@ -66,6 +71,7 @@ def _run(data: bytes, filename: str = "document.pdf") -> dict[str, Any]:
     else:
         result = process_pdf_bytes(data, filename)
     _CACHE[key] = result
+    _SERVICE_RESULT = result
     return result
 
 
@@ -82,13 +88,14 @@ def _category(info: dict[str, Any]) -> tuple[str, str, str]:
         "holiday": "Holiday",
         "other": "Other",
     }
-    return value, labels.get(value, value.replace("_", " ").title()), dtype.get("confidence", "LOW")
+    return value, labels.get(value, value), dtype.get("confidence", "LOW")
 
 
 def install(processor_module) -> None:
     original_embedded = processor_module.embedded_pdf_text
     original_ocr = processor_module.ocr_pdf
     original_metadata = processor_module.extract_metadata
+    original_insert = processor_module.db_insert
 
     def embedded(data, filename="document.pdf"):
         try:
@@ -105,9 +112,8 @@ def install(processor_module) -> None:
 
     def metadata(text, filename):
         legacy = original_metadata(text, filename)
-        for result in reversed(list(_CACHE.values())):
-            if result.get("text") != text:
-                continue
+        result = _SERVICE_RESULT
+        if result and result.get("text") == text:
             info = result.get("metadata") or {}
             subject = (info.get("subject") or {}).get("value") or legacy[0]
             authority = (info.get("authority") or {}).get("value") or legacy[1]
@@ -128,6 +134,20 @@ def install(processor_module) -> None:
             )
         return legacy
 
+    def insert(table, payload):
+        result = _SERVICE_RESULT
+        if table == "documents" and result:
+            enriched = dict(payload)
+            enriched["extraction_method"] = result.get("extraction_method") or enriched.get("extraction_method")
+            enriched["extraction_confidence"] = enriched.get("extraction_confidence") or "MEDIUM"
+            enriched["category_source"] = "GovDOC Vision"
+            enriched["category_confidence"] = ((result.get("metadata") or {}).get("document_type") or {}).get("confidence")
+            enriched["ai_model"] = "GovDOC Vision"
+            enriched["ai_suggested_json"] = result.get("metadata")
+            return original_insert(table, enriched)
+        return original_insert(table, payload)
+
     processor_module.embedded_pdf_text = embedded
     processor_module.ocr_pdf = ocr
     processor_module.extract_metadata = metadata
+    processor_module.db_insert = insert
