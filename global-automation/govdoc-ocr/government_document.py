@@ -1,7 +1,10 @@
 """Evidence-based Government Document Intelligence v3."""
 from __future__ import annotations
 import re
-from .language_packs.bihar_office_resolver import resolve_office
+try:
+    from .language_packs.bihar_office_resolver import resolve_office
+except ImportError:  # supports direct module execution in legacy smoke/tests
+    from language_packs.bihar_office_resolver import resolve_office
 
 AUTHORITY_HINTS = ("बिहार विद्यालय परीक्षा समिति", "शिक्षा विभाग", "बिहार शिक्षा परियोजना परिषद", "जिला शिक्षा पदाधिकारी", "प्रखंड शिक्षा पदाधिकारी", "जिला कार्यक्रम पदाधिकारी", "राज्य परियोजना निदेशक", "Bihar School Examination Board", "BSEB", "District Education Officer", "Block Education Officer")
 TYPE_RULES = {
