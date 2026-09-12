@@ -2,7 +2,7 @@ from govdoc_ocr.ocr_service import OCR_SERVICE_VERSION, _clean, process_pdf
 
 
 def test_version_is_present():
-    assert OCR_SERVICE_VERSION == "4.0"
+    assert OCR_SERVICE_VERSION == "4.3"
 
 
 def test_clean_removes_control_and_excess_whitespace():
@@ -18,7 +18,7 @@ def test_mixed_pdf_routes_each_page_independently(tmp_path, monkeypatch):
         return text, {"page_number":page_number,"text":text,"backend":backend_name,"confidence":None,"preprocessing":None,"diagnostics":None,"regions":[],"extraction_method":f"ocr:{backend_name}"}
     monkeypatch.setattr("govdoc_ocr.ocr_service._ocr_page", fake_ocr_page)
     result = process_pdf(str(pdf), str(tmp_path), min_embedded_chars=5)
-    assert result["ocr_service_version"] == "4.0"
+    assert result["ocr_service_version"] == "4.3"
     assert result["extraction_method"] == "GovDOC Vision: mixed embedded-text/tesseract OCR"
     assert result["pages"][0]["extraction_method"] == "embedded-text"
     assert result["pages"][1]["extraction_method"] == "ocr:tesseract"
