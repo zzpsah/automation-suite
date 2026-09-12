@@ -21,7 +21,7 @@ def _valid_result():
 def test_release_gate_accepts_valid_result():
     report = validate_result(_valid_result())
     assert report["valid"] is True
-    assert report["checks"] == {"required_keys": True, "page_order": True}
+    assert report["checks"] == {"required_keys": True, "nonempty_pages": True, "page_order": True}
 
 
 def test_release_gate_rejects_missing_required_key():
@@ -37,4 +37,13 @@ def test_release_gate_rejects_non_sequential_pages():
     result["pages"][1]["page_number"] = 3
     report = validate_result(result)
     assert report["valid"] is False
+    assert report["sequential_pages"] is False
+
+
+def test_release_gate_rejects_empty_pages():
+    result = _valid_result()
+    result["pages"] = []
+    report = validate_result(result)
+    assert report["valid"] is False
+    assert report["nonempty_pages"] is False
     assert report["sequential_pages"] is False
