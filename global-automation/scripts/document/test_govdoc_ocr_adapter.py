@@ -57,7 +57,7 @@ def test_adapter_maps_govdoc_and_preserves_legacy_fields():
     assert result[2:5] == ("REF-123", "25-06-2026", "2026-06-25")
     assert result[7:9] == ("admission", "Admission")
     assert result[9] == "HIGH"
-    assert len(calls) == 1  # SHA-256 cache prevents duplicate OCR
+    assert len(calls) == 1
 
 
 def test_adapter_routes_jpeg_to_govdoc_image_service():
@@ -88,6 +88,22 @@ def test_adapter_routes_jpeg_to_govdoc_image_service():
     jpeg = b"\xff\xd8\xff\xe0fake-jpeg"
     assert Processor.ocr_pdf(jpeg, "/tmp") == "image OCR text"
     assert len(calls) == 1
+
+
+def test_adapter_cache_isolated_by_filename():
+    adapter = load_adapter()
+    calls = []
+
+    def fake_service(data, filename):
+        calls.append(filename)
+        return {"text": filename, "extraction_method": "embedded-text", "metadata": {}}
+
+    adapter.process_pdf_bytes = fake_service
+    assert adapter._run(b"same-bytes", "a.pdf")["text"] == "a.pdf"
+    assert adapter._run(b"same-bytes", "b.pdf")["text"] == "b.pdf"
+    assert calls == ["a.pdf", "b.pdf"]
+    assert adapter._run(b"same-bytes", "a.pdf")["text"] == "a.pdf"
+    assert calls == ["a.pdf", "b.pdf"]
 
 
 def test_adapter_falls_back_when_govdoc_fails():
