@@ -5,7 +5,7 @@ Document Pipeline remains responsible for storage, lifecycle and publication.
 Legacy extraction is retained for fields GovDOC does not currently expose.
 """
 from __future__ import annotations
-import hashlib, importlib.util
+import hashlib, importlib.util, tempfile
 from pathlib import Path
 from typing import Any
 
@@ -23,15 +23,28 @@ def _service():
     return module
 
 
-process_pdf_bytes = _service().process_pdf_bytes
+_service_module = _service()
+process_pdf_bytes = _service_module.process_pdf_bytes
+process_image = _service_module.process_image
 _CACHE: dict[str, dict[str, Any]] = {}
+_IMAGE_SUFFIXES = {".jpg", ".jpeg", ".png", ".tif", ".tiff", ".webp"}
 
 
 def _run(data: bytes, filename: str = "document.pdf") -> dict[str, Any]:
     key = hashlib.sha256(data).hexdigest()
-    if key not in _CACHE:
-        _CACHE[key] = process_pdf_bytes(data, filename)
-    return _CACHE[key]
+    if key in _CACHE:
+        return _CACHE[key]
+
+    suffix = Path(filename).suffix.lower()
+    if suffix in _IMAGE_SUFFIXES:
+        with tempfile.TemporaryDirectory() as tmp:
+            image_path = Path(tmp) / (Path(filename).name or "document.jpg")
+            image_path.write_bytes(data)
+            result = process_image(str(image_path), tmp)
+    else:
+        result = process_pdf_bytes(data, filename)
+    _CACHE[key] = result
+    return result
 
 
 def _category(info: dict[str, Any]) -> tuple[str, str, str]:
@@ -55,7 +68,8 @@ def install(processor_module) -> None:
 
     def ocr(data, workdir):
         try:
-            return _run(data)["text"]
+            filename = getattr(processor_module, "_current_ocr_filename", "document.pdf")
+            return _run(data, filename)["text"]
         except Exception:
             return original_ocr(data, workdir)
 
