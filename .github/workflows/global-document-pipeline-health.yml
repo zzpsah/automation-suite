@@ -3,7 +3,7 @@ name: Global Document Pipeline Health
 on:
   workflow_dispatch:
   schedule:
-    - cron: '*/10 * * * *'
+    - cron: '*/5 * * * *'
   push:
     paths:
       - 'global-automation/scripts/document/pipeline_health.py'
@@ -15,15 +15,23 @@ concurrency:
 
 jobs:
   health:
-    name: Check pipeline consistency
+    name: Check pipeline consistency and broken connections
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v5
+
       - name: Install dependencies
         run: python -m pip install --disable-pip-version-check requests
-      - name: Run read-only health checks
+
+      - name: Run stage-aware read-only health checks
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          GITHUB_TOKEN: ${{ github.token }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          INTAKE_TO_B2_MINUTES: '10'
+          STORED_TO_DOCUMENT_MINUTES: '20'
+          PROCESSING_STALE_MINUTES: '30'
+          PUBLISHED_TO_DELIVERY_MINUTES: '15'
         run: python global-automation/scripts/document/pipeline_health.py
