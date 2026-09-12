@@ -1,0 +1,45 @@
+name: Windows Work Browser Product Contract
+
+on:
+  push:
+    paths:
+      - 'browser-automation/windows-work-browser/**'
+  pull_request:
+    paths:
+      - 'browser-automation/windows-work-browser/**'
+
+jobs:
+  contract:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate required product files
+        shell: bash
+        run: |
+          set -euo pipefail
+          root='browser-automation/windows-work-browser'
+          test -f "$root/README.md"
+          test -f "$root/BUILD-STATUS.md"
+          test -f "$root/docs/BUILD-PLAN.md"
+          test -f "$root/upstream/BROWSEROS-PIN.md"
+          test -f "$root/upstream/REUSE-MATRIX.md"
+          test -f "$root/upstream/bootstrap-windows.ps1"
+          test -f "$root/upstream/BUILD-GATE.md"
+          test -f "$root/agent/action-contract.ts"
+          test -f "$root/agent/policy-engine.ts"
+          test -f "$root/agent/evidence-schema.ts"
+      - name: Reject direct arbitrary execution from agent layer
+        shell: bash
+        run: |
+          set -euo pipefail
+          root='browser-automation/windows-work-browser/agent'
+          if grep -RniE 'child_process|exec\(|execFile\(|spawn\(|powershell\s+-command|Invoke-Expression' "$root"; then
+            echo 'Potential direct arbitrary execution found in agent layer.'
+            exit 1
+          fi
+      - name: Validate pin literals
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -q '8f5d36bc16f57115aeeff34baf4ad6aa964d509c' browser-automation/windows-work-browser/upstream/BROWSEROS-PIN.md
+          grep -q '7765002ac88040aedc781be89afe68475a9d6c88' browser-automation/windows-work-browser/upstream/BROWSEROS-PIN.md || true
