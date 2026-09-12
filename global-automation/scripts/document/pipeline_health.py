@@ -68,6 +68,10 @@ def github_repository_dispatch_runs():
     return r.json().get("workflow_runs", [])
 
 
+def is_canonical_telegram_document(row: dict) -> bool:
+    return row.get("source_app") == "UMVInputBot" or row.get("source_location") == "Telegram"
+
+
 def main() -> int:
     now = datetime.now(timezone.utc)
     cutoff24 = (now - timedelta(hours=24)).isoformat()
@@ -78,7 +82,7 @@ def main() -> int:
         f"received_at=gte.{quote(cutoff24, safe='')}&order=received_at.desc&limit=500"
     )
     docs = get(
-        "documents?select=id,source_message_id,original_filename,processing_status,publication_status,approved_for_publication,public_file_url,subject,issuing_authority,extraction_method,full_text_ocr,private_drive_file_id,received_at,updated_at,created_at&"
+        "documents?select=id,source_app,source_location,source_message_id,original_filename,processing_status,publication_status,approved_for_publication,public_file_url,subject,issuing_authority,extraction_method,full_text_ocr,private_drive_file_id,received_at,updated_at,created_at&"
         f"received_at=gte.{quote(cutoff48, safe='')}&order=received_at.desc&limit=500"
     )
     audits = get(
@@ -87,10 +91,8 @@ def main() -> int:
     )
 
     intake_counts = Counter(str(r.get("status") or "NULL") for r in intake)
-    doc_counts = Counter(str(r.get("processing_status") or "NULL") for r in docs)
+    doc_counts = Counter(str(r.get("processing_status") or "NULL") for r in docs if is_canonical_telegram_document(r))
 
-    intake_by_id = {str(r["id"]): r for r in intake if r.get("id")}
-    intake_by_message_id = {str(r["telegram_message_id"]): r for r in intake if r.get("telegram_message_id") is not None}
     docs_by_source = {str(r["source_message_id"]): r for r in docs if r.get("source_message_id")}
 
     notified_document_ids = {
@@ -127,18 +129,24 @@ def main() -> int:
         age = age_minutes(row.get("received_at"), now)
         linked_doc = None
         if row.get("document_id"):
-            linked_doc = next((d for d in docs if str(d.get("id")) == str(row["document_id"])), None)
+            linked_doc = next((d for d in docs if str(d.get("id")) == str(row["document_id"]) and is_canonical_telegram_document(d)), None)
         if not linked_doc:
             linked_doc = docs_by_source.get(rid)
+            if linked_doc and not is_canonical_telegram_document(linked_doc):
+                linked_doc = None
         if not linked_doc and row.get("telegram_message_id") is not None:
             linked_doc = docs_by_source.get(str(row["telegram_message_id"]))
+            if linked_doc and not is_canonical_telegram_document(linked_doc):
+                linked_doc = None
         if not linked_doc and age is not None and age > STORED_TO_DOCUMENT_MINUTES:
             issues.append(
-                f"BROKEN B2→PROCESSOR: intake {rid} has Stored B2 data for {age:.1f}m but no document record"
+                f"BROKEN B2→PROCESSOR: intake {rid} has Stored B2 data for {age:.1f}m but no canonical Telegram document record"
             )
 
-    # Stage 3: processor/OCR health.
+    # Stage 3: processor/OCR health for the canonical Telegram pipeline only.
     for row in docs:
+        if not is_canonical_telegram_document(row):
+            continue
         did = str(row.get("id"))
         status = row.get("processing_status")
         age = age_minutes(row.get("updated_at") or row.get("received_at"), now)
@@ -155,9 +163,9 @@ def main() -> int:
             if not row.get("private_drive_file_id"):
                 warnings.append(f"BACKUP PENDING/UNKNOWN: document {did} has no Drive backup id")
 
-    # Stage 4: publication -> delivery.
+    # Stage 4: publication -> delivery for canonical Telegram documents.
     for row in docs:
-        if row.get("publication_status") != "Published":
+        if not is_canonical_telegram_document(row) or row.get("publication_status") != "Published":
             continue
         did = str(row.get("id"))
         if not row.get("approved_for_publication") or not row.get("public_file_url"):
@@ -166,14 +174,21 @@ def main() -> int:
         if did not in notified_document_ids and published_age is not None and published_age > PUBLISHED_TO_DELIVERY_MINUTES:
             warnings.append(f"DELIVERY PENDING: document {did} Published for {published_age:.1f}m without Telegram delivery audit")
 
-    # Cross-stage orphan detection using the intake PK and Telegram message id.
+    # Cross-stage orphan detection using intake PK and Telegram message id.
     for row in intake:
         if not row.get("file_id") or row.get("storage_status") != "Stored":
             continue
         rid = str(row.get("id"))
-        if rid not in docs_by_source and row.get("telegram_message_id") is not None and str(row["telegram_message_id"]) not in docs_by_source:
-            if age_minutes(row.get("received_at"), now) is not None and age_minutes(row.get("received_at"), now) > STORED_TO_DOCUMENT_MINUTES:
-                warnings.append(f"LINK DRIFT: intake {rid} is Stored but document.source_message_id does not point back to it")
+        linked = docs_by_source.get(rid)
+        if linked and is_canonical_telegram_document(linked):
+            continue
+        if row.get("telegram_message_id") is not None:
+            linked = docs_by_source.get(str(row["telegram_message_id"]))
+            if linked and is_canonical_telegram_document(linked):
+                continue
+        age = age_minutes(row.get("received_at"), now)
+        if age is not None and age > STORED_TO_DOCUMENT_MINUTES:
+            warnings.append(f"LINK DRIFT: intake {rid} is Stored but canonical Telegram document linkage is missing")
 
     dispatch_runs = github_repository_dispatch_runs()
     dispatch_count_24h = 0
@@ -186,10 +201,10 @@ def main() -> int:
 
     print("=== SCHOOL DOCUMENT PIPELINE WATCHDOG ===")
     print(f"checked_at={now.isoformat()}")
-    print(f"watchdog_version=post-recovery-live-check")
+    print(f"watchdog_version=canonical-telegram-scope")
     print(f"intake_24h={len(intake)}")
     print(f"intake_status={dict(intake_counts)}")
-    print(f"documents_checked_48h={len(docs)}")
+    print(f"documents_checked_48h={sum(1 for r in docs if is_canonical_telegram_document(r))}")
     print(f"document_status={dict(doc_counts)}")
     print(f"telegram_delivery_audits_24h={len(audits)}")
     print(f"repository_dispatch_runs_24h={dispatch_count_24h}")
