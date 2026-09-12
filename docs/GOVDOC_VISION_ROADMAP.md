@@ -1,8 +1,8 @@
 # GovDOC Vision — Capability & Upgrade Record
 
-## P35-P40 canonical completion
+## P35-P40 foundation
 
-The canonical `global-automation/govdoc-ocr/` component now records the P35-P40 foundation:
+The canonical `global-automation/govdoc-ocr/` component records the P35-P40 foundation:
 
 - P35: normalized OCR region schema with conservative empty fallback
 - P36: deterministic, privacy-safe image diagnostics
@@ -11,7 +11,13 @@ The canonical `global-automation/govdoc-ocr/` component now records the P35-P40 
 - P39: dependency-free CER/WER/exact-match benchmark metrics
 - P40: integration boundary and focused offline contract tests
 
-The service API remains backward-oriented: new page fields (`regions`, `diagnostics`) are additive, while raw text, normalized text, metadata and page order remain available. Service envelope is now `schema_version` 1.1 and service version 4.0.
+## P41 runtime backend policy
+
+Service version `4.1` now applies the deterministic P37 backend policy during real image/PDF OCR. Tesseract remains the default. If the optional PaddleOCR package is actually installed and the image diagnostic quality proxy is below the configured threshold, the service may select PaddleOCR. The selected backend, requested backend, reason and escalation flag are recorded in the result for traceability.
+
+This is not an OCR-confidence claim. Image quality diagnostics are conservative signals only. If PaddleOCR is unavailable, the default Tesseract path remains unchanged.
+
+`process_pdf_bytes()` also accepts an explicit backend so callers using the byte-oriented API do not lose backend control.
 
 ## Canonical architecture
 
@@ -20,10 +26,6 @@ The service API remains backward-oriented: new page fields (`regions`, `diagnost
 ## Evidence and safety boundary
 
 Government intelligence is evidence-first. Missing evidence stays missing. OCR confidence and visual diagnostics are signals, not publication approval, authenticity proof, or legal validity. Region geometry is emitted only when a backend can supply it reliably; the baseline service uses an explicit empty list rather than invented coordinates.
-
-## Backend policy
-
-Tesseract remains the free/default baseline. PaddleOCR is optional and may be selected/escalated only when installed and permitted by the deterministic policy. Future OCR-VL/local vision backends must satisfy the same boundary and be benchmarked before default adoption.
 
 ## Regression loop
 
