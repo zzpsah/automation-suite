@@ -50,14 +50,14 @@ def test_adapter_maps_govdoc_and_preserves_legacy_fields():
 
     adapter.install(Processor)
     data = b"same-document"
-    assert Processor.ocr_pdf(data, "/tmp") == "GovDOC subject"
+    assert Processor.ocr_pdf(data, "/tmp", "notice.pdf") == "GovDOC subject"
     result = Processor.extract_metadata("सरकारी विद्यालय सूचना", "notice.pdf")
     assert result[0] == "GovDOC subject"
     assert result[1] == "शिक्षा विभाग, बिहार सरकार"
     assert result[2:5] == ("REF-123", "25-06-2026", "2026-06-25")
     assert result[7:9] == ("admission", "Admission")
     assert result[9] == "HIGH"
-    assert len(calls) == 1
+    assert calls == [(data, "notice.pdf")]
 
 
 def test_adapter_routes_jpeg_to_govdoc_image_service():
