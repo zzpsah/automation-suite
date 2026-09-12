@@ -21,35 +21,59 @@ The production document system for **UCHCH MADHYAMIK VIDALAY, TETAHALI**, UDISE 
 ### System flow
 
 ```text
-Telegram / existing Drive intake
-            |
-            v
-     Supabase control plane
-            |
-            v
-      Backblaze B2 PRIMARY
-            |
-            v
-      Google Drive BACKUP
-            |
-            v
-       SHA-256 verify
-            |
-            v
-   Global Document Processor
-            |
-            v
-       GovDOC OCR Engine
-            |
-            v
-      Supabase documents
-            |
-            v
-     Publication Worker
-            |
-            v
-    Public Document Archive
+Telegram file/photo/PDF
+        |
+        v
+Supabase telegram_intake (Received)
+        |
+        | INSERT + file_id
+        v
+⚡ github-document-dispatch
+        |
+        v
+Global Storage Worker
+        |
+        v
+Backblaze B2 PRIMARY
+        |
+        v
+SHA-256 / object verification
+        |
+        v
+storage_status = Stored
+        |
+        | Stored transition
+        v
+⚡ github-document-dispatch
+        |
+        v
+Global Document Processor
+        |
+        v
+GovDOC OCR Engine
+        |
+        v
+Metadata normalization
+        |
+        v
+Supabase documents
+        |
+        v
+Google Drive backup / publication
+        |
+        v
+Telegram delivery / public archive
 ```
+
+The normal path is event-driven. The existing 5-minute schedules remain available as recovery/fallback workers.
+
+### Broken-document watchdog
+
+`global-automation/scripts/document/pipeline_health.py` runs read-only stage checks and detects documents that are disconnected or stalled across Telegram → B2 → Processor/OCR → Publication/Delivery.
+
+The watchdog runs every 5 minutes through [`global-document-pipeline-health.yml`](.github/workflows/global-document-pipeline-health.yml) and fails the workflow when a hard connection/stall issue is detected. It never creates fake documents and never modifies OCR behavior.
+
+See the full operating flow and thresholds in [School Document Pipeline — Production Flow & Operations](docs/school-document-pipeline.md).
 
 ### Production links
 
@@ -69,6 +93,7 @@ Telegram / existing Drive intake
 - [`global-storage-worker.yml`](.github/workflows/global-storage-worker.yml)
 - [`global-document-processor.yml`](.github/workflows/global-document-processor.yml)
 - [`global-document-publication.yml`](.github/workflows/global-document-publication.yml)
+- [`global-document-pipeline-health.yml`](.github/workflows/global-document-pipeline-health.yml)
 - [`global-system-health.yml`](.github/workflows/global-system-health.yml)
 
 ## Important architecture rules
