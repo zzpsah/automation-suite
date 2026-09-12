@@ -48,7 +48,7 @@ Reusable OCR, image-processing and government-document intelligence engine for I
 
 ## Import compatibility
 
-The canonical implementation remains under `global-automation/govdoc-ocr/`. A lightweight `global-automation/govdoc_ocr/` package alias exposes the stable Python import name `govdoc_ocr` without duplicating implementation files. CI sets `PYTHONPATH` for both the automation root and canonical OCR source tree. A pytest compatibility bootstrap preserves legacy top-level imports used by older tests, while the package import path is the preferred production/test interface. The offline GovDOC smoke test now also uses the stable package imports directly, reducing dependence on legacy path behavior.
+The canonical implementation remains under `global-automation/govdoc-ocr/`. A lightweight `global-automation/govdoc_ocr/` package alias exposes the stable Python import name `govdoc_ocr` without duplicating implementation files. CI sets `PYTHONPATH` for both the automation root and canonical OCR source tree. A pytest compatibility bootstrap preserves legacy top-level imports used by older tests, while the package import path is the preferred production/test interface. The offline GovDOC smoke test uses the stable package imports directly. The deterministic verification loop also compiles the alias package explicitly.
 
 ## P42-P50 module contract
 
@@ -65,6 +65,12 @@ The P42-P50 helpers are additive and storage-neutral:
 - `release_gate.py` — minimal structural release checks.
 
 These helpers do not own Supabase, Backblaze B2, Telegram, publication, retries or business rules. They are designed to be consumed safely by the existing School Document Pipeline.
+
+## School Document Pipeline integration
+
+`global-automation/scripts/document/document_processor.py` now contains a **safe opt-in GovDOC Vision integration boundary**. Set `GOVDOC_VISION_ENABLED=1` to make the shared GovDOC adapter the primary extractor. If the adapter cannot initialize, the processor logs the condition and retains the existing legacy extractor. This keeps storage, B2, Supabase lifecycle, duplicate detection, retry state and publication ownership in the existing pipeline while the reusable OCR engine is validated in the target runtime.
+
+The integration is deliberately opt-in until the release gates below have a verified CI/target-runtime result. This is a release-safety decision, not a claim that production OCR has already been validated.
 
 ## OCR geometry contract
 
@@ -88,25 +94,24 @@ The intelligence layer is evidence-first. Missing evidence stays missing; OCR co
 
 Preserve raw OCR and correction provenance. Do not silently rewrite source text.
 
-## Validation status
+## Release-readiness gates
 
-- The previous CI failure was an import-path failure (`ModuleNotFoundError: govdoc_ocr`) plus legacy direct-module imports after the package-relative import cleanup.
-- The stable `govdoc_ocr` alias and pytest compatibility bootstrap are now present on `main`.
-- The workflow is configured to include both `global-automation/govdoc-ocr/**` and `global-automation/govdoc_ocr/**` in push triggers and to expose both paths through `PYTHONPATH`.
-- The deterministic verification runner propagates the same import paths to every subprocess, including smoke tests.
-- The standalone GovDOC smoke test now imports through `govdoc_ocr.*`, so it exercises the supported package namespace rather than relying on legacy top-level imports.
-- Duplicate adapter cache coverage was consolidated into the canonical adapter test suite.
-- No new completed CI result has been verified yet; this README therefore does **not** claim CI green.
+The product is considered **production-ready only when all required gates are verified**, not merely when the source code exists:
 
-## Integration priority after P50
+1. **Build gate:** canonical source, stable alias and document-pipeline code compile.
+2. **Unit gate:** GovDOC OCR tests and adapter contract tests pass.
+3. **Smoke gate:** GovDOC intelligence smoke test and offline pipeline smoke pass.
+4. **Fixture gate:** embedded-text, scanned Hindi/English and mixed-page PDF fixtures produce structurally valid results with page order preserved.
+5. **Contract gate:** `release_gate.validate_result()` passes for representative outputs.
+6. **Integration gate:** School Document Pipeline uses GovDOC under explicit `GOVDOC_VISION_ENABLED=1` without moving storage/publication ownership.
+7. **Resilience gate:** missing B2, OCR failure, duplicate input, concurrent claim and retry paths fail safely and remain idempotent.
+8. **Evidence gate:** no fabricated text, geometry or metadata; uncertain fields remain uncertain.
+9. **Operational gate:** CI result is independently verified on the final commit; no “green” status is inferred from local code inspection.
+10. **Rollback gate:** disabling `GOVDOC_VISION_ENABLED` restores the legacy extraction path without changing durable storage schema or publication behavior.
 
-P50 completes the requested reusable OCR intelligence foundation. The next engineering priority is **validation and safe integration**, not endless standalone feature expansion:
+### Current release status
 
-1. Run the complete GovDOC OCR test suite in CI and locally where dependencies are available.
-2. Exercise real Hindi/English PDF fixtures, including embedded, scanned and mixed pages.
-3. Integrate the stable result contract into the School Document Pipeline without changing storage/publication ownership.
-4. Verify failure, retry and idempotency behavior at the pipeline boundary.
-5. Add reviewed regression documents and benchmark thresholds before production rollout.
+**NOT YET DECLARED PRODUCTION-READY.** Code-level integration and deterministic offline verification infrastructure are present, but a completed CI/target-runtime verification result and representative document-fixture validation still need to be observed before the final readiness claim.
 
 ## Non-goals
 
