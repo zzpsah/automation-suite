@@ -35,12 +35,15 @@ def test_tesseract_backend_registered():
 def test_government_intelligence_is_evidence_based():
     result = analyze_document(
         "बिहार विद्यालय परीक्षा समिति\n"
+        "जिला शिक्षा पदाधिकारी, गया\n"
         "विषय: स्पॉट नामांकन हेतु सूचना\n"
         "दिनांक: 12.09.2026"
     )
     assert result["authority"]["value"]
     assert "स्पॉट नामांकन" in result["subject"]["value"]
     assert result["document_type"]["value"] == "admission"
+    assert result["language_context"]["district"]["key"] == "Gaya"
+    assert result["language_context"]["office"]["key"] == "deo"
 
 
 def test_bihar_language_pack_resolves_domain_and_ocr_alias():
