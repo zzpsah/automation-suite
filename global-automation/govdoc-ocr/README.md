@@ -5,6 +5,7 @@ Reusable OCR, image-processing and government-document intelligence engine for I
 ## Current capabilities
 
 - PDF embedded-text extraction
+- **page-level mixed PDF routing**: each page independently uses embedded text when sufficient, otherwise OCR
 - scanned-PDF OCR
 - Hindi + English Tesseract baseline
 - optional PaddleOCR backend
@@ -12,6 +13,7 @@ Reusable OCR, image-processing and government-document intelligence engine for I
 - conservative image preprocessing
 - page-level OCR results and preprocessing diagnostics
 - raw + normalized text
+- versioned result envelope with `schema_version`
 - evidence-based government-document intelligence
 - subject, authority, document type, actions and deadlines
 - Bihar district/office vocabulary foundation
@@ -30,6 +32,12 @@ any_result = process_document(path, work_dir)
 ```
 
 Existing PDF consumers remain supported. New consumers can process common image formats without coupling the engine to Telegram, Supabase, B2 or Drive.
+
+## PDF routing contract
+
+A PDF is evaluated page-by-page. A page with at least `min_embedded_chars` non-whitespace characters uses its embedded text; sparse/empty pages are rendered and sent through the selected OCR backend. The returned `pages` array preserves page order and records `extraction_method` as either `embedded-text` or `ocr:<backend>`.
+
+This avoids the previous whole-document decision that could incorrectly OCR a text page or skip a scanned page inside a mixed PDF.
 
 ## OCR backend policy
 
@@ -54,11 +62,11 @@ Input PDF / Image
        ↓
 Document Router
        ↓
-Embedded Text OR Image Preprocessing
+Per-page Embedded Text OR Image Rendering + Preprocessing
        ↓
 OCR Backend (Tesseract / optional PaddleOCR / future Vision)
        ↓
-Raw OCR + Page Results
+Raw OCR + Page Results + Provenance
        ↓
 Normalization / Correction
        ↓
