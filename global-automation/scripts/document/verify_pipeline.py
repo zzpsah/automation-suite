@@ -4,6 +4,9 @@
 This is intentionally offline: it never contacts Supabase, B2, Drive, Telegram,
 or the publication layer. Production storage failures must be investigated
 separately rather than hidden by this verification loop.
+
+Progress is based on completed verification checks, not elapsed time, so the
+percentage shown in CI logs is honest and reproducible.
 """
 from __future__ import annotations
 
@@ -23,22 +26,31 @@ CHECKS = [
 ]
 
 
-def run(name: str, command: list[str]) -> bool:
-    print(f"\n=== {name} ===")
+def run(name: str, command: list[str], completed: int, total: int) -> bool:
+    percent = int(completed * 100 / total)
+    print(f"\n[{percent}%] START {name}", flush=True)
     result = subprocess.run(command, cwd=ROOT)
     ok = result.returncode == 0
-    print(f"{name}={'PASS' if ok else 'FAIL'}")
+    next_percent = int((completed + 1) * 100 / total)
+    print(f"[{next_percent}%] {name}={'PASS' if ok else 'FAIL'}", flush=True)
     return ok
 
 
 def main() -> int:
-    failed = [name for name, command in CHECKS if not run(name, command)]
+    total = len(CHECKS)
+    failed = []
+    for index, (name, command) in enumerate(CHECKS):
+        if not run(name, command, index, total):
+            failed.append(name)
+
     print("\n=== SCHOOL DOCUMENT PIPELINE VERIFICATION ===")
     if failed:
         print("FAILED:", ", ".join(failed))
+        print("Progress reached", int((total - len(failed)) * 100 / total), "% of checks passing.")
         print("Production B2/Supabase state was not changed or repaired by this check.")
         return 1
     print("ALL OFFLINE CHECKS PASSED")
+    print("Progress: 100%")
     print("NOTE: this does not prove production B2/Supabase connectivity.")
     return 0
 
