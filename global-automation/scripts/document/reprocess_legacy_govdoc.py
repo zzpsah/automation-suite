@@ -23,12 +23,10 @@ B2_ENDPOINT = "https://s3.us-east-005.backblazeb2.com"
 HEADERS = {"apikey": SUPABASE_KEY, "Authorization": f"Bearer {SUPABASE_KEY}"}
 
 def db_get(path: str):
-    r = requests.get(f"{SUPABASE_URL}/rest/v1/{path}", headers=HEADERS, timeout=30)
-    r.raise_for_status(); return r.json()
+    r = requests.get(f"{SUPABASE_URL}/rest/v1/{path}", headers=HEADERS, timeout=30); r.raise_for_status(); return r.json()
 
 def db_patch(table: str, record_id: str, payload: dict):
-    r = requests.patch(f"{SUPABASE_URL}/rest/v1/{table}?id=eq.{quote(str(record_id), safe='')}", headers={**HEADERS, "Content-Type":"application/json", "Prefer":"return=minimal"}, json=payload, timeout=30)
-    r.raise_for_status()
+    r = requests.patch(f"{SUPABASE_URL}/rest/v1/{table}?id=eq.{quote(str(record_id), safe='')}", headers={**HEADERS,"Content-Type":"application/json","Prefer":"return=minimal"}, json=payload, timeout=30); r.raise_for_status()
 
 def b2_client():
     return boto3.client("s3", endpoint_url=B2_ENDPOINT, region_name="us-east-005", aws_access_key_id=B2_KEY_ID, aws_secret_access_key=B2_APP_KEY)
@@ -41,8 +39,8 @@ def main() -> int:
     for doc in legacy:
         doc_id, msg_id = doc["id"], doc.get("source_message_id")
         try:
-            intake = db_get(f"telegram_intake?select=id,file_name,metadata&source_message_id=eq.{quote(str(msg_id), safe='')}&limit=1")
-            if not intake: raise RuntimeError(f"telegram_intake row not found for source_message_id={msg_id}")
+            intake = db_get(f"telegram_intake?select=id,file_name,metadata&document_id=eq.{quote(str(doc_id), safe='')}&limit=1")
+            if not intake: raise RuntimeError(f"telegram_intake row not found for document_id={doc_id}")
             row = intake[0]; storage = (row.get("metadata") or {}).get("storage") or {}; key = storage.get("b2_key")
             if not key or storage.get("b2_status") != "AVAILABLE": raise RuntimeError("verified B2 object is unavailable")
             data = client.get_object(Bucket=B2_BUCKET, Key=key)["Body"].read()
