@@ -46,6 +46,10 @@ Reusable OCR, image-processing and government-document intelligence engine for I
 - dependency-free release-gate checks
 - stable `ocr_service.py` consumer interface
 
+## Import compatibility
+
+The canonical implementation remains under `global-automation/govdoc-ocr/`. A lightweight `global-automation/govdoc_ocr/` package alias now exposes the stable Python import name `govdoc_ocr` without duplicating implementation files. CI sets `PYTHONPATH` for both the automation root and canonical OCR source tree. A pytest compatibility bootstrap also preserves legacy top-level imports used by older tests while the package import path remains the preferred production/test interface.
+
 ## P42-P50 module contract
 
 The P42-P50 helpers are additive and storage-neutral:
@@ -83,6 +87,13 @@ The intelligence layer is evidence-first. Missing evidence stays missing; OCR co
 `real document → OCR → identify error → correction with provenance → regression test → benchmark → deploy`
 
 Preserve raw OCR and correction provenance. Do not silently rewrite source text.
+
+## Validation status
+
+- The previous CI failure was an import-path failure (`ModuleNotFoundError: govdoc_ocr`) plus legacy direct-module imports after the package-relative import cleanup.
+- The stable `govdoc_ocr` alias and pytest compatibility bootstrap are now present on `main`.
+- The workflow is configured to include both `global-automation/govdoc-ocr/**` and `global-automation/govdoc_ocr/**` in push triggers and to expose both paths through `PYTHONPATH`.
+- The latest fix commit was pushed after the failed CI run; GitHub status for that commit has not yet reported a new completed workflow result, so this README does **not** claim CI green.
 
 ## Integration priority after P50
 
