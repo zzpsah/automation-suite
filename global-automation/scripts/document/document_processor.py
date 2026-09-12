@@ -148,8 +148,8 @@ def process(row):
     data=b2_client().get_object(Bucket=B2_BUCKET,Key=key)["Body"].read()
     if not data: raise RuntimeError("B2 object is empty")
     with tempfile.TemporaryDirectory() as workdir:
-        text=embedded_pdf_text(data); method="Embedded PDF text"
-        if len(re.sub(r"\s+","",text))<80: text=ocr_pdf(data,workdir); method="Tesseract OCR (Hindi+English)"
+        text=embedded_pdf_text(data, original_name); method="Embedded PDF text"
+        if len(re.sub(r"\s+","",text))<80: text=ocr_pdf(data,workdir,original_name); method="Tesseract OCR (Hindi+English)"
     if not text: raise RuntimeError("No text could be extracted from PDF")
     subject,authority,ref_no,printed,normalized,short,detailed,category_key,category,confidence=extract_metadata(text,original_name); display_name=canonical_filename(original_name,subject,authority,normalized,ref_no); checksum=storage.get("sha256")
     duplicates=db_get(f"documents?select=id,display_filename&file_checksum=eq.{quote(str(checksum),safe='')}&limit=1") if checksum else []
