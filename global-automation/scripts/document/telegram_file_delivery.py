@@ -19,17 +19,21 @@ def detect_format(data: bytes, filename: str = "", mime_type: str = "") -> str:
     """Prefer content signatures over filename extensions."""
     if data.startswith(PDF_MAGIC):
         return "pdf"
-    signatures = ((b"\xff\xd8\xff", "jpeg"), (b"\x89PNG\r\n\x1a\n", "png"), (b"II*\x00", "tiff"), (b"MM\x00*", "tiff"), (b"RIFF", "webp"))
-    for signature, kind in signatures:
-        if data.startswith(signature):
-            return kind
+    if data.startswith(b"\xff\xd8\xff"):
+        return "jpeg"
+    if data.startswith(b"\x89PNG\r\n\x1a\n"):
+        return "png"
+    if data.startswith((b"II*\x00", b"MM\x00*")):
+        return "tiff"
+    if data.startswith(b"RIFF") and len(data) >= 12 and data[8:12] == b"WEBP":
+        return "webp"
     ext = Path(filename).suffix.lower()
     if ext in IMAGE_EXTS:
         return "image"
     if ext in OFFICE_EXTS:
         return "office"
     if mime_type == "application/pdf":
-        return "pdf" if data.startswith(PDF_MAGIC) else "unknown"
+        return "unknown"
     return "unknown"
 
 
@@ -39,7 +43,6 @@ def validate_pdf(data: bytes) -> int:
     reader = PdfReader(io.BytesIO(data), strict=False)
     if not reader.pages:
         raise ValueError("PDF contains zero pages")
-    # Force page-tree access so malformed PDFs fail before Telegram upload.
     writer = PdfWriter()
     for page in reader.pages:
         writer.add_page(page)
@@ -54,7 +57,6 @@ def image_to_pdf(data: bytes) -> tuple[bytes, int]:
         if n > 1:
             src.seek(i)
         img = src.convert("RGB")
-        # A4 at 150 DPI with a 32 px margin. Preserve aspect ratio.
         canvas = Image.new("RGB", (1240, 1754), "white")
         img.thumbnail((1176, 1690), Image.Resampling.LANCZOS)
         canvas.paste(img, ((1240 - img.width) // 2, (1754 - img.height) // 2))
@@ -89,7 +91,7 @@ def office_to_pdf(data: bytes, filename: str) -> tuple[bytes, int]:
 
 
 def prepare_delivery(data: bytes, filename: str, mime_type: str = "") -> dict:
-    """Return validated delivery bytes, preserving source type when conversion is unnecessary."""
+    """Return validated delivery bytes and the true delivery format."""
     kind = detect_format(data, filename, mime_type)
     if kind == "pdf":
         pages = validate_pdf(data)
@@ -97,11 +99,9 @@ def prepare_delivery(data: bytes, filename: str, mime_type: str = "") -> dict:
         return {"data": data, "filename": output_name, "mime_type": "application/pdf", "source_format": "pdf", "delivery_format": "pdf", "converted": False, "pages": pages}
     if kind in {"jpeg", "png", "tiff", "webp", "image"}:
         converted, pages = image_to_pdf(data)
-        output_name = Path(filename).stem + ".pdf"
-        return {"data": converted, "filename": output_name, "mime_type": "application/pdf", "source_format": kind, "delivery_format": "pdf", "converted": True, "pages": pages}
+        return {"data": converted, "filename": Path(filename).stem + ".pdf", "mime_type": "application/pdf", "source_format": kind, "delivery_format": "pdf", "converted": True, "pages": pages}
     if kind == "office":
         converted, pages = office_to_pdf(data, filename)
-        output_name = Path(filename).stem + ".pdf"
-        return {"data": converted, "filename": output_name, "mime_type": "application/pdf", "source_format": Path(filename).suffix.lower().lstrip("."), "delivery_format": "pdf", "converted": True, "pages": pages}
+        return {"data": converted, "filename": Path(filename).stem + ".pdf", "mime_type": "application/pdf", "source_format": Path(filename).suffix.lower().lstrip("."), "delivery_format": "pdf", "converted": True, "pages": pages}
     guessed = mime_type or mimetypes.guess_type(filename)[0] or "application/octet-stream"
     return {"data": data, "filename": filename or "document", "mime_type": guessed, "source_format": "unknown", "delivery_format": "original", "converted": False, "pages": None}
