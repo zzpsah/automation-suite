@@ -10,8 +10,9 @@ from .sarkari_normalizer import normalize_sarkari_text
 from .diagnostics import inspect_image
 from .reading_order import line_text
 from .visual_marks import analyze_visual_marks
+from .handwriting_review import review_contract
 
-OCR_SERVICE_VERSION="4.4"
+OCR_SERVICE_VERSION="4.5"
 
 def _clean(text):
     text=(text or '').replace('\x00',' '); text=re.sub(r'[ \t]+',' ',text); return re.sub(r'\n{3,}','\n\n',text).strip()
@@ -48,7 +49,8 @@ def _ocr_page(image,workdir,page_number,backend_name='tesseract',language='hin+e
     regions=[region.to_dict() for region in result.regions]
     lines=line_text(regions) if regions else []
     visual_marks=analyze_visual_marks(str(image))
-    page={'page_number':page_number,'text':text,'backend':result.backend,'confidence':result.confidence,'preprocessing':prep,'diagnostics':diagnostics,'visual_marks':visual_marks,'regions':regions,'lines':lines,'backend_policy':{'requested':backend_name,'selected':decision.backend,'reason':decision.reason,'escalated':decision.escalated},'extraction_method':f'ocr:{result.backend}'}
+    handwriting=review_contract(regions)
+    page={'page_number':page_number,'text':text,'backend':result.backend,'confidence':result.confidence,'preprocessing':prep,'diagnostics':diagnostics,'visual_marks':visual_marks,'handwriting_review':handwriting,'regions':regions,'lines':lines,'backend_policy':{'requested':backend_name,'selected':decision.backend,'reason':decision.reason,'escalated':decision.escalated},'extraction_method':f'ocr:{result.backend}'}
     return text,page,decision
 
 def _ocr_images(images,workdir,backend_name='tesseract',language='hin+eng'):
@@ -71,7 +73,7 @@ def process_pdf(pdf_path,work_dir,*,min_embedded_chars=80,backend='tesseract'):
     threshold=max(1,int(min_embedded_chars)); pages=[]; texts=[]; decisions=[]; ocr_used=False
     for page_number,embedded_text in enumerate(embedded_pages,1):
         if len(re.sub(r'\s+','',embedded_text)) >= threshold:
-            pages.append({'page_number':page_number,'text':embedded_text,'backend':None,'confidence':None,'preprocessing':None,'diagnostics':None,'visual_marks':None,'regions':[],'lines':[],'backend_policy':None,'extraction_method':'embedded-text'}); texts.append(embedded_text); continue
+            pages.append({'page_number':page_number,'text':embedded_text,'backend':None,'confidence':None,'preprocessing':None,'diagnostics':None,'visual_marks':None,'handwriting_review':None,'regions':[],'lines':[],'backend_policy':None,'extraction_method':'embedded-text'}); texts.append(embedded_text); continue
         image=_render_page(path,work_dir,page_number); text,page,decision=_ocr_page(image,work_dir,page_number,backend); pages.append(page); texts.append(text); decisions.append({'page':page_number,'requested':backend,'selected':decision.backend,'reason':decision.reason,'escalated':decision.escalated}); ocr_used=True
     text=_clean('\n\n'.join(texts))
     if not text: raise RuntimeError('No text could be extracted from PDF')
