@@ -3,7 +3,10 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Protocol
 
-from .regions import OCRRegion
+try:
+    from .regions import OCRRegion
+except ImportError:  # pragma: no cover - legacy direct-module compatibility
+    from regions import OCRRegion
 
 @dataclass(frozen=True)
 class OCRResult:
@@ -34,32 +37,20 @@ class PaddleOCRBackend:
         self._engine = PaddleOCR(use_angle_cls=True, lang="hi")
     def extract_image(self, image_path: str, *, language: str = "hin+eng", psm: int = 6) -> OCRResult:
         result = self._engine.ocr(image_path, cls=True)
-        lines = []
-        scores = []
-        regions = []
+        lines, scores, regions = [], [], []
         index = 0
         for page in result or []:
             for item in page or []:
-                if len(item) < 2 or not item[1]:
-                    continue
-                text = str(item[1][0])
-                lines.append(text)
-                confidence = None
+                if len(item) < 2 or not item[1]: continue
+                text = str(item[1][0]); lines.append(text); confidence = None
                 if len(item[1]) > 1:
-                    try:
-                        confidence = float(item[1][1])
-                        scores.append(confidence)
-                    except (TypeError, ValueError):
-                        pass
+                    try: confidence = float(item[1][1]); scores.append(confidence)
+                    except (TypeError, ValueError): pass
                 try:
-                    points = item[0]
-                    xs = [float(point[0]) for point in points]
-                    ys = [float(point[1]) for point in points]
+                    points = item[0]; xs = [float(point[0]) for point in points]; ys = [float(point[1]) for point in points]
                     if len(xs) >= 2 and len(ys) >= 2:
-                        index += 1
-                        regions.append(OCRRegion(f"region-{index}", (round(min(xs)), round(min(ys)), round(max(xs)), round(max(ys))), text, confidence, source=self.name))
-                except (TypeError, ValueError, IndexError):
-                    pass
+                        index += 1; regions.append(OCRRegion(f"region-{index}", (round(min(xs)), round(min(ys)), round(max(xs)), round(max(ys))), text, confidence, source=self.name))
+                except (TypeError, ValueError, IndexError): pass
         return OCRResult("\n".join(lines), self.name, sum(scores)/len(scores) if scores else None, tuple(regions))
 
 def _tesseract_regions(image_path: str, language: str, psm: int) -> list[OCRRegion]:
@@ -67,25 +58,16 @@ def _tesseract_regions(image_path: str, language: str, psm: int) -> list[OCRRegi
         import pytesseract
         from pytesseract import Output
         data = pytesseract.image_to_data(image_path, lang=language, config=f"--psm {psm}", output_type=Output.DICT)
-    except (ImportError, RuntimeError, OSError):
-        return []
-    regions = []
-    index = 0
+    except (ImportError, RuntimeError, OSError): return []
+    regions, index = [], 0
     for i, text in enumerate(data.get("text", [])):
         text = str(text or "").strip()
-        try:
-            confidence = float(data.get("conf", [""])[i])
-        except (TypeError, ValueError, IndexError):
-            confidence = None
-        if not text or confidence is None or confidence < 0:
-            continue
-        try:
-            x, y = int(data["left"][i]), int(data["top"][i])
-            w, h = int(data["width"][i]), int(data["height"][i])
-        except (KeyError, TypeError, ValueError, IndexError):
-            continue
-        index += 1
-        regions.append(OCRRegion(f"region-{index}", (x, y, x + w, y + h), text, confidence / 100.0, source="tesseract"))
+        try: confidence = float(data.get("conf", [""])[i])
+        except (TypeError, ValueError, IndexError): confidence = None
+        if not text or confidence is None or confidence < 0: continue
+        try: x, y = int(data["left"][i]), int(data["top"][i]); w, h = int(data["width"][i]), int(data["height"][i])
+        except (KeyError, TypeError, ValueError, IndexError): continue
+        index += 1; regions.append(OCRRegion(f"region-{index}", (x, y, x + w, y + h), text, confidence / 100.0, source="tesseract"))
     return regions
 
 def _mean_confidence(regions: list[OCRRegion]) -> float | None:
@@ -102,6 +84,5 @@ def available_backends() -> list[str]:
     try:
         import paddleocr  # noqa: F401
         names.append("paddleocr")
-    except ImportError:
-        pass
+    except ImportError: pass
     return names
