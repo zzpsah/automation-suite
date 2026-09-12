@@ -145,6 +145,24 @@ def process_record(row):
     b2_available = storage.get("b2_status") == "AVAILABLE" and b2_object_exists(s3, b2_key)
     drive_available = storage.get("drive_status") == "AVAILABLE" and bool(storage.get("drive_file_id"))
     if b2_available and drive_available:
+        # Reconcile older rows that already have verified storage metadata but
+        # predate the relational storage_status/storage_path contract.
+        if (
+            row.get("storage_status") != "Stored"
+            or row.get("storage_bucket") != B2_BUCKET
+            or row.get("storage_path") != b2_key
+            or row.get("status") != "Stored"
+        ):
+            db_patch(
+                record_id,
+                {
+                    "status": "Stored",
+                    "storage_status": "Stored",
+                    "storage_bucket": B2_BUCKET,
+                    "storage_path": b2_key,
+                },
+            )
+            return True
         return False
 
     # If metadata claimed B2 availability but the object is gone, explicitly mark it stale.
@@ -214,8 +232,6 @@ def process_record(row):
         "verified": True,
         "updated_at": datetime.now(timezone.utc).isoformat(),
     })
-    # Keep the authoritative relational storage_status column in sync with the
-    # verified storage metadata. This transition is what the instant OCR trigger watches.
     db_patch(record_id, {
         "status": "Stored",
         "storage_status": "Stored",
@@ -234,7 +250,6 @@ def main():
             + "&file_id=not.is.null&limit=1"
         )
     else:
-        # Stored rows are included so stale B2 metadata can be reconciled before OCR.
         query = "telegram_intake?select=*&file_id=not.is.null&or=(status.eq.Received,status.eq.Stored,status.eq.Storage%20Failed,status.eq.Storage%20Partial)&order=received_at.asc&limit=10"
     rows = db_get(query)
     processed = 0
