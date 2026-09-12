@@ -48,7 +48,7 @@ Reusable OCR, image-processing and government-document intelligence engine for I
 
 ## Import compatibility
 
-The canonical implementation remains under `global-automation/govdoc-ocr/`. A lightweight `global-automation/govdoc_ocr/` package alias now exposes the stable Python import name `govdoc_ocr` without duplicating implementation files. CI sets `PYTHONPATH` for both the automation root and canonical OCR source tree. A pytest compatibility bootstrap also preserves legacy top-level imports used by older tests while the package import path remains the preferred production/test interface.
+The canonical implementation remains under `global-automation/govdoc-ocr/`. A lightweight `global-automation/govdoc_ocr/` package alias exposes the stable Python import name `govdoc_ocr` without duplicating implementation files. CI sets `PYTHONPATH` for both the automation root and canonical OCR source tree. A pytest compatibility bootstrap preserves legacy top-level imports used by older tests, while the package import path is the preferred production/test interface. The offline GovDOC smoke test now also uses the stable package imports directly, reducing dependence on legacy path behavior.
 
 ## P42-P50 module contract
 
@@ -93,7 +93,8 @@ Preserve raw OCR and correction provenance. Do not silently rewrite source text.
 - The previous CI failure was an import-path failure (`ModuleNotFoundError: govdoc_ocr`) plus legacy direct-module imports after the package-relative import cleanup.
 - The stable `govdoc_ocr` alias and pytest compatibility bootstrap are now present on `main`.
 - The workflow is configured to include both `global-automation/govdoc-ocr/**` and `global-automation/govdoc_ocr/**` in push triggers and to expose both paths through `PYTHONPATH`.
-- The deterministic verification runner now propagates the same import paths to every subprocess, including smoke tests.
+- The deterministic verification runner propagates the same import paths to every subprocess, including smoke tests.
+- The standalone GovDOC smoke test now imports through `govdoc_ocr.*`, so it exercises the supported package namespace rather than relying on legacy top-level imports.
 - Duplicate adapter cache coverage was consolidated into the canonical adapter test suite.
 - No new completed CI result has been verified yet; this README therefore does **not** claim CI green.
 
