@@ -3,7 +3,7 @@ name: Global Storage Worker
 on:
   workflow_dispatch:
   repository_dispatch:
-    types: [document-intake, document-recovery]
+    types: [storage-intake, document-recovery]
   push:
     branches:
       - main
