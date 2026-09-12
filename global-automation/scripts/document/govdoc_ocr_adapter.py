@@ -30,15 +30,25 @@ _CACHE: dict[str, dict[str, Any]] = {}
 _IMAGE_SUFFIXES = {".jpg", ".jpeg", ".png", ".tif", ".tiff", ".webp"}
 
 
+def _suffix_from_bytes(data: bytes) -> str:
+    if data.startswith(b"\xff\xd8\xff"): return ".jpg"
+    if data.startswith(b"\x89PNG\r\n\x1a\n"): return ".png"
+    if data.startswith((b"II*\x00", b"MM\x00*")): return ".tif"
+    if data.startswith(b"RIFF") and data[8:12] == b"WEBP": return ".webp"
+    return ".pdf"
+
+
 def _run(data: bytes, filename: str = "document.pdf") -> dict[str, Any]:
     key = hashlib.sha256(data).hexdigest()
     if key in _CACHE:
         return _CACHE[key]
 
     suffix = Path(filename).suffix.lower()
+    if suffix not in _IMAGE_SUFFIXES and filename == "document.pdf":
+        suffix = _suffix_from_bytes(data)
     if suffix in _IMAGE_SUFFIXES:
         with tempfile.TemporaryDirectory() as tmp:
-            image_path = Path(tmp) / (Path(filename).name or "document.jpg")
+            image_path = Path(tmp) / f"document{suffix}"
             image_path.write_bytes(data)
             result = process_image(str(image_path), tmp)
     else:
@@ -68,8 +78,7 @@ def install(processor_module) -> None:
 
     def ocr(data, workdir):
         try:
-            filename = getattr(processor_module, "_current_ocr_filename", "document.pdf")
-            return _run(data, filename)["text"]
+            return _run(data)["text"]
         except Exception:
             return original_ocr(data, workdir)
 
