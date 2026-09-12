@@ -69,7 +69,7 @@ def test_keyword_search():
 
 
 def test_image_ocr_end_to_end(tmp_path):
-    """Exercise real Tesseract plus runtime backend-policy provenance offline."""
+    """Exercise real Tesseract plus runtime backend-policy and geometry provenance offline."""
     from PIL import Image, ImageDraw, ImageFont
 
     _load_service_package()
@@ -93,3 +93,6 @@ def test_image_ocr_end_to_end(tmp_path):
     assert result["pages"][0]["backend_policy"]["requested"] == "tesseract"
     assert "नामांकन" in result["normalized_text"] or "नामाकंन" in text
     assert result["pages"][0]["preprocessing"]["transformations"]
+    assert result["pages"][0]["regions"]
+    assert result["pages"][0]["lines"]
+    assert any("नामांकन" in line or "नामाकंन" in line for line in result["pages"][0]["lines"])
