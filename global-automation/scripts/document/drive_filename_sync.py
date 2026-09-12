@@ -3,8 +3,9 @@
 
 Supabase is the metadata source of truth. The B2 object key is intentionally
 not changed. Drive file IDs remain stable; only the Drive display name is
-updated. Failures are isolated per document so one bad record cannot stop the
-batch.
+updated when it is actually different. No-op syncs must not mutate Drive
+metadata because Drive modifiedTime is used by downstream source-change
+watchers.
 """
 from __future__ import annotations
 
@@ -48,7 +49,21 @@ def access_token() -> str:
     return r.json()["access_token"]
 
 
+def drive_file_name(token: str, file_id: str) -> str:
+    r = requests.get(
+        f"https://www.googleapis.com/drive/v3/files/{quote(file_id, safe='')}",
+        params={"fields": "id,name"},
+        headers={**DRIVE_HEADERS, "Authorization": f"Bearer {token}"},
+        timeout=30,
+    )
+    r.raise_for_status()
+    return r.json().get("name") or ""
+
+
 def rename_drive_file(token: str, file_id: str, new_name: str) -> bool:
+    current_name = drive_file_name(token, file_id)
+    if current_name == new_name:
+        return False
     r = requests.patch(
         f"https://www.googleapis.com/drive/v3/files/{quote(file_id, safe='')}",
         params={"fields": "id,name"},
@@ -57,7 +72,9 @@ def rename_drive_file(token: str, file_id: str, new_name: str) -> bool:
         timeout=30,
     )
     r.raise_for_status()
-    return r.json().get("name") == new_name
+    if r.json().get("name") != new_name:
+        raise RuntimeError("Drive returned a different filename after rename")
+    return True
 
 
 def main() -> int:
@@ -69,7 +86,7 @@ def main() -> int:
         return 0
 
     token = access_token()
-    ok = failed = unchanged = 0
+    renamed = failed = unchanged = 0
     for row in rows:
         rid = row["id"]
         target = row.get("display_filename") or row.get("original_filename")
@@ -79,17 +96,17 @@ def main() -> int:
         try:
             if rename_drive_file(token, file_id, target):
                 db_patch(rid, {"publication_reason": f"Drive filename synchronized: {target}"})
-                ok += 1
-                print(f"SYNCED {rid}: {target}")
+                renamed += 1
+                print(f"RENAMED {rid}: {target}")
             else:
-                failed += 1
-                print(f"FAILED {rid}: Drive returned a different filename")
+                unchanged += 1
+                print(f"UNCHANGED {rid}: {target}")
         except Exception as exc:
             failed += 1
             print(f"FAILED {rid}: {exc}")
 
-    print(f"Drive filename sync complete: synced={ok}, failed={failed}, unchanged={unchanged}")
-    return 1 if failed and ok == 0 else 0
+    print(f"Drive filename sync complete: renamed={renamed}, unchanged={unchanged}, failed={failed}")
+    return 1 if failed and renamed == 0 and unchanged == 0 else 0
 
 
 if __name__ == "__main__":
