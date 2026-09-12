@@ -16,9 +16,7 @@ def _load_service_package():
     if "govdoc_ocr" in sys.modules:
         return sys.modules["govdoc_ocr"]
     spec = importlib.util.spec_from_file_location(
-        "govdoc_ocr",
-        ROOT / "__init__.py",
-        submodule_search_locations=[str(ROOT)],
+        "govdoc_ocr", ROOT / "__init__.py", submodule_search_locations=[str(ROOT)]
     )
     package = importlib.util.module_from_spec(spec)
     sys.modules["govdoc_ocr"] = package
@@ -34,10 +32,8 @@ def test_tesseract_backend_registered():
 
 def test_government_intelligence_is_evidence_based():
     result = analyze_document(
-        "बिहार विद्यालय परीक्षा समिति\n"
-        "जिला शिक्षा पदाधिकारी, गया\n"
-        "विषय: स्पॉट नामांकन हेतु सूचना\n"
-        "दिनांक: 12.09.2026"
+        "बिहार विद्यालय परीक्षा समिति\nजिला शिक्षा पदाधिकारी, गया\n"
+        "विषय: स्पॉट नामांकन हेतु सूचना\nदिनांक: 12.09.2026"
     )
     assert result["authority"]["value"]
     assert "स्पॉट नामांकन" in result["subject"]["value"]
@@ -48,8 +44,7 @@ def test_government_intelligence_is_evidence_based():
 
 def test_bihar_language_pack_resolves_domain_and_ocr_alias():
     result = resolve_office(
-        "जिला शिक्षा पदाधिकारी, गया\n"
-        "प्रखड शिक्षा पदाधिकारी\n"
+        "जिला शिक्षा पदाधिकारी, गया\nप्रखड शिक्षा पदाधिकारी\n"
         "विधालय में वार्षिक परिक्षा और नामाकंन"
     )
     assert result["district"]["key"] == "Gaya"
@@ -74,7 +69,7 @@ def test_keyword_search():
 
 
 def test_image_ocr_end_to_end(tmp_path):
-    """Exercise the real Tesseract path without B2, Supabase, or network data."""
+    """Exercise real Tesseract plus runtime backend-policy provenance offline."""
     from PIL import Image, ImageDraw, ImageFont
 
     _load_service_package()
@@ -93,5 +88,8 @@ def test_image_ocr_end_to_end(tmp_path):
     result = process_image(str(image_path), str(tmp_path), backend="tesseract")
     text = result["text"]
     assert result["ocr"]["backend"] == "tesseract"
+    assert result["ocr"]["backend_decisions"][0]["selected"] == "tesseract"
+    assert result["ocr"]["backend_decisions"][0]["escalated"] is False
+    assert result["pages"][0]["backend_policy"]["requested"] == "tesseract"
     assert "नामांकन" in result["normalized_text"] or "नामाकंन" in text
     assert result["pages"][0]["preprocessing"]["transformations"]
