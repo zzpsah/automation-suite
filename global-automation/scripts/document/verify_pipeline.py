@@ -1,13 +1,5 @@
 #!/usr/bin/env python3
-"""Deterministic verification loop for the School Document Pipeline.
-
-This is intentionally offline: it never contacts Supabase, B2, Drive, Telegram,
-or the publication layer. Production storage failures must be investigated
-separately rather than hidden by this verification loop.
-
-Progress is based on completed verification checks, not elapsed time, so the
-percentage shown in CI logs is honest and reproducible.
-"""
+"""Deterministic offline verification loop for the School Document Pipeline."""
 from __future__ import annotations
 
 import os
@@ -25,6 +17,7 @@ PYTHONPATH = os.pathsep.join([
 CHECKS = [
     ("compile_document_pipeline", [sys.executable, "-m", "compileall", "-q", "global-automation/scripts/document"]),
     ("compile_govdoc_ocr", [sys.executable, "-m", "compileall", "-q", "global-automation/govdoc-ocr"]),
+    ("compile_govdoc_ocr_alias", [sys.executable, "-m", "compileall", "-q", "global-automation/govdoc_ocr"]),
     ("govdoc_tests", [sys.executable, "-m", "pytest", "-q", "global-automation/govdoc-ocr/tests"]),
     ("adapter_contract_tests", [sys.executable, "-m", "pytest", "-q", "global-automation/scripts/document/test_govdoc_ocr_adapter.py"]),
     ("govdoc_smoke", [sys.executable, "global-automation/govdoc-ocr/smoke_test.py"]),
