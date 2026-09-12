@@ -186,6 +186,7 @@ def main() -> int:
 
     print("=== SCHOOL DOCUMENT PIPELINE WATCHDOG ===")
     print(f"checked_at={now.isoformat()}")
+    print(f"watchdog_version=post-recovery-live-check")
     print(f"intake_24h={len(intake)}")
     print(f"intake_status={dict(intake_counts)}")
     print(f"documents_checked_48h={len(docs)}")
