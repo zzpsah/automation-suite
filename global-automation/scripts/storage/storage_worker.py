@@ -57,17 +57,10 @@ def telegram(method, payload):
 
 
 def b2_client():
-    return boto3.client(
-        "s3",
-        endpoint_url=B2_ENDPOINT,
-        aws_access_key_id=B2_KEY_ID,
-        aws_secret_access_key=B2_APP_KEY,
-        region_name="us-east-005",
-    )
+    return boto3.client("s3", endpoint_url=B2_ENDPOINT, aws_access_key_id=B2_KEY_ID, aws_secret_access_key=B2_APP_KEY, region_name="us-east-005")
 
 
 def b2_object_exists(s3, key):
-    """Return True only when the B2 object really exists; stale metadata is not trusted."""
     if not key:
         return False
     try:
@@ -80,12 +73,7 @@ def b2_object_exists(s3, key):
 def drive_access_token():
     r = requests.post(
         "https://oauth2.googleapis.com/token",
-        data={
-            "client_id": GOOGLE_CLIENT_ID,
-            "client_secret": GOOGLE_CLIENT_SECRET,
-            "refresh_token": GOOGLE_REFRESH_TOKEN,
-            "grant_type": "refresh_token",
-        },
+        data={"client_id": GOOGLE_CLIENT_ID, "client_secret": GOOGLE_CLIENT_SECRET, "refresh_token": GOOGLE_REFRESH_TOKEN, "grant_type": "refresh_token"},
         timeout=30,
     )
     r.raise_for_status()
@@ -97,12 +85,7 @@ def drive_access_token():
 
 def drive_find_by_sha(token, sha256):
     q = f"'{DRIVE_FOLDER_ID}' in parents and trashed = false and name contains '{sha256}'"
-    r = requests.get(
-        "https://www.googleapis.com/drive/v3/files",
-        headers={"Authorization": f"Bearer {token}"},
-        params={"q": q, "fields": "files(id,name,size,md5Checksum)", "pageSize": 10},
-        timeout=30,
-    )
+    r = requests.get("https://www.googleapis.com/drive/v3/files", headers={"Authorization": f"Bearer {token}"}, params={"q": q, "fields": "files(id,name,size,md5Checksum)", "pageSize": 10}, timeout=30)
     r.raise_for_status()
     return r.json().get("files", [])
 
@@ -110,26 +93,22 @@ def drive_find_by_sha(token, sha256):
 def drive_upload(token, name, mime, data):
     boundary = "umv-boundary-" + uuid.uuid4().hex
     metadata = {"name": name, "parents": [DRIVE_FOLDER_ID], "description": "UMV global storage backup"}
-    body = (
-        f"--{boundary}\r\n"
-        "Content-Type: application/json; charset=UTF-8\r\n\r\n"
-        + json.dumps(metadata, ensure_ascii=False)
-        + "\r\n"
-        f"--{boundary}\r\n"
-        f"Content-Type: {mime or 'application/octet-stream'}\r\n\r\n"
-    ).encode("utf-8") + data + f"\r\n--{boundary}--\r\n".encode("utf-8")
-    r = requests.post(
-        "https://www.googleapis.com/upload/drive/v3/files",
-        headers={
-            "Authorization": f"Bearer {token}",
-            "Content-Type": f"multipart/related; boundary={boundary}",
-        },
-        params={"uploadType": "multipart", "fields": "id,name,size,webViewLink"},
-        data=body,
-        timeout=120,
-    )
+    body = (f"--{boundary}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n" + json.dumps(metadata, ensure_ascii=False) + "\r\n" + f"--{boundary}\r\nContent-Type: {mime or 'application/octet-stream'}\r\n\r\n").encode("utf-8") + data + f"\r\n--{boundary}--\r\n".encode("utf-8")
+    r = requests.post("https://www.googleapis.com/upload/drive/v3/files", headers={"Authorization": f"Bearer {token}", "Content-Type": f"multipart/related; boundary={boundary}"}, params={"uploadType": "multipart", "fields": "id,name,size,webViewLink"}, data=body, timeout=120)
     r.raise_for_status()
     return r.json()
+
+
+def sync_verified_storage(row):
+    record_id = row["id"]
+    storage = (row.get("metadata") or {}).get("storage") or {}
+    b2_key = storage.get("b2_key")
+    if storage.get("b2_status") == "AVAILABLE" and b2_key and b2_object_exists(b2_client(), b2_key) and storage.get("drive_status") == "AVAILABLE" and storage.get("drive_file_id"):
+        needs_sync = row.get("storage_status") != "Stored" or row.get("storage_bucket") != B2_BUCKET or row.get("storage_path") != b2_key
+        if needs_sync:
+            db_patch(record_id, {"storage_status": "Stored", "storage_bucket": B2_BUCKET, "storage_path": b2_key})
+            return True
+    return False
 
 
 def process_record(row):
@@ -137,7 +116,6 @@ def process_record(row):
     file_id = row.get("file_id")
     if not file_id:
         return False
-
     metadata = row.get("metadata") or {}
     storage = metadata.get("storage") or {}
     s3 = b2_client()
@@ -145,27 +123,11 @@ def process_record(row):
     b2_available = storage.get("b2_status") == "AVAILABLE" and b2_object_exists(s3, b2_key)
     drive_available = storage.get("drive_status") == "AVAILABLE" and bool(storage.get("drive_file_id"))
     if b2_available and drive_available:
-        # Reconcile older rows that already have verified storage metadata but
-        # predate the relational storage_status/storage_path contract.
-        if (
-            row.get("storage_status") != "Stored"
-            or row.get("storage_bucket") != B2_BUCKET
-            or row.get("storage_path") != b2_key
-            or row.get("status") != "Stored"
-        ):
-            db_patch(
-                record_id,
-                {
-                    "status": "Stored",
-                    "storage_status": "Stored",
-                    "storage_bucket": B2_BUCKET,
-                    "storage_path": b2_key,
-                },
-            )
+        if row.get("storage_status") != "Stored" or row.get("storage_bucket") != B2_BUCKET or row.get("storage_path") != b2_key:
+            db_patch(record_id, {"status": "Stored", "storage_status": "Stored", "storage_bucket": B2_BUCKET, "storage_path": b2_key})
             return True
         return False
 
-    # If metadata claimed B2 availability but the object is gone, explicitly mark it stale.
     if storage.get("b2_status") == "AVAILABLE" and b2_key and not b2_object_exists(s3, b2_key):
         storage["b2_status"] = "MISSING"
         storage["verified"] = False
@@ -175,11 +137,7 @@ def process_record(row):
     file_path = file_info.get("file_path")
     if not file_path:
         raise RuntimeError("Telegram did not return file_path")
-
-    download = requests.get(
-        f"https://api.telegram.org/file/bot{TELEGRAM_TOKEN}/{file_path}",
-        timeout=120,
-    )
+    download = requests.get(f"https://api.telegram.org/file/bot{TELEGRAM_TOKEN}/{file_path}", timeout=120)
     download.raise_for_status()
     data = download.content
     if not data:
@@ -189,19 +147,10 @@ def process_record(row):
     safe_name = (row.get("file_name") or "file").replace("/", "_").replace("\\", "_")
     date_path = datetime.now(timezone.utc).strftime("%Y-%m-%d")
     object_key = f"telegram-intake/{date_path}/{record_id}/{safe_name}"
-
-    # The canonical key is deterministic for a record, so a missing/stale object is recreated there.
     if not b2_object_exists(s3, object_key):
-        s3.put_object(
-            Bucket=B2_BUCKET,
-            Key=object_key,
-            Body=data,
-            ContentType=row.get("mime_type") or "application/octet-stream",
-            Metadata={"sha256": sha, "telegram-intake-id": str(record_id)},
-        )
+        s3.put_object(Bucket=B2_BUCKET, Key=object_key, Body=data, ContentType=row.get("mime_type") or "application/octet-stream", Metadata={"sha256": sha, "telegram-intake-id": str(record_id)})
     if not b2_object_exists(s3, object_key):
         raise RuntimeError("B2 upload completed without a verifiable object")
-    b2_status = "AVAILABLE"
 
     drive_status = storage.get("drive_status")
     drive_file_id = storage.get("drive_file_id")
@@ -219,38 +168,16 @@ def process_record(row):
                 raise RuntimeError("Google Drive upload returned no file id")
             drive_status = "AVAILABLE"
 
-    storage.update({
-        "primary": "Backblaze B2",
-        "backup": "Google Drive",
-        "b2_status": b2_status,
-        "drive_status": drive_status,
-        "b2_bucket": B2_BUCKET,
-        "b2_key": object_key,
-        "drive_file_id": drive_file_id,
-        "sha256": sha,
-        "size": len(data),
-        "verified": True,
-        "updated_at": datetime.now(timezone.utc).isoformat(),
-    })
-    db_patch(record_id, {
-        "status": "Stored",
-        "storage_status": "Stored",
-        "storage_bucket": B2_BUCKET,
-        "storage_path": object_key,
-        "metadata": {**metadata, "storage": storage},
-    })
+    storage.update({"primary": "Backblaze B2", "backup": "Google Drive", "b2_status": "AVAILABLE", "drive_status": drive_status, "b2_bucket": B2_BUCKET, "b2_key": object_key, "drive_file_id": drive_file_id, "sha256": sha, "size": len(data), "verified": True, "updated_at": datetime.now(timezone.utc).isoformat()})
+    db_patch(record_id, {"status": "Stored", "storage_status": "Stored", "storage_bucket": B2_BUCKET, "storage_path": object_key, "metadata": {**metadata, "storage": storage}})
     return True
 
 
 def main():
     if RECOVERY_DOCUMENT_ID:
-        query = (
-            "telegram_intake?select=*&id=eq."
-            + quote(RECOVERY_DOCUMENT_ID, safe="")
-            + "&file_id=not.is.null&limit=1"
-        )
+        query = "telegram_intake?select=*&id=eq." + quote(RECOVERY_DOCUMENT_ID, safe="") + "&file_id=not.is.null&limit=1"
     else:
-        query = "telegram_intake?select=*&file_id=not.is.null&or=(status.eq.Received,status.eq.Stored,status.eq.Storage%20Failed,status.eq.Storage%20Partial)&order=received_at.asc&limit=10"
+        query = "telegram_intake?select=*&file_id=not.is.null&or=(status.eq.Received,status.eq.Stored,status.eq.Processed,status.eq.Storage%20Failed,status.eq.Storage%20Partial)&order=received_at.asc&limit=20"
     rows = db_get(query)
     processed = 0
     failed = 0
@@ -261,22 +188,10 @@ def main():
         except Exception as exc:
             failed += 1
             metadata = row.get("metadata") or {}
-            db_patch(
-                row["id"],
-                {
-                    "status": "Storage Failed",
-                    "metadata": {
-                        **metadata,
-                        "storage_error": str(exc)[:500],
-                        "storage_error_at": datetime.now(timezone.utc).isoformat(),
-                    },
-                },
-            )
+            db_patch(row["id"], {"status": "Storage Failed", "metadata": {**metadata, "storage_error": str(exc)[:500], "storage_error_at": datetime.now(timezone.utc).isoformat()}})
             print(f"Record {row['id']}: storage failed: {exc}")
     print(f"Storage worker complete: processed={processed}, failed={failed}, candidates={len(rows)}, targeted={bool(RECOVERY_DOCUMENT_ID)}")
-    if failed:
-        return 1
-    return 0
+    return 1 if failed else 0
 
 
 if __name__ == "__main__":
