@@ -226,7 +226,8 @@ def main():
             + "&file_id=not.is.null&limit=1"
         )
     else:
-        query = "telegram_intake?select=*&file_id=not.is.null&or=(status.eq.Received,status.eq.Storage%20Failed,status.eq.Storage%20Partial)&order=received_at.asc&limit=10"
+        # Stored rows are included so stale B2 metadata can be reconciled before OCR.
+        query = "telegram_intake?select=*&file_id=not.is.null&or=(status.eq.Received,status.eq.Stored,status.eq.Storage%20Failed,status.eq.Storage%20Partial)&order=received_at.asc&limit=10"
     rows = db_get(query)
     processed = 0
     failed = 0
