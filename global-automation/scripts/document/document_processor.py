@@ -90,9 +90,13 @@ def normalize_date(value):
     if not value: return None
     m=re.fullmatch(r"(\d{1,2})[./-](\d{1,2})[./-](\d{2,4})",value.strip())
     if not m: return None
-    d,mo,y=m.groups(); y=int(y)+(2000 if int(y)<100 else 0)
-    try: return f"{y:04d}-{int(mo):02d}-{int(d):02d}"
-    except ValueError: return None
+    d,mo,y=m.groups(); d,mo,y=int(d),int(mo),int(y)
+    if y < 100: y += 2000
+    try:
+        parsed=datetime(y,mo,d)
+    except ValueError:
+        return None
+    return parsed.date().isoformat()
 
 
 def lines(text): return [re.sub(r"\s+"," ",x).strip(" :-–—\t") for x in text.splitlines() if x.strip()]
