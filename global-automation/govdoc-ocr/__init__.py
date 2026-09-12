@@ -6,6 +6,7 @@ from .reading_order import reading_order, reading_lines, line_text
 from .backend_policy import BackendDecision, choose_backend
 from .regression import RegressionCase, load_corpus, save_case, exact_match
 from .benchmarks import cer, wer, benchmark
+from .handwriting_review import HandwritingCandidate, candidates_from_regions, review_contract
 
 __all__=[
     "process_document","process_image","process_pdf","process_pdf_bytes",
@@ -15,4 +16,5 @@ __all__=[
     "BackendDecision","choose_backend",
     "RegressionCase","load_corpus","save_case","exact_match",
     "cer","wer","benchmark",
+    "HandwritingCandidate","candidates_from_regions","review_contract",
 ]
