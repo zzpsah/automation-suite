@@ -50,7 +50,7 @@ def test_adapter_maps_govdoc_and_preserves_legacy_fields():
 
     adapter.install(Processor)
     data = b"same-document"
-    assert Processor.ocr_pdf(data, "/tmp") == "GovDOC subject" or Processor.ocr_pdf(data, "/tmp") == "सरकारी विद्यालय सूचना"
+    assert Processor.ocr_pdf(data, "/tmp") == "GovDOC subject"
     result = Processor.extract_metadata("सरकारी विद्यालय सूचना", "notice.pdf")
     assert result[0] == "GovDOC subject"
     assert result[1] == "शिक्षा विभाग, बिहार सरकार"
@@ -58,6 +58,36 @@ def test_adapter_maps_govdoc_and_preserves_legacy_fields():
     assert result[7:9] == ("admission", "Admission")
     assert result[9] == "HIGH"
     assert len(calls) == 1  # SHA-256 cache prevents duplicate OCR
+
+
+def test_adapter_routes_jpeg_to_govdoc_image_service():
+    adapter = load_adapter()
+    calls = []
+
+    def fake_image_service(path, workdir):
+        calls.append(path)
+        return {
+            "text": "image OCR text",
+            "extraction_method": "GovDOC Vision: tesseract",
+            "metadata": {"document_type": {"value": "other", "confidence": "LOW"}},
+            "short_description": "image OCR text",
+        }
+
+    adapter.process_image = fake_image_service
+
+    class Processor:
+        @staticmethod
+        def embedded_pdf_text(data): return ""
+        @staticmethod
+        def ocr_pdf(data, workdir): return "legacy image ocr"
+        @staticmethod
+        def extract_metadata(text, filename):
+            return ("legacy", "authority", "ref", "date", "normalized", "short", "detail", "other", "Other", "MEDIUM")
+
+    adapter.install(Processor)
+    jpeg = b"\xff\xd8\xff\xe0fake-jpeg"
+    assert Processor.ocr_pdf(jpeg, "/tmp") == "image OCR text"
+    assert len(calls) == 1
 
 
 def test_adapter_falls_back_when_govdoc_fails():
