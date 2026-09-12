@@ -8,20 +8,29 @@ from .preprocess import preprocess_image
 from .government_document import analyze_document
 from .sarkari_normalizer import normalize_sarkari_text
 
-OCR_SERVICE_VERSION="3.0"
+OCR_SERVICE_VERSION="3.1"
 
 def _clean(text):
     text=(text or '').replace('\x00',' '); text=re.sub(r'[ \t]+',' ',text); return re.sub(r'\n{3,}','\n\n',text).strip()
 
-def _embedded(path):
+def _embedded_pages(path):
     try:
         from pypdf import PdfReader
-        return _clean('\n'.join(p.extract_text() or '' for p in PdfReader(str(path)).pages))
-    except Exception:return ''
+        return [_clean(page.extract_text() or '') for page in PdfReader(str(path)).pages]
+    except Exception:
+        return []
+
+def _embedded(path):
+    return _clean('\n\n'.join(_embedded_pages(path)))
 
 def _render(path,workdir):
     prefix=Path(workdir)/'page'; subprocess.run(['pdftoppm','-r','250','-jpeg',str(path),str(prefix)],check=True,capture_output=True,text=True,timeout=180)
     return sorted(Path(workdir).glob('page-*.jpg'))
+
+def _render_page(path,workdir,page_number):
+    prefix=Path(workdir)/f'page-{page_number}'
+    subprocess.run(['pdftoppm','-f',str(page_number),'-singlefile','-r','250','-jpeg',str(path),str(prefix)],check=True,capture_output=True,text=True,timeout=180)
+    return prefix.with_suffix('.jpg')
 
 def _ocr_images(images,workdir,backend_name='tesseract',language='hin+eng'):
     backend=get_backend(backend_name); pages=[]; all_text=[]
@@ -29,15 +38,22 @@ def _ocr_images(images,workdir,backend_name='tesseract',language='hin+eng'):
         prepared=Path(workdir)/f'prepared-{i}.png'
         prep=preprocess_image(str(image),str(prepared),profile='document')
         result=backend.extract_image(prep['path'],language=language)
-        text=_clean(result.text); pages.append({'page_number':i,'text':text,'backend':result.backend,'confidence':result.confidence,'preprocessing':prep})
+        text=_clean(result.text); pages.append({'page_number':i,'text':text,'backend':result.backend,'confidence':result.confidence,'preprocessing':prep,'extraction_method':f'ocr:{result.backend}'})
         all_text.append(text)
     return '\n\n'.join(all_text),pages
+
+def _ocr_page(image,workdir,page_number,backend_name='tesseract',language='hin+eng'):
+    backend=get_backend(backend_name)
+    prepared=Path(workdir)/f'prepared-{page_number}.png'
+    prep=preprocess_image(str(image),str(prepared),profile='document')
+    result=backend.extract_image(prep['path'],language=language)
+    return _clean(result.text), {'page_number':page_number,'text':_clean(result.text),'backend':result.backend,'confidence':result.confidence,'preprocessing':prep,'extraction_method':f'ocr:{result.backend}'}
 
 def _build(text,filename,method,pages=None,backend=None):
     normalized=normalize_sarkari_text(text); intelligence=analyze_document(normalized)
     meta=intelligence.get('subject',{}).get('value')
     result={
-      'text':text,'normalized_text':normalized,'extraction_method':method,'filename':filename,
+      'schema_version':'1.0','text':text,'normalized_text':normalized,'extraction_method':method,'filename':filename,
       'ocr_service_version':OCR_SERVICE_VERSION,'metadata':intelligence,
       'subject':meta or '','authority':intelligence.get('authority',{}).get('value') or '',
       'category':intelligence.get('document_type',{}).get('value','other'),
@@ -50,10 +66,25 @@ def process_pdf(pdf_path,work_dir,*,min_embedded_chars=80,backend='tesseract'):
     path=Path(pdf_path)
     if not path.exists():raise FileNotFoundError(pdf_path)
     if path.suffix.lower()!='.pdf':raise ValueError('GovDOC OCR accepts PDF files only')
-    text=_embedded(path); method='GovDOC Vision: embedded-text'; pages=[]; used_backend=None
-    if len(re.sub(r'\s+','',text))<min_embedded_chars:
-        images=_render(path,work_dir); text,pages=_ocr_images(images,work_dir,backend); method=f'GovDOC Vision: {backend} Hindi+English'; used_backend=backend
+    embedded_pages=_embedded_pages(path)
+    if not embedded_pages: raise RuntimeError('Unable to read PDF pages')
+    page_threshold=max(1,int(min_embedded_chars))
+    pages=[]; texts=[]; ocr_used=False
+    for page_number,embedded_text in enumerate(embedded_pages,1):
+        if len(re.sub(r'\s+','',embedded_text)) >= page_threshold:
+            pages.append({'page_number':page_number,'text':embedded_text,'backend':None,'confidence':None,'preprocessing':None,'extraction_method':'embedded-text'})
+            texts.append(embedded_text)
+            continue
+        image=_render_page(path,work_dir,page_number)
+        text,page=_ocr_page(image,work_dir,page_number,backend)
+        pages.append(page); texts.append(text); ocr_used=True
+    text=_clean('\n\n'.join(texts))
     if not text:raise RuntimeError('No text could be extracted from PDF')
+    if ocr_used:
+        method=f'GovDOC Vision: mixed embedded-text/{backend} OCR' if any(p['extraction_method']=='embedded-text' for p in pages) else f'GovDOC Vision: {backend} Hindi+English'
+    else:
+        method='GovDOC Vision: embedded-text'
+    used_backend=backend if ocr_used else None
     return _build(text,path.name,method,pages,used_backend)
 
 def process_image(image_path,work_dir,*,backend='tesseract',language='hin+eng'):
@@ -64,7 +95,7 @@ def process_image(image_path,work_dir,*,backend='tesseract',language='hin+eng'):
         result=get_backend(backend).extract_image(str(prepared),language=language)
         text=_clean(result.text)
         if not text:raise RuntimeError('No text could be extracted from image')
-        output=_build(text,path.name,f'GovDOC Vision: {backend}',[{'page_number':1,'text':text,'backend':result.backend,'confidence':result.confidence,'preprocessing':prep}],backend)
+        output=_build(text,path.name,f'GovDOC Vision: {backend}',[{'page_number':1,'text':text,'backend':result.backend,'confidence':result.confidence,'preprocessing':prep,'extraction_method':f'ocr:{result.backend}'}],backend)
         return output
 
 def process_document(path,work_dir,*,backend='tesseract'):
