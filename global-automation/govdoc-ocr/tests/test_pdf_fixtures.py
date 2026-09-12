@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import io
+import shutil
 
 import pytest
 from PIL import Image, ImageDraw, ImageFont
@@ -58,14 +59,20 @@ def _merge_pdfs(first: bytes, second: bytes) -> bytes:
     return output.getvalue()
 
 
+EMBEDDED_TEXT = (
+    "Government notice subject reference 2026 with sufficient selectable text "
+    "to exercise the embedded-text routing contract without OCR."
+)
+
+
 def test_embedded_pdf_uses_embedded_page_path():
-    result = process_pdf_bytes(_embedded_pdf("Government notice subject reference 2026"), "embedded-fixture.pdf")
+    result = process_pdf_bytes(_embedded_pdf(EMBEDDED_TEXT), "embedded-fixture.pdf")
     assert len(result["pages"]) == 1
     assert result["pages"][0]["extraction_method"] == "embedded-text"
     assert "Government notice" in result["pages"][0]["text"]
 
 
-@pytest.mark.skipif(__import__("shutil").which("pdftoppm") is None or __import__("shutil").which("tesseract") is None, reason="OCR system tools unavailable")
+@pytest.mark.skipif(shutil.which("pdftoppm") is None or shutil.which("tesseract") is None, reason="OCR system tools unavailable")
 def test_scanned_pdf_uses_ocr_page_path():
     result = process_pdf_bytes(_scanned_pdf(), "scanned-fixture.pdf")
     assert len(result["pages"]) == 1
@@ -73,15 +80,12 @@ def test_scanned_pdf_uses_ocr_page_path():
     assert result["pages"][0]["text"].strip()
 
 
-@pytest.mark.skipif(__import__("shutil").which("pdftoppm") is None or __import__("shutil").which("tesseract") is None, reason="OCR system tools unavailable")
+@pytest.mark.skipif(shutil.which("pdftoppm") is None or shutil.which("tesseract") is None, reason="OCR system tools unavailable")
 def test_mixed_pdf_preserves_page_order_and_routes_per_page():
-    payload = _merge_pdfs(
-        _embedded_pdf("EMBEDDED PAGE UNIQUE MARKER"),
-        _scanned_pdf(),
-    )
+    payload = _merge_pdfs(_embedded_pdf(EMBEDDED_TEXT), _scanned_pdf())
     result = process_pdf_bytes(payload, "mixed-fixture.pdf")
     assert [page["page"] for page in result["pages"]] == [1, 2]
     assert result["pages"][0]["extraction_method"] == "embedded-text"
     assert result["pages"][1]["extraction_method"].startswith("ocr:")
-    assert "EMBEDDED PAGE UNIQUE MARKER" in result["pages"][0]["text"]
+    assert "Government notice" in result["pages"][0]["text"]
     assert result["pages"][1]["text"].strip()
