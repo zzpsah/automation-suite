@@ -23,6 +23,7 @@ jobs:
           TELEGRAM_WEBHOOK_SECRET: ${{ secrets.TELEGRAM_WEBHOOK_SECRET }}
           WEBHOOK_URL: https://sxfnrwugsyfypqgfglzc.supabase.co/functions/v1/telegram-input-v2
         run: |
+          # Keep Telegram webhook registration coupled to the production input function.
           ./global-automation/scripts/telegram/Set-TelegramWebhook.ps1 `
             -BotToken $env:TELEGRAM_BOT_TOKEN `
             -WebhookUrl $env:WEBHOOK_URL `
