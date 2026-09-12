@@ -11,34 +11,35 @@ The canonical `global-automation/govdoc-ocr/` component records the P35-P40 foun
 - P39: dependency-free CER/WER/exact-match benchmark metrics
 - P40: integration boundary and focused offline contract tests
 
-## P41 runtime backend policy
+## P41 — runtime backend policy
+Service version `4.1` applies deterministic backend selection during real OCR. Tesseract remains default; optional PaddleOCR can be selected only when installed and policy conditions are met. Selection provenance is recorded.
 
-Service version `4.1` now applies the deterministic P37 backend policy during real image/PDF OCR. Tesseract remains the default. If the optional PaddleOCR package is actually installed and the image diagnostic quality proxy is below the configured threshold, the service may select PaddleOCR. The selected backend, requested backend, reason and escalation flag are recorded in the result for traceability.
+## P42 — layout and table evidence
+Added deterministic OCR-region reading order, visual-row grouping and table-candidate evidence helpers. These helpers never assert that a table exists and never fabricate coordinates.
 
-This is not an OCR-confidence claim. Image quality diagnostics are conservative signals only. If PaddleOCR is unavailable, the default Tesseract path remains unchanged.
+## P43 — handwriting safety boundary
+Added a handwriting capability contract. Current engine explicitly reports that handwriting recognition is **not supported** rather than pretending noisy handwriting OCR is correct.
 
-`process_pdf_bytes()` also accepts an explicit backend so callers using the byte-oriented API do not lose backend control.
+## P44 — uncertainty review flags
+Low-confidence OCR regions can generate structured `requires_review` flags. This creates a safe bridge to future human review without changing source text automatically.
 
-## Canonical architecture
+## P45 — no auto-correction of uncertain handwriting
+Review flags remain separate from OCR output and intelligence. P45 locks the rule: uncertain handwriting is surfaced for review, never silently corrected or treated as verified fact.
 
-`global-automation/govdoc-ocr/` owns OCR, preprocessing, normalization, language packs, government intelligence, diagnostics, regions, backend policy and benchmark/regression interfaces. The School Document Pipeline remains outside this package and owns storage, Supabase lifecycle, publication and Telegram operations.
+## Architecture
 
-## Evidence and safety boundary
+`global-automation/govdoc-ocr/` owns OCR, preprocessing, normalization, language packs, government intelligence, diagnostics, regions, backend policy, layout evidence and regression/benchmark interfaces. The School Document Pipeline owns storage, Supabase lifecycle, publication and Telegram operations.
 
-Government intelligence is evidence-first. Missing evidence stays missing. OCR confidence and visual diagnostics are signals, not publication approval, authenticity proof, or legal validity. Region geometry is emitted only when a backend can supply it reliably; the baseline service uses an explicit empty list rather than invented coordinates.
+## Safety
 
-## Regression loop
+Missing evidence stays missing. OCR confidence and diagnostics are signals, not publication approval, authenticity proof or legal validity. No geometry is invented. No handwriting is claimed as recognized. Reviewed source documents must be added deliberately with provenance and appropriate privacy handling.
 
-`real document → OCR → identify error → correction with provenance → JSONL regression case → CER/WER benchmark → review → deploy`
+## Next phase
 
-No production corpus is fabricated by the engine. Reviewed source documents should be added deliberately, with provenance and appropriate privacy handling.
-
-## Remaining experimental roadmap
-
-- production-quality multi-backend scoring against a reviewed corpus
-- real word/line geometry from Tesseract/Paddle adapters
-- advanced layout/table/stamp/signature detection
-- handwriting recognition
-- semantic/vector retrieval using real embeddings
-- larger reviewed Bihar corpus and field-level dashboards
+- real word/line geometry from OCR backends
+- production multi-backend benchmark corpus
+- advanced table/stamp/signature detection
+- actual handwriting model evaluation
+- semantic/vector retrieval
+- larger reviewed Bihar corpus
 - OCR-VL/local multimodal integration
