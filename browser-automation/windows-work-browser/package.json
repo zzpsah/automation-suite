@@ -9,7 +9,8 @@
     "typecheck": "tsc --noEmit",
     "test": "npm run build && node --test dist/runtime/*.test.js",
     "sbom": "node scripts/generate-sbom.mjs",
-    "release:preflight": "node scripts/validate-release-readiness.mjs"
+    "release:preflight": "node scripts/validate-release-readiness.mjs",
+    "agent:serve": "node dist/runtime/local-agent-server.js"
   },
   "dependencies": {
     "@cantoo/pdf-lib": "2.9.2",
