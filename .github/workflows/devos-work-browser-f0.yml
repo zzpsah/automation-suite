@@ -26,6 +26,16 @@ jobs:
         run: dotnet test devos-work-browser/tests/Devos.WorkBrowser.Tests.csproj -c Release --no-build --verbosity normal
       - name: Publish Windows x64
         run: dotnet publish devos-work-browser/src/Devos.WorkBrowser.csproj -c Release -r win-x64 --self-contained true -o devos-work-browser/artifacts/win-x64
+      - name: Launch packaged app smoke
+        shell: pwsh
+        run: |
+          $exe = Resolve-Path 'devos-work-browser/artifacts/win-x64/DEVOS.WorkBrowser.exe'
+          $process = Start-Process -FilePath $exe -PassThru
+          Start-Sleep -Seconds 8
+          if ($process.HasExited) {
+            throw "DEVOS Work Browser exited during startup smoke with code $($process.ExitCode)."
+          }
+          Stop-Process -Id $process.Id -Force
       - name: Upload Windows artifact
         uses: actions/upload-artifact@v4
         with:
