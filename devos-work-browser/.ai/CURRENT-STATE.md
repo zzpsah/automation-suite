@@ -1,13 +1,22 @@
 # Current State
 
-Status: F0 in progress.
+Status: core implementation advancing on `feat/devos-work-browser-core`.
 
-## Verified decisions
-- Clean scratch module under `devos-work-browser/`.
-- No reuse of the old BrowserOS overlay as primary UI/runtime.
-- Windows-first implementation uses .NET 8 WPF + Microsoft WebView2.
-- F0 scope is intentionally limited to custom shell + one embedded browser tab + navigation + startup/shutdown + build/test evidence.
-- Browser automation, task runtime and AI layers remain future milestones.
+## Verified foundation
+- F0 custom Windows shell is implemented with .NET 8 WPF + Microsoft WebView2.
+- Exact branch head `4b3f06ba8d74449d4f6f311bfc5a5ef9b2bb9ee2` passed Windows CI run `34774126122` (restore, build and tests all successful).
+- F0 therefore has build/test evidence. Interactive Windows acceptance remains separate.
 
-## Evidence boundary
-This state describes implementation intent and repository changes only. It is not proof of a successful Windows launch until Windows CI/build and later interactive acceptance succeed.
+## Current implementation slice
+- F1: multi-tab host, shared persistent WebView2 profile, DEVOS download directory, session snapshot persistence.
+- F2: same-browser WebView2 automation adapter for click/type/read/wait/table extraction.
+- F3: deterministic action executor with verification and bounded retry.
+- F4: table extraction parser + CSV serialization.
+- F5: checkpoint store + task runner that resumes from the last completed step.
+
+These F1-F5 changes are implementation evidence only until the new branch head passes CI.
+
+## Boundaries
+- `main` remains untouched by this work.
+- AI planner, complex mutation, PDF/image tooling, OCR, printing, FTP/SFTP/WebDAV/SMB, MCP and multi-agent remain deferred.
+- No claim of live portal automation is made until interactive browser acceptance is performed.

@@ -1,7 +1,6 @@
 <Window x:Class="Devos.WorkBrowser.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        xmlns:wv2="clr-namespace:Microsoft.Web.WebView2.Wpf;assembly=Microsoft.Web.WebView2.Wpf"
         Title="DEVOS Work Browser"
         Width="1280"
         Height="820"
@@ -9,8 +8,8 @@
         MinHeight="600"
         WindowStartupLocation="CenterScreen">
     <DockPanel LastChildFill="True">
-        <Border DockPanel.Dock="Top" Padding="10" BorderThickness="0,0,0,1" BorderBrush="#DDDDDD">
-            <Grid>
+        <StackPanel DockPanel.Dock="Top">
+            <Grid Margin="10,10,10,6">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="Auto" />
                     <ColumnDefinition Width="Auto" />
@@ -18,23 +17,17 @@
                     <ColumnDefinition Width="Auto" />
                     <ColumnDefinition Width="*" />
                     <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="Auto" />
                 </Grid.ColumnDefinitions>
-
-                <Button x:Name="BackButton" Grid.Column="0" Width="38" Height="34" Margin="0,0,6,0" Content="←" Click="Back_Click" ToolTip="Back" />
-                <Button x:Name="ForwardButton" Grid.Column="1" Width="38" Height="34" Margin="0,0,6,0" Content="→" Click="Forward_Click" ToolTip="Forward" />
-                <Button x:Name="ReloadButton" Grid.Column="2" Width="38" Height="34" Margin="0,0,6,0" Content="⟳" Click="Reload_Click" ToolTip="Reload" />
-                <Button x:Name="HomeButton" Grid.Column="3" Width="48" Height="34" Margin="0,0,8,0" Content="Home" Click="Home_Click" ToolTip="Home" />
-                <TextBox x:Name="AddressBox"
-                         Grid.Column="4"
-                         Height="34"
-                         VerticalContentAlignment="Center"
-                         Padding="10,0"
-                         FontSize="14"
-                         KeyDown="AddressBox_KeyDown" />
+                <Button x:Name="BackButton" Grid.Column="0" Width="38" Height="34" Margin="0,0,6,0" Content="←" Click="Back_Click" />
+                <Button x:Name="ForwardButton" Grid.Column="1" Width="38" Height="34" Margin="0,0,6,0" Content="→" Click="Forward_Click" />
+                <Button Grid.Column="2" Width="38" Height="34" Margin="0,0,6,0" Content="⟳" Click="Reload_Click" />
+                <Button Grid.Column="3" Width="48" Height="34" Margin="0,0,8,0" Content="Home" Click="Home_Click" />
+                <TextBox x:Name="AddressBox" Grid.Column="4" Height="34" VerticalContentAlignment="Center" Padding="10,0" FontSize="14" KeyDown="AddressBox_KeyDown" />
                 <Button Grid.Column="5" Width="58" Height="34" Margin="8,0,0,0" Content="Go" Click="Go_Click" />
+                <Button Grid.Column="6" Width="72" Height="34" Margin="8,0,0,0" Content="+ Tab" Click="NewTab_Click" />
             </Grid>
-        </Border>
-
-        <wv2:WebView2 x:Name="BrowserView" Source="https://www.google.com/" />
+        </StackPanel>
+        <TabControl x:Name="BrowserTabs" SelectionChanged="BrowserTabs_SelectionChanged" />
     </DockPanel>
 </Window>
