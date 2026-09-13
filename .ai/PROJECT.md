@@ -1,11 +1,3 @@
-# Project — Automation Suite
+# Automation Suite
 
-## Identity
-- Canonical repository: `zzpsah/automation-suite`
-- Managed by: ChatGPT Development OS
-
-## Purpose
-Multi-module automation repository containing browser/portal automation, document/scanner work, school-document pipelines, global automation, phone-printer tooling, and related applications/workflows.
-
-## Source of truth
-Repository source, module docs, Git history, existing `CLAUDE.md`/`.claude/` guidance, and project-local `.ai/` context are authoritative. Chat memory is supplementary.
+DEVOS project context is maintained here. The abandoned Windows Work Browser prototype was removed from the active tree on 2026-09-13; do not treat its code, branches, BrowserOS integration, or preview release as an active product. Future browser-automation work must start as a new design from a clean module and must not reuse the removed prototype as an implementation baseline.
