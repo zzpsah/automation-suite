@@ -1,8 +1,10 @@
 import { execFileSync } from "node:child_process";
 import { writeFileSync } from "node:fs";
 
-const npmCommand = process.platform === "win32" ? "npm.cmd" : "npm";
-const raw = execFileSync(npmCommand, ["ls", "--all", "--json", "--omit=optional"], { encoding: "utf8" });
+const args = ["ls", "--all", "--json", "--omit=optional"];
+const raw = process.platform === "win32"
+  ? execFileSync(process.env.ComSpec ?? "C:\\Windows\\System32\\cmd.exe", ["/d", "/s", "/c", "npm.cmd ls --all --json --omit=optional"], { encoding: "utf8", windowsHide: true })
+  : execFileSync("npm", args, { encoding: "utf8" });
 const tree = JSON.parse(raw);
 const components = [];
 const seen = new Set();
