@@ -8,7 +8,8 @@
     "build": "tsc",
     "typecheck": "tsc --noEmit",
     "test": "npm run build && node --test dist/runtime/*.test.js",
-    "sbom": "node scripts/generate-sbom.mjs"
+    "sbom": "node scripts/generate-sbom.mjs",
+    "release:preflight": "node scripts/validate-release-readiness.mjs"
   },
   "dependencies": {
     "@cantoo/pdf-lib": "2.9.2",
