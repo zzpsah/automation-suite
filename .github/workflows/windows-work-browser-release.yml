@@ -48,29 +48,27 @@ jobs:
           npm test
           node scripts/generate-sbom.mjs
 
-      - name: Validate release gates
+      - name: Fail closed unless readiness manifest is fully green
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
-          $status = Get-Content -Raw "$env:PRODUCT_ROOT/BUILD-STATUS.md"
-          if ($status -match 'RELEASE CANDIDATE BLOCKED' -or $status -match 'RELEASE CANDIDATE') {
-            throw 'Release status has not been promoted to an explicitly release-candidate state.'
-          }
-          $manifest = Get-Content -Raw "$env:PRODUCT_ROOT/upstream/OPTION-A-RELEASE.json" | ConvertFrom-Json
-          if ($manifest.verification.status -notin @('VERIFIED_RUNTIME')) {
-            throw "Upstream artifact is not runtime-verified: $($manifest.verification.status)"
+          $readiness = Get-Content -Raw "$env:PRODUCT_ROOT/docs/RELEASE-READINESS.json" | ConvertFrom-Json
+          if ($readiness.releaseReady -ne $true) {
+            $open = $readiness.verified.psobject.Properties | Where-Object { $_.Value -ne $true } | ForEach-Object { $_.Name }
+            throw "Release readiness is false. Open gates: $($open -join ', ')"
           }
 
-      - name: Download and verify BrowserOS artifact
+      - name: Verify pinned upstream artifact
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
           $manifest = Get-Content -Raw "$env:PRODUCT_ROOT/upstream/OPTION-A-RELEASE.json" | ConvertFrom-Json
+          if ($manifest.verification.status -ne 'VERIFIED_RUNTIME') { throw 'Upstream artifact is not runtime-verified.' }
           $stage = Join-Path $env:RUNNER_TEMP 'wwb-release'
           New-Item -ItemType Directory -Force -Path $stage | Out-Null
           $file = Join-Path $stage $manifest.artifact.filename
           Invoke-WebRequest -Uri $manifest.artifact.download_url -OutFile $file
-          $sha = (Get-FileHash -Algorithm SHA256 -Path $file).Hash.ToLowerInvariant()
+          $sha = (Get-FileHash -Algorithm SHA256 $file).Hash.ToLowerInvariant()
           if ($sha -ne $manifest.artifact.sha256.ToLowerInvariant()) { throw "BrowserOS SHA-256 mismatch: $sha" }
           $sig = Get-AuthenticodeSignature -FilePath $file
           if ($sig.Status -ne 'Valid') { throw "BrowserOS Authenticode status: $($sig.Status)" }
