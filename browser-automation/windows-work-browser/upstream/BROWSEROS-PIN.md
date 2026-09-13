@@ -1,13 +1,13 @@
 # BrowserOS Upstream Pin
 
-Purpose: record the exact BrowserOS/Chromium base selected for Windows Work Browser.
+Purpose: record the exact upstream browser-control foundations selected for Windows Work Browser.
 
 ## BrowserOS
 
 Repository: `browseros-ai/BrowserOS`
 Branch: `main` (reference only; builds must use an immutable revision)
 
-## Chromium pin
+### Chromium pin
 
 Source of truth in upstream:
 `packages/browseros/CHROMIUM_VERSION`
@@ -20,7 +20,7 @@ Pinned Chromium version at integration time:
 
 Source file SHA: `590b4197f4eb762762038a3600f57c484ddceaaa`
 
-## BrowserOS Chromium base commit
+### BrowserOS Chromium base commit
 
 Source of truth in upstream:
 `packages/browseros/BASE_COMMIT`
@@ -28,18 +28,24 @@ Source of truth in upstream:
 Pinned base commit:
 `8f5d36bc16f57115aeeff34baf4ad6aa964d509c`
 
-Source file SHA: `9c6e4174356d4ab4f5328cc4bd4747f1fa617aa5`
+## open-browser-use
+
+Repository: `open-browser-use/open-browser-use`
+Pinned revision: `7765002ac88040aedc781be89afe68475a9d6c88`
+Release: `0.1.12`
+License: MIT
 
 ## Integration rule
 
-Do not copy an unpinned moving `main` tree into the product. The Windows build lane must materialize the pinned revision and record:
+Do not copy an unpinned moving branch into the product. Every upstream materialization must record:
 
-1. BrowserOS source revision.
-2. Chromium base commit.
-3. Local patch stack revision.
-4. Third-party component revisions.
-5. License/SBOM manifest.
-6. Build toolchain versions.
-7. Produced artifact SHA-256.
+1. Repository URL.
+2. Exact release/tag/revision.
+3. License and notices.
+4. Local patch stack.
+5. Third-party dependency revisions.
+6. SBOM/license manifest.
+7. Build toolchain versions.
+8. Produced artifact SHA-256.
 
-This file is provenance evidence, not a claim that the Chromium source or Windows executable has already been built.
+This file is provenance evidence. It does not claim that a source build has been produced from the Chromium pin.
