@@ -1,3 +1,10 @@
+## 2026-09-14 — Add secure PDF sharing provider
+- Commit: 8ed3e77afcf2f016e31797e7052728b460176f29
+- Author: PRASHANT KUMAR SAH
+- Classification: meaningful
+- Changed files:
+- `android-document-scanner/app/src/main/AndroidManifest.xml`
+
 ## 2026-09-14 — chore(devos): record Work Browser prototype retirement
 - Commit: aa9a782ea5c62d04f8277e5da75614e713d83a91
 - Author: PRASHANT KUMAR SAH
