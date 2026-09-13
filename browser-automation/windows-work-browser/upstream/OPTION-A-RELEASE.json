@@ -17,10 +17,11 @@
     "size_bytes": 152070712
   },
   "verification": {
-    "status": "VERIFIED_METADATA",
+    "status": "VERIFIED_RUNTIME",
     "verified_at": "2026-09-13",
-    "verified_by": "GitHub release API metadata",
-    "note": "Digest is upstream-published release metadata. Local download/install/runtime verification is still required before release-candidate promotion."
+    "verified_by": "Windows Work Browser Option A run 134",
+    "evidence_run_id": 34763099878,
+    "note": "Exact pinned artifact passed SHA-256, Authenticode, isolated Windows installation, browser launch and Work Browser semantic CDP smoke verification."
   },
   "overlay": {
     "method": "extension",
