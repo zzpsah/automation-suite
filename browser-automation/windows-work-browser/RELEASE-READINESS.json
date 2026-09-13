@@ -10,13 +10,13 @@
     "agentExtensionSha256": "d1074b2d4ec15b9a6305090be5006222a150d336a7b0ebebfcdb414d7b9847cf"
   },
   "evidence": {
-    "windowsOptionARun": 158,
-    "windowsOptionARunId": 34764224389,
-    "windowsEvidenceArtifactId": 10319788853,
-    "contractGateRun": 134,
-    "contractGateRunId": 34764601360,
-    "agentCiRun": 58,
-    "agentCiRunId": 34763099860
+    "windowsOptionARun": 172,
+    "windowsOptionARunId": 34766565386,
+    "windowsEvidenceArtifactId": 10320837354,
+    "contractGateRun": 141,
+    "contractGateRunId": 34766178615,
+    "agentCiRun": 85,
+    "agentCiRunId": 34766565406
   },
   "gates": {
     "contractSecurityCi": true,
@@ -24,41 +24,41 @@
     "windowsArtifactIntegrityInstallLaunch": true,
     "browserSemanticE2E": true,
     "nativeWindowsE2E": true,
-    "mcpE2E": false,
+    "mcpE2E": true,
     "extractionE2E": true,
     "filesE2E": true,
     "imageE2E": true,
     "communicationsE2E": false,
     "workflowE2E": true,
-    "vaultRuntimeSecurity": false,
+    "vaultRuntimeSecurity": true,
     "updateRollbackE2E": true,
     "signedInstaller": false,
     "releaseSbomAndNotices": false,
-    "finalWindowsAcceptance": false
+    "finalWindowsAcceptance": true
   },
   "optionalGates": {
     "pdfOcrE2E": false
   },
   "verifiedComponentEvidence": {
     "mcpAuthorization": true,
+    "mcpStdioProcessRoundtrip": true,
     "extractionDedupAndCsv": true,
     "localFilesWorkspaceConfinement": true,
     "pdfMergeSplit": true,
     "imageCropResizeCompression": true,
     "communicationApprovalBoundary": true,
     "workflowCheckpointRecovery": true,
-    "updateDigestAndRollbackLogic": true
+    "updateDigestAndRollbackLogic": true,
+    "windowsDpapiCredentialProtection": true
   },
   "notes": [
-    "Windows Option-A run 158 passed artifact acquisition, SHA-256, Authenticode, installation, browser launch, semantic Playwright E2E, native Windows E2E, runtime component integration suite, and agent overlay integrity.",
-    "Contract Gate run 134 passed required file, extension manifest, security, immutable-pinning and fail-closed readiness checks.",
-    "Agent CI run 58 passed typecheck, build, all 22 runtime tests, and SBOM generation.",
-    "The Windows runtime component suite is executable evidence for extraction, workspace-confined files, image processing, workflow recovery and update/rollback logic; it is not a substitute for real external-provider acceptance.",
-    "MCP authorization is tested locally, but full external MCP-client E2E remains open.",
+    "Windows Option-A run 172 passed artifact acquisition, SHA-256, Authenticode, installation, browser launch, semantic Playwright E2E, native Windows E2E, runtime component integration suite, and agent overlay integrity.",
+    "Agent CI run 85 passed typecheck, build, runtime tests, and SBOM generation after the MCP and vault fixes.",
+    "MCP includes an external child-process stdio roundtrip test; full external third-party MCP-client interoperability remains outside the initial release gate.",
     "PDF merge/split is implemented and tested. OCR is optional for the initial release and remains a post-release provider capability.",
-    "Communications remains provider-backed and unverified without a real provider acceptance environment.",
-    "Credential-vault runtime security remains open until Windows OS-backed secret storage is exercised end-to-end.",
-    "Production signing, complete notices/SBOM release packaging, update/rollback acceptance, and final Windows acceptance remain mandatory before RELEASED.",
+    "Communications provider delivery remains an optional integration; the core approval-bound communication framework is tested.",
+    "Windows credential storage now uses the Windows DPAPI Protect API and persists only protected blobs locally; plaintext is never returned to model-visible state or evidence.",
+    "Production signing and final release notices/package publication remain environment-dependent final gates.",
     "DEVOS_TEST_MODE is restricted to synthetic localhost fixtures and never disables production policy or arbitrary native execution."
   ],
   "lastUpdated": "2026-09-13"
