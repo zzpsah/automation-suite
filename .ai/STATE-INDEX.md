@@ -6,8 +6,8 @@ Generated automatically by Development OS.
 
 ## Repository
 - Branch: main
-- HEAD: ae945d08d0c2b9c05adb165fa90454c9f986fc2f
-- Last commit: Add durable local scan session storage
+- HEAD: adb940f60cbad811fe1aa5f27750e38102b59706
+- Last commit: Complete scanner capture, review, editing, persistence and export flow
 - Last commit date: 2026-09-14
 - Last commit author: PRASHANT KUMAR SAH
 

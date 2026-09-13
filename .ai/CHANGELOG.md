@@ -1,3 +1,10 @@
+## 2026-09-14 — Complete scanner capture, review, editing, persistence and export flow
+- Commit: adb940f60cbad811fe1aa5f27750e38102b59706
+- Author: PRASHANT KUMAR SAH
+- Classification: meaningful
+- Changed files:
+- `android-document-scanner/app/src/main/java/com/devos/docscanner/MainActivity.kt`
+
 ## 2026-09-14 — Add durable local scan session storage
 - Commit: ae945d08d0c2b9c05adb165fa90454c9f986fc2f
 - Author: PRASHANT KUMAR SAH

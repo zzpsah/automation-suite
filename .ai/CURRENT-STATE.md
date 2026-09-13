@@ -24,7 +24,7 @@ Last verified: 2026-09-14
 - External/production mutations require explicit authorization.
 
 ## Last automated change
-- Commit: ae945d08d0c2b9c05adb165fa90454c9f986fc2f
-- Change: Add durable local scan session storage
+- Commit: adb940f60cbad811fe1aa5f27750e38102b59706
+- Change: Complete scanner capture, review, editing, persistence and export flow
 - Date: 2026-09-14
 - Durable context synchronization: completed
