@@ -57,6 +57,46 @@ public sealed class RuntimeTests
         Assert.Equal(100, store.Load("hundred")!.NextStepIndex);
     }
 
+    [Fact]
+    public void ActiveTaskStore_PersistsAndClearsRecoverableTask()
+    {
+        var directory = NewTempDirectory();
+        var path = Path.Combine(directory, "active-task.json");
+        var store = new ActiveTaskStore(path);
+        var task = new ActiveTask(
+            "recover-me",
+            "Click then read",
+            new BrowserAction[]
+            {
+                new(BrowserActionKind.Click, "#next"),
+                new(BrowserActionKind.ReadText, "#status")
+            },
+            false,
+            DateTimeOffset.UtcNow);
+
+        store.Save(task);
+        var loaded = store.Load();
+
+        Assert.NotNull(loaded);
+        Assert.Equal(task.TaskId, loaded!.TaskId);
+        Assert.Equal(2, loaded.Actions.Count);
+        store.Clear();
+        Assert.Null(store.Load());
+    }
+
+    [Fact]
+    public void CheckpointStore_DeleteRemovesCompletedCheckpoint()
+    {
+        var directory = NewTempDirectory();
+        var store = new CheckpointStore(directory);
+        store.Save(new TaskCheckpoint("done", 3, DateTimeOffset.UtcNow));
+        Assert.NotNull(store.Load("done"));
+
+        store.Delete("done");
+
+        Assert.Null(store.Load("done"));
+    }
+
     private static string NewTempDirectory()
         => Path.Combine(Path.GetTempPath(), "devos-work-browser-tests", Guid.NewGuid().ToString("N"));
 
