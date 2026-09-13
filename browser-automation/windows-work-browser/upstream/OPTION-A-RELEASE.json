@@ -1,0 +1,30 @@
+{
+  "product": "windows-work-browser",
+  "upstream": {
+    "project": "browseros-ai/BrowserOS",
+    "release": "v0.50.3",
+    "release_commit": "6151a4fd7ec6c5e9d7cbc009ab5f019d669ccd06",
+    "license": "AGPL-3.0"
+  },
+  "artifact": {
+    "platform": "windows",
+    "arch": "x64",
+    "filename": "BrowserOS_v0.50.3_x64_installer.exe",
+    "download_url": "https://github.com/browseros-ai/BrowserOS/releases/download/v0.50.3/BrowserOS_v0.50.3_x64_installer.exe",
+    "sha256": "3ae8dc6cd7fa8c39760d8c95591147e283705ec7d6f1cc4b02561d2696ef86c7",
+    "source": "GitHub release asset metadata",
+    "asset_id": 546999253,
+    "size_bytes": 152070712
+  },
+  "verification": {
+    "status": "VERIFIED_METADATA",
+    "verified_at": "2026-09-13",
+    "verified_by": "GitHub release API metadata",
+    "note": "Digest is upstream-published release metadata. Local download/install/runtime verification is still required before release-candidate promotion."
+  },
+  "overlay": {
+    "method": "extension",
+    "agent_extension": "BrowserOS Agent Extension v0.0.156.0",
+    "agent_extension_sha256": "d1074b2d4ec15b9a6305090be5006222a150d336a7b0ebebfcdb414d7b9847cf"
+  }
+}
