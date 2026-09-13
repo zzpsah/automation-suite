@@ -1,0 +1,88 @@
+name: Windows Work Browser - Developer Preview
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'browser-automation/windows-work-browser/**'
+      - '.github/workflows/windows-work-browser-preview.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  package-preview:
+    runs-on: windows-latest
+    timeout-minutes: 30
+    env:
+      ARTIFACT_URL: https://github.com/browseros-ai/BrowserOS/releases/download/v0.50.3/BrowserOS_v0.50.3_x64_installer.exe
+      EXPECTED_SHA256: 3ae8dc6cd7fa8c39760d8c95591147e283705ec7d6f1cc4b02561d2696ef86c7
+      ARTIFACT_NAME: BrowserOS_v0.50.3_x64_installer.exe
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install agent dependencies
+        shell: pwsh
+        working-directory: browser-automation/windows-work-browser
+        run: npm install --ignore-scripts --no-audit --no-fund
+
+      - name: Build agent
+        shell: pwsh
+        working-directory: browser-automation/windows-work-browser
+        run: npm run build
+
+      - name: Generate SBOM
+        shell: pwsh
+        working-directory: browser-automation/windows-work-browser
+        run: npm run sbom
+        env:
+          SBOM_OUT: sbom.cdx.json
+
+      - name: Download and verify BrowserOS
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $root = Join-Path $env:RUNNER_TEMP 'wwb-preview'
+          New-Item -ItemType Directory -Force -Path $root | Out-Null
+          $installer = Join-Path $root $env:ARTIFACT_NAME
+          Invoke-WebRequest -Uri $env:ARTIFACT_URL -OutFile $installer
+          $actual = (Get-FileHash -Algorithm SHA256 -Path $installer).Hash.ToLowerInvariant()
+          if ($actual -ne $env:EXPECTED_SHA256) { throw "BrowserOS SHA-256 mismatch." }
+          $signature = Get-AuthenticodeSignature -FilePath $installer
+          if ($signature.Status -ne 'Valid') { throw "BrowserOS Authenticode verification failed: $($signature.Status)" }
+          "PREVIEW_ROOT=$root" | Out-File -FilePath $env:GITHUB_ENV -Append
+
+      - name: Assemble preview bundle
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $bundle = Join-Path $env:RUNNER_TEMP 'windows-work-browser-preview-bundle'
+          New-Item -ItemType Directory -Force -Path $bundle | Out-Null
+          Copy-Item $env:PREVIEW_ROOT\$env:ARTIFACT_NAME $bundle\
+          Copy-Item 'browser-automation/windows-work-browser/extension' $bundle\extension -Recurse
+          Copy-Item 'browser-automation/windows-work-browser/dist' $bundle\agent-dist -Recurse
+          Copy-Item 'browser-automation/windows-work-browser/scripts/run-work-browser-test.ps1' $bundle\
+          Copy-Item 'browser-automation/windows-work-browser/RELEASE-READINESS.json' $bundle\
+          Copy-Item 'browser-automation/windows-work-browser/docs/TEST-MODE.md' $bundle\
+          Copy-Item 'browser-automation/windows-work-browser/docs/FINAL-RELEASE-PACKAGE.md' $bundle\
+          Copy-Item 'browser-automation/windows-work-browser/sbom.cdx.json' $bundle\
+          $notes = @"
+Windows Work Browser Developer Preview
+
+Base: BrowserOS v0.50.3 x64
+SHA-256: $env:EXPECTED_SHA256
+
+This preview is unsigned by Automation Suite and is not a production release.
+Run run-work-browser-test.ps1 after installing the pinned BrowserOS artifact.
+"@
+          $notes | Set-Content -Encoding UTF8 (Join-Path $bundle 'PREVIEW-README.txt')
+          $zip = Join-Path $env:RUNNER_TEMP 'WindowsWorkBrowser-DeveloperPreview.zip'
+          Compress-Archive -Path (Join-Path $bundle '*') -DestinationPath $zip -Force
+          "PREVIEW_ZIP=$zip" | Out-File -FilePath $env:GITHUB_ENV -Append
+
+      - name: Upload developer preview
+        uses: actions/upload-artifact@v4
+        with:
+          name: WindowsWorkBrowser-DeveloperPreview
+          path: ${{ env.PREVIEW_ZIP }}
+          if-no-files-found: error
