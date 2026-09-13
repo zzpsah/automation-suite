@@ -1,8 +1,8 @@
 # Windows Work Browser — Build Status
 
-**Status: VERIFIED FOUNDATION / INTEGRATION BUILD**
+**Status: INTEGRATION VERIFIED / RELEASE CANDIDATE BLOCKED**
 
-This file is the authoritative engineering status. It never marks the product release-ready without product-level runtime evidence.
+This file is the authoritative engineering status. It must only move to `RELEASE CANDIDATE` after every mandatory runtime gate has executable evidence.
 
 ## Verified Windows foundation
 
@@ -15,45 +15,40 @@ This file is the authoritative engineering status. It never marks the product re
 - Agent extension artifact integrity passed.
 - Evidence bundle retained as GitHub Actions artifact.
 
-## Engineering contracts implemented
+## Verified engineering package
 
-- AutomationAction capability/risk contract.
-- Deterministic policy and approval gate.
-- Capability-scoped executor registry.
-- Browser Playwright/CDP/open-browser-use control contract.
-- Windows-native operation contract.
-- MCP capability gateway contract.
-- Resumable task/checkpoint contract.
-- Universal extraction and export contract.
-- Local/FTP/SFTP/WebDAV/SMB file workspace contract.
-- PDF and image processing contracts.
-- Communication provider contract.
-- Workflow record/replay/schedule/recovery contract.
-- Permission Center contract.
-- Windows-backed credential-vault/opaque lease contract.
-- Update/rollback promotion contract.
-- Redacted evidence/audit contract.
-- Third-party license/SBOM release gate documentation.
+- TypeScript agent/runtime workspace now has Node type declarations and CommonJS runtime output for deterministic CI execution.
+- Contract Gate passes all structural/security checks in the latest successful run.
+- Agent CI reaches build and runtime-test stages; runtime-test fixes are being iterated against concrete CI evidence.
 
-## Integration work still required
+## Mandatory product gates still open
 
-1. Real Playwright adapter and browser-control E2E against the shipped browser.
-2. MCP gateway implementation and external-agent interoperability tests.
-3. Windows native adapter implementation (Win32/UI Automation/AutoHotkey) and E2E tests.
-4. Extraction engine implementation including pagination/detail traversal, deduplication and source-count verification.
-5. File browser and FTP/SFTP/WebDAV/SMB adapters.
-6. PDF/OCR/image engines and portal upload preparation pipeline.
-7. Communication provider adapters and send approval UX.
+1. Playwright semantic browser executor E2E against the shipped BrowserOS browser.
+2. MCP gateway implementation + external-agent interoperability.
+3. Windows native Win32/UIA/AutoHotkey implementation + E2E.
+4. Universal extraction engine with pagination/detail traversal, deduplication and count verification.
+5. Local/FTP/SFTP/WebDAV/SMB file adapters.
+6. PDF/OCR/image engines, including crop/deskew/background removal/upload preparation.
+7. Communication providers with explicit send approval.
 8. Workflow recorder/player, scheduler, checkpoint persistence and recovery.
-9. DPAPI/Credential Manager implementation and permission enforcement.
-10. Security/adversarial tests and secret-handling audit.
-11. Generated SBOM, license notices and BrowserOS AGPL source-obligation package.
+9. DPAPI/Credential Manager runtime implementation.
+10. Security/adversarial runtime tests, including secret handling and capability isolation.
+11. Generated SBOM + third-party notices + BrowserOS AGPL source-obligation package.
 12. Verified update/rollback implementation.
-13. Product UI overlay, Windows installer/update packaging and release branding.
+13. Product UI overlay, branding, signed Windows installer/update package.
 14. Full Windows end-to-end acceptance suite.
 
-## Promotion
+## Promotion rule
 
 `FOUNDATION-VERIFIED → INTEGRATION → RELEASE CANDIDATE → RELEASED`
 
-The current state is **FOUNDATION-VERIFIED / INTEGRATION BUILD**. The browser foundation is proven; the complete Work Browser product is not yet release-ready.
+A successful browser foundation run does not imply that the Work Browser product is released. The release gate remains blocked until every mandatory product row has executable evidence.
+
+## Current blocker summary
+
+- Windows BrowserOS artifact/runtime foundation: **VERIFIED**
+- Contract/security CI: **VERIFIED**
+- Agent package: **BUILD VERIFIED; runtime test hardening in progress**
+- Product runtime adapters: **NOT COMPLETE**
+- Signed final installer: **NOT COMPLETE**
+- Release: **NOT RELEASED**
