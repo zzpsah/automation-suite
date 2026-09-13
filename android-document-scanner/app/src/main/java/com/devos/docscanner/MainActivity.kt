@@ -2,7 +2,6 @@ package com.devos.docscanner
 
 import android.Manifest
 import android.content.pm.PackageManager
-import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.PointF
 import android.os.Bundle
@@ -74,10 +73,8 @@ class MainActivity : ComponentActivity() {
         Surface(Modifier.fillMaxSize(), color = Color(0xFF090B10)) {
             Column(Modifier.fillMaxSize().padding(28.dp), verticalArrangement = Arrangement.Center) {
                 Text("DEVOS SCAN", color = Color.White, fontSize = 32.sp)
-                Spacer(Modifier.height(12.dp))
-                Text("Premium document capture for real paperwork.", color = Color(0xFF9CA3AF), fontSize = 16.sp)
-                Spacer(Modifier.height(28.dp))
-                Button(onClick = onRequest, shape = RoundedCornerShape(18.dp), modifier = Modifier.fillMaxWidth().height(56.dp)) { Text("Enable Camera") }
+                Spacer(Modifier.height(12.dp)); Text("Premium document capture for real paperwork.", color = Color(0xFF9CA3AF), fontSize = 16.sp)
+                Spacer(Modifier.height(28.dp)); Button(onClick = onRequest, shape = RoundedCornerShape(18.dp), modifier = Modifier.fillMaxWidth().height(56.dp)) { Text("Enable Camera") }
             }
         }
     }
@@ -90,62 +87,40 @@ class MainActivity : ComponentActivity() {
         var flash by remember { mutableStateOf(false) }
         val context = LocalContext.current
         when (screen) {
-            "camera" -> CameraView(flash = flash, onFlash = { flash = !flash }) { bitmap ->
-                val detected = ImageProcessor.detectDocument(bitmap)
-                val quad = detected ?: fullQuad(bitmap.width, bitmap.height)
-                val cropped = ImageProcessor.warp(bitmap, quad)
-                pages = pages + ScanPage(bitmap, cropped, quad)
-                selected = pages.lastIndex
-                screen = "review"
+            "camera" -> CameraView(flash, { flash = !flash }) { bitmap ->
+                val quad = ImageProcessor.detectDocument(bitmap) ?: fullQuad(bitmap.width, bitmap.height)
+                pages = pages + ScanPage(bitmap, ImageProcessor.warp(bitmap, quad), quad)
+                selected = pages.lastIndex; screen = "review"
             }
             "review" -> ReviewView(pages, selected, { selected = it }, { screen = "camera" }, { if (selected >= 0) screen = "edit" }, { PdfExporter.export(context, pages) })
-            "edit" -> if (selected >= 0) EditorView(pages[selected], onSave = { updated -> pages = pages.toMutableList().also { it[selected] = updated }; screen = "review" }, onCancel = { screen = "review" })
+            "edit" -> if (selected >= 0) EditorView(pages[selected], { updated -> pages = pages.toMutableList().also { it[selected] = updated }; screen = "review" }, { screen = "review" })
         }
     }
 
     private fun fullQuad(width: Int, height: Int) = Quad(listOf(PointF(0f, 0f), PointF(width.toFloat(), 0f), PointF(width.toFloat(), height.toFloat()), PointF(0f, height.toFloat())))
 
     @Composable
-    private fun CameraView(flash: Boolean, onFlash: () -> Unit, onCapture: (Bitmap) -> Unit) {
-        val context = LocalContext.current
-        val lifecycleOwner = LocalLifecycleOwner.current
-        val executor = remember { Executors.newSingleThreadExecutor() }
-        var imageCapture by remember { mutableStateOf<ImageCapture?>(null) }
+    private fun CameraView(flash: Boolean, onFlash: () -> Unit, onCapture: (android.graphics.Bitmap) -> Unit) {
+        val context = LocalContext.current; val lifecycleOwner = LocalLifecycleOwner.current
+        val executor = remember { Executors.newSingleThreadExecutor() }; var imageCapture by remember { mutableStateOf<ImageCapture?>(null) }
         DisposableEffect(Unit) { onDispose { executor.shutdown() } }
+        LaunchedEffect(flash) { imageCapture?.flashMode = if (flash) ImageCapture.FLASH_MODE_ON else ImageCapture.FLASH_MODE_OFF }
         Box(Modifier.fillMaxSize().background(Color.Black)) {
-            AndroidView(Modifier.fillMaxSize(), factory = { viewContext ->
-                PreviewView(viewContext).also { previewView ->
-                    val future = ProcessCameraProvider.getInstance(viewContext)
-                    future.addListener({
-                        val provider = future.get()
-                        val preview = Preview.Builder().build().also { it.setSurfaceProvider(previewView.surfaceProvider) }
-                        val capture = ImageCapture.Builder().setCaptureMode(ImageCapture.CAPTURE_MODE_MAXIMIZE_QUALITY).setFlashMode(if (flash) ImageCapture.FLASH_MODE_ON else ImageCapture.FLASH_MODE_OFF).build()
-                        imageCapture = capture
-                        provider.unbindAll()
-                        provider.bindToLifecycle(lifecycleOwner, CameraSelector.DEFAULT_BACK_CAMERA, preview, capture)
-                    }, ContextCompat.getMainExecutor(viewContext))
-                }
-            })
+            AndroidView(Modifier.fillMaxSize(), factory = { viewContext -> PreviewView(viewContext).also { previewView ->
+                val future = ProcessCameraProvider.getInstance(viewContext)
+                future.addListener({
+                    val provider = future.get(); val preview = Preview.Builder().build().also { it.setSurfaceProvider(previewView.surfaceProvider) }
+                    val capture = ImageCapture.Builder().setCaptureMode(ImageCapture.CAPTURE_MODE_MAXIMIZE_QUALITY).setFlashMode(if (flash) ImageCapture.FLASH_MODE_ON else ImageCapture.FLASH_MODE_OFF).build()
+                    imageCapture = capture; provider.unbindAll(); provider.bindToLifecycle(lifecycleOwner, CameraSelector.DEFAULT_BACK_CAMERA, preview, capture)
+                }, ContextCompat.getMainExecutor(viewContext))
+            } })
             Column(Modifier.fillMaxSize().padding(22.dp)) {
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                    Text("DEVOS SCAN", color = Color.White, fontSize = 22.sp)
-                    IconButton(onClick = onFlash) { Icon(if (flash) Icons.Default.FlashOn else Icons.Default.FlashOff, "Flash", tint = Color.White) }
-                }
-                Spacer(Modifier.weight(1f))
-                Text("Capture a document", color = Color.White.copy(alpha = .9f), modifier = Modifier.align(Alignment.CenterHorizontally))
-                Spacer(Modifier.height(20.dp))
-                FloatingActionButton(onClick = {
-                    imageCapture?.let { capture ->
-                        val file = File.createTempFile("scan-", ".jpg", context.cacheDir)
-                        val options = ImageCapture.OutputFileOptions.Builder(file).build()
-                        capture.takePicture(options, executor, object : ImageCapture.OnImageSavedCallback {
-                            override fun onError(exception: ImageCaptureException) = Unit
-                            override fun onImageSaved(output: ImageCapture.OutputFileResults) {
-                                BitmapFactory.decodeFile(file.absolutePath)?.let { bitmap -> runOnUiThread { onCapture(bitmap) } }
-                            }
-                        })
-                    }
-                }, containerColor = Color.White, contentColor = Color.Black, shape = CircleShape, modifier = Modifier.size(78.dp).align(Alignment.CenterHorizontally)) { Icon(Icons.Default.DocumentScanner, "Scan", Modifier.size(34.dp)) }
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) { Text("DEVOS SCAN", color = Color.White, fontSize = 22.sp); IconButton(onClick = onFlash) { Icon(if (flash) Icons.Default.FlashOn else Icons.Default.FlashOff, "Flash", tint = Color.White) } }
+                Spacer(Modifier.weight(1f)); Text("Capture a document", color = Color.White.copy(alpha = .9f), modifier = Modifier.align(Alignment.CenterHorizontally)); Spacer(Modifier.height(20.dp))
+                FloatingActionButton(onClick = { imageCapture?.let { capture -> val file = File.createTempFile("scan-", ".jpg", context.cacheDir); capture.takePicture(ImageCapture.OutputFileOptions.Builder(file).build(), executor, object : ImageCapture.OnImageSavedCallback {
+                    override fun onError(exception: ImageCaptureException) = Unit
+                    override fun onImageSaved(output: ImageCapture.OutputFileResults) { BitmapFactory.decodeFile(file.absolutePath)?.let { bitmap -> runOnUiThread { onCapture(bitmap) } } }
+                }) } }, containerColor = Color.White, contentColor = Color.Black, shape = CircleShape, modifier = Modifier.size(78.dp).align(Alignment.CenterHorizontally)) { Icon(Icons.Default.DocumentScanner, "Scan", Modifier.size(34.dp)) }
             }
         }
     }
@@ -153,59 +128,29 @@ class MainActivity : ComponentActivity() {
     @Composable
     private fun ReviewView(pages: List<ScanPage>, selected: Int, onSelect: (Int) -> Unit, onAdd: () -> Unit, onEdit: () -> Unit, onPdf: () -> Unit) {
         Column(Modifier.fillMaxSize().padding(18.dp)) {
-            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                Text("Review", color = Color.White, fontSize = 28.sp, modifier = Modifier.weight(1f))
-                IconButton(onClick = onPdf) { Icon(Icons.Default.PictureAsPdf, "Export PDF", tint = Color.White) }
-            }
-            Spacer(Modifier.height(14.dp))
-            Box(Modifier.weight(1f).fillMaxWidth().clip(RoundedCornerShape(24.dp)).background(Color(0xFF12151C)), contentAlignment = Alignment.Center) {
-                if (selected >= 0) Image(pages[selected].bitmap.asImageBitmap(), null, Modifier.fillMaxSize().padding(10.dp), contentScale = ContentScale.Fit) else Text("Start scanning", color = Color.White.copy(alpha = .7f))
-            }
-            Spacer(Modifier.height(14.dp))
-            LazyRow(horizontalArrangement = Arrangement.spacedBy(10.dp)) { itemsIndexed(pages) { index, page -> Image(page.bitmap.asImageBitmap(), null, Modifier.size(72.dp, 96.dp).clip(RoundedCornerShape(12.dp)).border(if (index == selected) 2.dp else 0.dp, Color.White, RoundedCornerShape(12.dp)).clickable { onSelect(index) }, contentScale = ContentScale.Crop) } }
-            Spacer(Modifier.height(14.dp))
-            Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth()) {
-                Button(onClick = onAdd, modifier = Modifier.weight(1f)) { Icon(Icons.Default.Add, null); Spacer(Modifier.width(6.dp)); Text("Add page") }
-                OutlinedButton(onClick = onEdit, modifier = Modifier.weight(1f)) { Icon(Icons.Default.Tune, null); Spacer(Modifier.width(6.dp)); Text("Adjust") }
-            }
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) { Text("Review", color = Color.White, fontSize = 28.sp, modifier = Modifier.weight(1f)); IconButton(onClick = onPdf) { Icon(Icons.Default.PictureAsPdf, "Export PDF", tint = Color.White) } }
+            Spacer(Modifier.height(14.dp)); Box(Modifier.weight(1f).fillMaxWidth().clip(RoundedCornerShape(24.dp)).background(Color(0xFF12151C)), contentAlignment = Alignment.Center) { if (selected >= 0) Image(pages[selected].bitmap.asImageBitmap(), null, Modifier.fillMaxSize().padding(10.dp), contentScale = ContentScale.Fit) else Text("Start scanning", color = Color.White.copy(alpha = .7f)) }
+            Spacer(Modifier.height(14.dp)); LazyRow(horizontalArrangement = Arrangement.spacedBy(10.dp)) { itemsIndexed(pages) { index, page -> Image(page.bitmap.asImageBitmap(), null, Modifier.size(72.dp, 96.dp).clip(RoundedCornerShape(12.dp)).border(if (index == selected) 2.dp else 0.dp, Color.White, RoundedCornerShape(12.dp)).clickable { onSelect(index) }, contentScale = ContentScale.Crop) } }
+            Spacer(Modifier.height(14.dp)); Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth()) { Button(onClick = onAdd, modifier = Modifier.weight(1f)) { Icon(Icons.Default.Add, null); Spacer(Modifier.width(6.dp)); Text("Add page") }; OutlinedButton(onClick = onEdit, modifier = Modifier.weight(1f)) { Icon(Icons.Default.Tune, null); Spacer(Modifier.width(6.dp)); Text("Adjust") } }
         }
     }
 
     @Composable
     private fun EditorView(page: ScanPage, onSave: (ScanPage) -> Unit, onCancel: () -> Unit) {
-        var filter by remember { mutableStateOf(page.filter) }
-        var corners by remember { mutableStateOf(page.corners) }
+        var filter by remember { mutableStateOf(page.filter) }; var corners by remember { mutableStateOf(page.corners) }
         Column(Modifier.fillMaxSize().padding(18.dp)) {
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) { Text("Fine tune", color = Color.White, fontSize = 26.sp, modifier = Modifier.weight(1f)); TextButton(onClick = onCancel) { Text("Cancel") } }
-            Spacer(Modifier.height(10.dp))
-            Box(Modifier.weight(1f).fillMaxWidth().clip(RoundedCornerShape(24.dp)).background(Color(0xFF12151C)), contentAlignment = Alignment.Center) {
-                Image(page.bitmap.asImageBitmap(), null, Modifier.fillMaxSize().padding(8.dp), contentScale = ContentScale.Fit)
-                CornerEditor(corners) { corners = it }
-            }
-            Spacer(Modifier.height(12.dp))
-            LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) { items(ScanFilter.values().toList()) { f -> FilterChip(selected = f == filter, onClick = { filter = f }, label = { Text(f.label) }) } }
-            Spacer(Modifier.height(12.dp))
-            Button(onClick = {
-                val corrected = ImageProcessor.warp(page.originalBitmap, corners)
-                onSave(page.copy(bitmap = ImageProcessor.applyFilter(corrected, filter), corners = corners, filter = filter))
-            }, modifier = Modifier.fillMaxWidth().height(54.dp), shape = RoundedCornerShape(18.dp)) { Text("Apply & Save") }
+            Spacer(Modifier.height(10.dp)); Box(Modifier.weight(1f).fillMaxWidth().clip(RoundedCornerShape(24.dp)).background(Color(0xFF12151C)), contentAlignment = Alignment.Center) { Image(page.bitmap.asImageBitmap(), null, Modifier.fillMaxSize().padding(8.dp), contentScale = ContentScale.Fit); CornerEditor(corners) { corners = it } }
+            Spacer(Modifier.height(12.dp)); LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) { items(ScanFilter.values().toList()) { f -> FilterChip(selected = f == filter, onClick = { filter = f }, label = { Text(f.label) }) } }
+            Spacer(Modifier.height(12.dp)); Button(onClick = { val corrected = ImageProcessor.warp(page.originalBitmap, corners); onSave(page.copy(bitmap = ImageProcessor.applyFilter(corrected, filter), corners = corners, filter = filter)) }, modifier = Modifier.fillMaxWidth().height(54.dp), shape = RoundedCornerShape(18.dp)) { Text("Apply & Save") }
         }
     }
 
     @Composable
     private fun CornerEditor(quad: Quad, onChange: (Quad) -> Unit) {
-        Canvas(Modifier.fillMaxSize().pointerInput(quad) {
-            detectDragGestures { change, drag ->
-                change.consume()
-                val index = quad.points.indices.minBy { i -> val dx = quad.points[i].x - change.position.x; val dy = quad.points[i].y - change.position.y; dx * dx + dy * dy }
-                val next = quad.points.toMutableList()
-                next[index] = PointF((next[index].x + drag.x).coerceIn(0f, size.width.toFloat()), (next[index].y + drag.y).coerceIn(0f, size.height.toFloat()))
-                onChange(Quad(next))
-            }
-        }) {
+        Canvas(Modifier.fillMaxSize().pointerInput(quad) { detectDragGestures { change, drag -> change.consume(); val index = quad.points.indices.minBy { i -> val dx = quad.points[i].x - change.position.x; val dy = quad.points[i].y - change.position.y; dx * dx + dy * dy }; val next = quad.points.toMutableList(); next[index] = PointF((next[index].x + drag.x).coerceIn(0f, size.width.toFloat()), (next[index].y + drag.y).coerceIn(0f, size.height.toFloat())); onChange(Quad(next)) } }) {
             fun DrawScope.line(a: PointF, b: PointF) = drawLine(Color.White, androidx.compose.ui.geometry.Offset(a.x, a.y), androidx.compose.ui.geometry.Offset(b.x, b.y), strokeWidth = 4f)
-            line(quad.points[0], quad.points[1]); line(quad.points[1], quad.points[2]); line(quad.points[2], quad.points[3]); line(quad.points[3], quad.points[0])
-            quad.points.forEach { drawCircle(Color.White, 14f, androidx.compose.ui.geometry.Offset(it.x, it.y)) }
+            line(quad.points[0], quad.points[1]); line(quad.points[1], quad.points[2]); line(quad.points[2], quad.points[3]); line(quad.points[3], quad.points[0]); quad.points.forEach { drawCircle(Color.White, 14f, androidx.compose.ui.geometry.Offset(it.x, it.y)) }
         }
     }
 }
