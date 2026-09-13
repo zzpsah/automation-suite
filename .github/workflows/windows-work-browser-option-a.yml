@@ -22,7 +22,7 @@ jobs:
   artifact-integrity-and-launch:
     name: Verify BrowserOS Windows artifact
     runs-on: windows-latest
-    timeout-minutes: 20
+    timeout-minutes: 25
     env:
       ARTIFACT_URL: https://github.com/browseros-ai/BrowserOS/releases/download/v0.50.3/BrowserOS_v0.50.3_x64_installer.exe
       EXPECTED_SHA256: 3ae8dc6cd7fa8c39760d8c95591147e283705ec7d6f1cc4b02561d2696ef86c7
@@ -85,7 +85,7 @@ jobs:
           "INSTALL_DIR=$installDir" | Out-File -FilePath $env:GITHUB_ENV -Append
           if (-not (Test-Path $installDir)) { throw "Expected BrowserOS install directory was not found: $installDir" }
 
-      - name: Launch and verify browser/CDP smoke
+      - name: Launch, CDP smoke and Playwright semantic E2E
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
@@ -128,6 +128,13 @@ jobs:
               observed_url = $target.url
               target_type = $target.type
             } | ConvertTo-Json | Set-Content (Join-Path $evidence 'browser-launch.json')
+
+            Push-Location 'browser-automation/windows-work-browser'
+            npm install --ignore-scripts
+            npm run build
+            $env:CDP_ENDPOINT = "http://127.0.0.1:$port"
+            node dist/runtime/playwright-e2e.js | Tee-Object -FilePath (Join-Path $evidence 'playwright-e2e.jsonl')
+            Pop-Location
           } finally {
             try { Stop-Process -Id $proc.Id -Force -ErrorAction SilentlyContinue } catch {}
           }
