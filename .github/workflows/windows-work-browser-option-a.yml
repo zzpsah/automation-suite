@@ -18,7 +18,7 @@ jobs:
   artifact-integrity-and-launch:
     name: Verify BrowserOS Windows artifact
     runs-on: windows-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
     env:
       ARTIFACT_URL: https://github.com/browseros-ai/BrowserOS/releases/download/v0.50.3/BrowserOS_v0.50.3_x64_installer.exe
       EXPECTED_SHA256: 3ae8dc6cd7fa8c39760d8c95591147e283705ec7d6f1cc4b02561d2696ef86c7
@@ -57,23 +57,45 @@ jobs:
           }
           "Signer: $($sig.SignerCertificate.Subject)"
 
-      - name: Launch installer smoke gate
+      - name: Install into isolated runner directory
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $installDir = Join-Path $env:RUNNER_TEMP 'windows-work-browser-install'
+          New-Item -ItemType Directory -Force -Path $installDir | Out-Null
+          $proc = Start-Process -FilePath $env:ARTIFACT_PATH -ArgumentList "/S", "/D=$installDir" -PassThru -Wait -WindowStyle Hidden
+          if ($proc.ExitCode -ne 0) { throw "Installer exited with code $($proc.ExitCode)" }
+          "INSTALL_DIR=$installDir" | Out-File -FilePath $env:GITHUB_ENV -Append
+
+      - name: Locate and launch installed browser
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
           $evidence = Join-Path $env:RUNNER_TEMP 'windows-work-browser-evidence'
           New-Item -ItemType Directory -Force -Path $evidence | Out-Null
-          $proc = Start-Process -FilePath $env:ARTIFACT_PATH -ArgumentList '/? ' -PassThru -WindowStyle Hidden
-          Start-Sleep -Seconds 3
-          $stillRunning = -not $proc.HasExited
-          if ($stillRunning) { Stop-Process -Id $proc.Id -Force }
+          $candidates = @(
+            (Join-Path $env:INSTALL_DIR 'chrome.exe'),
+            (Join-Path $env:INSTALL_DIR 'BrowserOS.exe'),
+            (Join-Path $env:INSTALL_DIR 'Application\chrome.exe'),
+            (Join-Path $env:INSTALL_DIR 'Application\BrowserOS.exe')
+          )
+          $browser = $candidates | Where-Object { Test-Path $_ } | Select-Object -First 1
+          if (-not $browser) { throw "Installed browser executable was not found under $env:INSTALL_DIR" }
+          $hash = (Get-FileHash -Algorithm SHA256 -Path $browser).Hash.ToLowerInvariant()
+          $proc = Start-Process -FilePath $browser -ArgumentList '--new-window', 'about:blank' -PassThru
+          Start-Sleep -Seconds 5
+          $running = -not $proc.HasExited
+          if ($running) { Stop-Process -Id $proc.Id -Force }
           [ordered]@{
             artifact = $env:ARTIFACT_NAME
-            sha256 = $env:EXPECTED_SHA256
+            artifact_sha256 = $env:EXPECTED_SHA256
+            installed_browser = $browser
+            installed_browser_sha256 = $hash
             launched = $true
-            installer_exited = $proc.HasExited
+            observed_running = $running
             process_id = $proc.Id
-          } | ConvertTo-Json | Set-Content (Join-Path $evidence 'installer-launch.json')
+          } | ConvertTo-Json | Set-Content (Join-Path $evidence 'browser-launch.json')
+          if (-not $running) { throw 'Installed browser did not remain running during launch smoke test.' }
 
       - name: Upload verification evidence
         if: always()
