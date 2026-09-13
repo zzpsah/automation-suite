@@ -72,3 +72,14 @@ export async function startLocalAgentServer(options: LocalAgentServerOptions): P
   });
   return server;
 }
+
+if (require.main === module) {
+  const queueFile = process.env.WWB_QUEUE_FILE ?? `${process.env.LOCALAPPDATA ?? process.cwd()}\\WindowsWorkBrowser\\tasks.json`;
+  const port = Number(process.env.WWB_PORT ?? 17321);
+  startLocalAgentServer({ queueFile, port, workspaceId: process.env.WWB_WORKSPACE_ID ?? "default" })
+    .then(() => process.stderr.write(`Windows Work Browser agent listening on 127.0.0.1:${port}\n`))
+    .catch((error) => {
+      process.stderr.write(`${error instanceof Error ? error.stack ?? error.message : String(error)}\n`);
+      process.exitCode = 1;
+    });
+}
