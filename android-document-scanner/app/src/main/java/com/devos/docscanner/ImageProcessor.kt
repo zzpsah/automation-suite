@@ -72,10 +72,12 @@ object ImageProcessor {
 
     private fun goodAngles(p: List<PointF>): Boolean {
         fun angle(a: PointF, b: PointF, c: PointF): Double {
-            val abx = a.x - b.x; val aby = a.y - b.y; val cbx = c.x - b.x; val cby = c.y - b.y
-            val denom = hypot(abx.toDouble(), aby.toDouble()) * hypot(cbx.toDouble(), cby.toDouble())
+            val abx = (a.x - b.x).toDouble(); val aby = (a.y - b.y).toDouble()
+            val cbx = (c.x - b.x).toDouble(); val cby = (c.y - b.y).toDouble()
+            val denom = hypot(abx, aby) * hypot(cbx, cby)
             if (denom == 0.0) return 0.0
-            return Math.toDegrees(kotlin.math.acos(((abx * cbx + aby * cby) / denom).coerceIn(-1f, 1f).toDouble()))
+            val cosine = ((abx * cbx + aby * cby) / denom).coerceIn(-1.0, 1.0)
+            return Math.toDegrees(kotlin.math.acos(cosine))
         }
         return p.indices.all { i -> angle(p[(i + 3) % 4], p[i], p[(i + 1) % 4]) in 45.0..135.0 }
     }
