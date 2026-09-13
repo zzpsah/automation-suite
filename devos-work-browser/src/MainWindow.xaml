@@ -6,7 +6,8 @@
         Height="820"
         MinWidth="900"
         MinHeight="600"
-        WindowStartupLocation="CenterScreen">
+        WindowStartupLocation="CenterScreen"
+        PreviewKeyDown="Window_PreviewKeyDown">
     <DockPanel LastChildFill="True">
         <StackPanel DockPanel.Dock="Top">
             <Grid Margin="10,10,10,6">
@@ -27,6 +28,36 @@
                 <Button Grid.Column="5" Width="58" Height="34" Margin="8,0,0,0" Content="Go" Click="Go_Click" />
                 <Button Grid.Column="6" Width="72" Height="34" Margin="8,0,0,0" Content="+ Tab" Click="NewTab_Click" />
             </Grid>
+
+            <Border Margin="10,0,10,8" Padding="8" BorderThickness="1" BorderBrush="#D6D6D6" CornerRadius="6">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+                    <TextBox x:Name="CommandBox"
+                             Grid.Column="0"
+                             Height="34"
+                             Padding="10,0"
+                             VerticalContentAlignment="Center"
+                             FontSize="14"
+                             ToolTip="DEVOS command. Ctrl+Space focuses here. Examples: read #status, click #next, type hello into #name, wait for #result, submit #save" />
+                    <Button x:Name="RunCommandButton"
+                            Grid.Column="1"
+                            Width="88"
+                            Height="34"
+                            Margin="8,0,0,0"
+                            Content="Run"
+                            Click="RunCommand_Click" />
+                    <TextBlock x:Name="CommandStatus"
+                               Grid.Column="2"
+                               MinWidth="170"
+                               Margin="12,0,0,0"
+                               VerticalAlignment="Center"
+                               Text="Ready" />
+                </Grid>
+            </Border>
         </StackPanel>
         <TabControl x:Name="BrowserTabs" SelectionChanged="BrowserTabs_SelectionChanged" />
     </DockPanel>
