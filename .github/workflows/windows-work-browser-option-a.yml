@@ -22,7 +22,7 @@ jobs:
   artifact-integrity-and-launch:
     name: Verify BrowserOS Windows artifact
     runs-on: windows-latest
-    timeout-minutes: 30
+    timeout-minutes: 35
     env:
       ARTIFACT_URL: https://github.com/browseros-ai/BrowserOS/releases/download/v0.50.3/BrowserOS_v0.50.3_x64_installer.exe
       EXPECTED_SHA256: 3ae8dc6cd7fa8c39760d8c95591147e283705ec7d6f1cc4b02561d2696ef86c7
@@ -94,7 +94,7 @@ jobs:
             if (-not $target) { throw 'Expected example.com tab was not observed.' }
             [ordered]@{browser=$browser; launched=$true; cdp=$cdp.Browser; observed_url=$target.url} | ConvertTo-Json | Set-Content (Join-Path $evidence 'browser-launch.json')
             Push-Location 'browser-automation/windows-work-browser'
-            npm install --ignore-scripts
+            npm install --ignore-scripts --no-audit --no-fund
             npm run build
             $env:CDP_ENDPOINT = "http://127.0.0.1:$port"
             $out = & node dist/runtime/playwright-e2e.js 2>&1
@@ -107,6 +107,18 @@ jobs:
             if ($nativeExit -ne 0) { throw "Windows native E2E failed with exit code $nativeExit" }
             Pop-Location
           } finally { try { Stop-Process -Id $proc.Id -Force -ErrorAction SilentlyContinue } catch {} }
+
+      - name: Run Windows runtime component integration suite
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $evidence = Join-Path $env:RUNNER_TEMP 'windows-work-browser-evidence'
+          Push-Location 'browser-automation/windows-work-browser'
+          try {
+            npm install --ignore-scripts --no-audit --no-fund
+            npm run test 2>&1 | Tee-Object -FilePath (Join-Path $evidence 'runtime-component-tests.log')
+            if ($LASTEXITCODE -ne 0) { throw "Runtime component integration suite failed with exit code $LASTEXITCODE" }
+          } finally { Pop-Location }
 
       - name: Stage and verify agent extension overlay
         shell: pwsh
