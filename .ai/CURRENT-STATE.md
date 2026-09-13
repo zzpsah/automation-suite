@@ -16,7 +16,7 @@ Last verified: 2026-09-13
 - External/production mutations require explicit authorization.
 
 ## Last automated change
-- Commit: d4006183577eaaa4b3fe1c73e1162d0335d4edfd
-- Change: fix notifier unit test contract and offline env
+- Commit: 6ced64f7ed331b1641024bf77d74d75866419345
+- Change: release: school document pipeline v1.0.0 final e2e verification
 - Date: 2026-09-13
 - Durable context synchronization: completed

@@ -1,3 +1,10 @@
+## 2026-09-13 — release: school document pipeline v1.0.0 final e2e verification
+- Commit: 6ced64f7ed331b1641024bf77d74d75866419345
+- Author: PRASHANT KUMAR SAH
+- Classification: meaningful
+- Changed files:
+- `docs/releases/school-document-pipeline-v1.0.0.md`
+
 ## 2026-09-13 — fix notifier unit test contract and offline env
 - Commit: d4006183577eaaa4b3fe1c73e1162d0335d4edfd
 - Author: PRASHANT KUMAR SAH
