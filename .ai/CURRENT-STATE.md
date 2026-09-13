@@ -16,7 +16,7 @@ Last verified: 2026-09-13
 - External/production mutations require explicit authorization.
 
 ## Last automated change
-- Commit: 929e12d0119668cad4fc7a72372b3c1a1dab768f
-- Change: fix: isolate hardened Telegram watchdog concurrency
+- Commit: 27bb7f01166bd34024b89342bddde4ce0f95d5fe
+- Change: feat: add Windows Work Browser developer preview
 - Date: 2026-09-13
 - Durable context synchronization: completed
