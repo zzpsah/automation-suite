@@ -27,6 +27,9 @@ jobs:
       ARTIFACT_URL: https://github.com/browseros-ai/BrowserOS/releases/download/v0.50.3/BrowserOS_v0.50.3_x64_installer.exe
       EXPECTED_SHA256: 3ae8dc6cd7fa8c39760d8c95591147e283705ec7d6f1cc4b02561d2696ef86c7
       ARTIFACT_NAME: BrowserOS_v0.50.3_x64_installer.exe
+      AGENT_EXTENSION_URL: https://github.com/browseros-ai/BrowserOS/releases/download/ext-agent/v0.0.156.0/agent-0.0.156.0.crx
+      AGENT_EXTENSION_SHA256: d1074b2d4ec15b9a6305090be5006222a150d336a7b0ebebfcdb414d7b9847cf
+      AGENT_EXTENSION_NAME: agent-0.0.156.0.crx
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -128,6 +131,27 @@ jobs:
           } finally {
             try { Stop-Process -Id $proc.Id -Force -ErrorAction SilentlyContinue } catch {}
           }
+
+      - name: Stage and verify agent extension overlay
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $evidence = Join-Path $env:RUNNER_TEMP 'windows-work-browser-evidence'
+          New-Item -ItemType Directory -Force -Path $evidence | Out-Null
+          $stage = Join-Path $env:RUNNER_TEMP 'windows-work-browser-overlay'
+          New-Item -ItemType Directory -Force -Path $stage | Out-Null
+          $path = Join-Path $stage $env:AGENT_EXTENSION_NAME
+          Invoke-WebRequest -Uri $env:AGENT_EXTENSION_URL -OutFile $path
+          $actual = (Get-FileHash -Algorithm SHA256 -Path $path).Hash.ToLowerInvariant()
+          if ($actual -ne $env:AGENT_EXTENSION_SHA256) {
+            throw "Agent extension SHA-256 mismatch. Expected $env:AGENT_EXTENSION_SHA256 but got $actual"
+          }
+          [ordered]@{
+            extension = $env:AGENT_EXTENSION_NAME
+            sha256 = $actual
+            status = 'STAGED_ONLY'
+            install = 'not-forced-by-ci'
+          } | ConvertTo-Json | Set-Content (Join-Path $evidence 'overlay-verification.json')
 
       - name: Upload verification evidence
         if: always()
