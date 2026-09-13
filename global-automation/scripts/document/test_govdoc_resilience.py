@@ -35,10 +35,19 @@ def test_missing_b2_is_fail_closed(monkeypatch):
 
 def test_concurrent_claim_returns_none_when_already_claimed(monkeypatch):
     processor = load_processor(monkeypatch)
+
     class Response:
-        def raise_for_status(self): pass
-        def json(self): return []
-    monkeypatch.setattr(processor.requests, "patch", lambda *a, **k: Response())
+        ok = True
+        status_code = 200
+        text = "[]"
+
+        def raise_for_status(self):
+            pass
+
+        def json(self):
+            return []
+
+    monkeypatch.setattr(processor.requests, "request", lambda *a, **k: Response())
     assert processor.claim_intake("record-1") is None
 
 
@@ -56,8 +65,6 @@ def test_retry_failure_is_recorded_without_publication_approval(monkeypatch):
 
 
 def test_publication_remains_explicitly_unapproved():
-    # Contract mirrors the durable document payload boundary: OCR completion
-    # must never imply publication approval.
     payload = {"processing_status": "Completed", "approved_for_publication": False, "publication_status": "Unpublished"}
     assert payload["approved_for_publication"] is False
     assert payload["publication_status"] == "Unpublished"
