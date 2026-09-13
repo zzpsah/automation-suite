@@ -13,16 +13,36 @@ public sealed class NaturalLanguagePlanner
         var text = (input ?? string.Empty).Trim();
         if (text.Length == 0) throw new ArgumentException("Command cannot be empty.", nameof(input));
 
+        var segments = text.Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        if (segments.Length == 0) throw new ArgumentException("Command cannot be empty.", nameof(input));
+
+        var actions = new List<BrowserAction>();
+        var summaries = new List<string>();
+        var requiresApproval = false;
+
+        foreach (var segment in segments)
+        {
+            var planned = PlanSingle(segment);
+            actions.AddRange(planned.Actions);
+            summaries.Add(planned.Summary);
+            requiresApproval |= planned.RequiresApproval;
+        }
+
+        return new PlannedCommand(actions, requiresApproval, string.Join(" → ", summaries));
+    }
+
+    private PlannedCommand PlanSingle(string text)
+    {
         var lower = text.ToLowerInvariant();
         if (lower.StartsWith("read "))
         {
-            var target = text[5..].Trim();
+            var target = RequireTarget(text[5..], "read");
             return Build(new[] { new BrowserAction(BrowserActionKind.ReadText, target) }, OperationKind.Read, $"Read {target}");
         }
 
         if (lower.StartsWith("click "))
         {
-            var target = text[6..].Trim();
+            var target = RequireTarget(text[6..], "click");
             return Build(new[] { new BrowserAction(BrowserActionKind.Click, target) }, OperationKind.Click, $"Click {target}");
         }
 
@@ -30,27 +50,34 @@ public sealed class NaturalLanguagePlanner
         {
             var splitIndex = lower.IndexOf(" into ", StringComparison.Ordinal);
             var value = text[5..splitIndex].Trim();
-            var target = text[(splitIndex + 6)..].Trim();
+            var target = RequireTarget(text[(splitIndex + 6)..], "type");
             return Build(new[] { new BrowserAction(BrowserActionKind.Type, target, value) }, OperationKind.Type, $"Type into {target}");
         }
 
         if (lower.StartsWith("wait for "))
         {
-            var target = text[9..].Trim();
+            var target = RequireTarget(text[9..], "wait for");
             return Build(new[] { new BrowserAction(BrowserActionKind.WaitForSelector, target) }, OperationKind.Read, $"Wait for {target}");
         }
 
         if (lower.StartsWith("submit "))
         {
-            var target = text[7..].Trim();
+            var target = RequireTarget(text[7..], "submit");
             return Build(new[] { new BrowserAction(BrowserActionKind.Click, target) }, OperationKind.Submit, $"Submit via {target}");
         }
 
-        throw new NotSupportedException("Command is outside the constrained planner grammar.");
+        throw new NotSupportedException($"Command is outside the constrained planner grammar: {text}");
     }
 
     private PlannedCommand Build(IReadOnlyList<BrowserAction> actions, OperationKind kind, string summary)
         => new(actions, _approvalPolicy.RequiresApproval(kind), summary);
+
+    private static string RequireTarget(string value, string operation)
+    {
+        var target = value.Trim();
+        if (target.Length == 0) throw new ArgumentException($"{operation} requires a target.");
+        return target;
+    }
 }
 
 public enum OperationKind
