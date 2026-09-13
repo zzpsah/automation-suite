@@ -1,3 +1,10 @@
+## 2026-09-13 — feat(browser): add visible DEVOS AI page launcher
+- Commit: 03d5c098861096637006a6b908f0c044d8f58742
+- Author: PRASHANT KUMAR SAH
+- Classification: meaningful
+- Changed files:
+- `browser-automation/windows-work-browser/extension/content.js`
+
 ## 2026-09-13 — feat(browser): expose visible DEVOS AI overlay on webpages
 - Commit: 0cec7db3a698d02cccb2eccd3e044a643e94196b
 - Author: PRASHANT KUMAR SAH

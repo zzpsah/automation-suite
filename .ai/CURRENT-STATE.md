@@ -16,7 +16,7 @@ Last verified: 2026-09-13
 - External/production mutations require explicit authorization.
 
 ## Last automated change
-- Commit: 0cec7db3a698d02cccb2eccd3e044a643e94196b
-- Change: feat(browser): expose visible DEVOS AI overlay on webpages
+- Commit: 03d5c098861096637006a6b908f0c044d8f58742
+- Change: feat(browser): add visible DEVOS AI page launcher
 - Date: 2026-09-13
 - Durable context synchronization: completed
