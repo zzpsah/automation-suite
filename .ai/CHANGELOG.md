@@ -1,3 +1,10 @@
+## 2026-09-13 — fix: isolate hardened Telegram watchdog concurrency
+- Commit: 929e12d0119668cad4fc7a72372b3c1a1dab768f
+- Author: PRASHANT KUMAR SAH
+- Classification: meaningful
+- Changed files:
+- `.github/workflows/telegram-input-delivery-watchdog-v2.yml`
+
 ## 2026-09-13 — chore: finalize Telegram input watchdog branch state
 - Commit: 489d5fa88bda04504085094dedf18b5410d9261f
 - Author: PRASHANT KUMAR SAH
