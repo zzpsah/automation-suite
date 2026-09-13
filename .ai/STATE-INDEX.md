@@ -6,8 +6,8 @@ Generated automatically by Development OS.
 
 ## Repository
 - Branch: main
-- HEAD: 99f39cb58a749f2fe1120d9a53171b1c24b2caff
-- Last commit: feat(scanner): improve editor rewarp and camera flash
+- HEAD: aae30b1652e681831dde8f94ba5ace4870a62652
+- Last commit: fix(scanner): apply flash changes without camera rebind
 - Last commit date: 2026-09-13
 - Last commit author: PRASHANT KUMAR SAH
 

@@ -16,7 +16,7 @@ Last verified: 2026-09-13
 - External/production mutations require explicit authorization.
 
 ## Last automated change
-- Commit: 99f39cb58a749f2fe1120d9a53171b1c24b2caff
-- Change: feat(scanner): improve editor rewarp and camera flash
+- Commit: aae30b1652e681831dde8f94ba5ace4870a62652
+- Change: fix(scanner): apply flash changes without camera rebind
 - Date: 2026-09-13
 - Durable context synchronization: completed
