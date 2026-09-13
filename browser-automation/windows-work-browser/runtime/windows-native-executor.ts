@@ -23,7 +23,6 @@ async function powershell(script: string, environment: NodeJS.ProcessEnv): Promi
   return stdout.trim();
 }
 
-/** Fixed-operation Windows adapter. It never accepts a shell/script payload from the caller. */
 export class FixedWindowsNativeExecutor implements WindowsNativeExecutor {
   async observe(): Promise<NativeObservation> {
     requireWindows();
@@ -92,10 +91,39 @@ $p.Id
           await powershell("(New-Object -ComObject WScript.Shell).SendKeys($env:WWB_KEYS)", { ...process.env, WWB_KEYS: keys });
           return { ok: true, observation: {} };
         }
-        case "mouse":
+        case "mouse": {
+          const x = Number(request.arguments.x);
+          const y = Number(request.arguments.y);
+          if (!Number.isInteger(x) || !Number.isInteger(y) || x < 0 || y < 0 || x > 10000 || y > 10000) {
+            return { ok: false, observation: {}, error: { code: "INVALID_COORDINATES", message: "Mouse coordinates are outside the supported range.", recoverable: false } };
+          }
+          const button = request.arguments.button === "right" ? "right" : "left";
+          const script = `
+Add-Type @'
+using System;
+using System.Runtime.InteropServices;
+public static class WWBMouse {
+ [DllImport("user32.dll")] public static extern bool SetCursorPos(int X, int Y);
+ [DllImport("user32.dll")] public static extern void mouse_event(uint flags, uint dx, uint dy, uint data, UIntPtr extraInfo);
+}
+'@
+[WWBMouse]::SetCursorPos([int]$env:WWB_X, [int]$env:WWB_Y) | Out-Null
+$down = if($env:WWB_BUTTON -eq 'right'){0x0008}else{0x0002}
+$up = if($env:WWB_BUTTON -eq 'right'){0x0010}else{0x0004}
+[WWBMouse]::mouse_event($down,0,0,0,[UIntPtr]::Zero)
+[WWBMouse]::mouse_event($up,0,0,0,[UIntPtr]::Zero)
+`;
+          await powershell(script, { ...process.env, WWB_X: String(x), WWB_Y: String(y), WWB_BUTTON: button });
+          return { ok: true, observation: {} };
+        }
         case "file-dialog":
-        case "print":
-          return { ok: false, observation: {}, error: { code: "NOT_IMPLEMENTED", message: `Native operation '${request.operation}' requires a dedicated bounded adapter implementation.`, recoverable: true } };
+          return { ok: false, observation: {}, error: { code: "NOT_IMPLEMENTED", message: "File dialog automation requires a dialog-specific UI Automation adapter.", recoverable: true } };
+        case "print": {
+          const printPath = boundedText(request.arguments.path, 2048);
+          if (!printPath) return { ok: false, observation: {}, error: { code: "MISSING_PATH", message: "print requires a file path.", recoverable: false } };
+          await powershell("Start-Process -FilePath $env:WWB_PRINT_PATH -Verb Print", { ...process.env, WWB_PRINT_PATH: printPath });
+          return { ok: true, observation: {} };
+        }
       }
     } catch (error) {
       return { ok: false, observation: {}, error: { code: "NATIVE_EXECUTION_FAILED", message: error instanceof Error ? error.message : String(error), recoverable: true } };
