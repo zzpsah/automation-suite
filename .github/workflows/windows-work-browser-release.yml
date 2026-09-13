@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
     inputs:
       release_tag:
-        description: 'Existing release tag, e.g. browser-v0.1.0'
+        description: 'Existing release tag, e.g. browser-v0.6.0'
         required: true
         type: string
 
@@ -21,42 +21,44 @@ concurrency:
 jobs:
   package-and-publish:
     runs-on: windows-latest
-    timeout-minutes: 40
+    timeout-minutes: 45
     env:
       PRODUCT_ROOT: browser-automation/windows-work-browser
     steps:
-      - name: Checkout exact release ref
+      - name: Resolve release ref
+        id: ref
+        shell: pwsh
+        run: |
+          $tag = if ('${{ github.event_name }}' -eq 'workflow_dispatch') { '${{ inputs.release_tag }}' } else { '${{ github.ref_name }}' }
+          if (-not $tag) { throw 'Release tag is required.' }
+          "tag=$tag" | Out-File $env:GITHUB_OUTPUT -Append
+
+      - name: Checkout release ref
         uses: actions/checkout@v4
         with:
+          ref: ${{ steps.ref.outputs.tag }}
           fetch-depth: 0
 
       - name: Install Node
         uses: actions/setup-node@v4
         with:
           node-version: 24
-          cache: npm
-          cache-dependency-path: browser-automation/windows-work-browser/package-lock.json
 
       - name: Build and test agent/runtime
         shell: pwsh
         working-directory: browser-automation/windows-work-browser
         run: |
           $ErrorActionPreference = 'Stop'
-          npm ci --ignore-scripts
+          npm install --ignore-scripts --no-audit --no-fund
           npm run typecheck
           npm run build
           npm test
-          node scripts/generate-sbom.mjs
+          npm run sbom
 
       - name: Fail closed unless readiness manifest is fully green
         shell: pwsh
-        run: |
-          $ErrorActionPreference = 'Stop'
-          $readiness = Get-Content -Raw "$env:PRODUCT_ROOT/docs/RELEASE-READINESS.json" | ConvertFrom-Json
-          if ($readiness.releaseReady -ne $true) {
-            $open = $readiness.verified.psobject.Properties | Where-Object { $_.Value -ne $true } | ForEach-Object { $_.Name }
-            throw "Release readiness is false. Open gates: $($open -join ', ')"
-          }
+        working-directory: browser-automation/windows-work-browser
+        run: npm run release:preflight
 
       - name: Verify pinned upstream artifact
         shell: pwsh
@@ -83,14 +85,17 @@ jobs:
           New-Item -ItemType Directory -Force -Path $root | Out-Null
           Copy-Item $env:BROWSEROS_INSTALLER (Join-Path $root 'BrowserOS-Windows-x64-installer.exe')
           Copy-Item "$env:PRODUCT_ROOT/dist" (Join-Path $root 'agent-runtime') -Recurse
+          Copy-Item "$env:PRODUCT_ROOT/extension" (Join-Path $root 'extension') -Recurse
           Copy-Item "$env:PRODUCT_ROOT/sbom.cdx.json" (Join-Path $root 'sbom.cdx.json')
           Copy-Item "$env:PRODUCT_ROOT/docs" (Join-Path $root 'docs') -Recurse
           Copy-Item "$env:PRODUCT_ROOT/runtime" (Join-Path $root 'runtime-contracts') -Recurse
           Copy-Item "$env:PRODUCT_ROOT/agent" (Join-Path $root 'agent-contracts') -Recurse
           Copy-Item "$env:PRODUCT_ROOT/upstream/OPTION-A-RELEASE.json" (Join-Path $root 'OPTION-A-RELEASE.json')
-          $hashes = Get-ChildItem -File -Recurse $root | ForEach-Object { [ordered]@{ file = $_.FullName.Substring($root.Length + 1); sha256 = (Get-FileHash -Algorithm SHA256 $_.FullName).Hash.ToLowerInvariant() } }
+          $hashes = Get-ChildItem -File -Recurse $root | ForEach-Object {
+            [ordered]@{ file = $_.FullName.Substring($root.Length + 1); sha256 = (Get-FileHash -Algorithm SHA256 $_.FullName).Hash.ToLowerInvariant() }
+          }
           $hashes | ConvertTo-Json -Depth 4 | Set-Content (Join-Path $root 'SHA256SUMS.json')
-          $zip = Join-Path $env:RUNNER_TEMP "Windows-Work-Browser-$env:GITHUB_REF_NAME.zip"
+          $zip = Join-Path $env:RUNNER_TEMP "Windows-Work-Browser-$($env:GITHUB_REF_NAME).zip"
           Compress-Archive -Path $root -DestinationPath $zip -Force
           "RELEASE_BUNDLE=$zip" | Out-File $env:GITHUB_ENV -Append
 
@@ -98,7 +103,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: windows-work-browser-release-bundle
-          path: ${{ runner.temp }}/Windows-Work-Browser-*.zip
+          path: ${{ env.RELEASE_BUNDLE }}
           if-no-files-found: error
 
       - name: Publish GitHub Release
@@ -107,6 +112,5 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           $ErrorActionPreference = 'Stop'
-          $tag = if ($env:GITHUB_REF_NAME) { $env:GITHUB_REF_NAME } else { '${{ inputs.release_tag }}' }
-          if (-not $tag -or $tag -eq '') { throw 'Release tag is required.' }
+          $tag = '${{ steps.ref.outputs.tag }}'
           gh release create $tag $env:RELEASE_BUNDLE --title "Windows Work Browser $tag" --generate-notes
