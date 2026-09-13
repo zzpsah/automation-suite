@@ -9,12 +9,20 @@
     "agentExtension": "v0.0.156.0",
     "agentExtensionSha256": "d1074b2d4ec15b9a6305090be5006222a150d336a7b0ebebfcdb414d7b9847cf"
   },
+  "evidence": {
+    "windowsOptionARun": 118,
+    "windowsOptionARunId": 34761164626,
+    "windowsEvidenceArtifactId": 10319430419,
+    "windowsEvidenceDigest": "sha256:496a0b89ef1acb6da4d853d5f3840fc4616cf64857112de613b8d0f1c56e2077",
+    "agentCiRun": 41,
+    "agentCiRunId": 34760818099
+  },
   "gates": {
     "contractSecurityCi": true,
     "agentTypecheckBuildRuntime": true,
     "windowsArtifactIntegrityInstallLaunch": true,
     "browserSemanticE2E": false,
-    "nativeWindowsE2E": false,
+    "nativeWindowsE2E": true,
     "mcpE2E": false,
     "extractionE2E": false,
     "filesE2E": false,
@@ -29,5 +37,9 @@
     "finalWindowsAcceptance": false
   },
   "promotionRule": "releaseReady becomes true only after every mandatory gate is proven by retained executable evidence.",
+  "notes": [
+    "Windows evidence artifact confirms browser launch/CDP and native Windows executor smoke; agent overlay is integrity-verified but not force-installed by CI.",
+    "Browser semantic task E2E remains separate from launch/CDP evidence and is not marked complete from this run alone."
+  ],
   "lastUpdated": "2026-09-13"
 }
