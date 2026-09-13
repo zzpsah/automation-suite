@@ -1,6 +1,12 @@
 name: Telegram Input Delivery Watchdog
 
 on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/telegram-input-delivery-watchdog-v2.yml'
+      - 'global-automation/scripts/telegram/**'
+      - 'global-automation/scripts/document/**'
   schedule:
     - cron: '*/5 * * * *'
   workflow_dispatch:
