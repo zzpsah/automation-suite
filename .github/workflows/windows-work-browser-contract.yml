@@ -14,6 +14,10 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: windows-work-browser-contract-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   contract:
     runs-on: ubuntu-latest
@@ -27,7 +31,7 @@ jobs:
           root='browser-automation/windows-work-browser'
           files=(
             README.md BUILD-STATUS.md
-            docs/BUILD-PLAN.md docs/RELEASE-GATES.md docs/THIRD-PARTY-NOTICES.md docs/IMPLEMENTATION-MATRIX.md
+            docs/BUILD-PLAN.md docs/RELEASE-GATES.md docs/THIRD-PARTY-NOTICES.md docs/IMPLEMENTATION-MATRIX.md docs/FINAL-RELEASE-PACKAGE.md
             upstream/BROWSEROS-PIN.md upstream/REUSE-MATRIX.md upstream/BUILD-GATE.md upstream/OPTION-A-RELEASE.json
             agent/action-contract.ts agent/policy-engine.ts agent/evidence-schema.ts
             agent/executor-contract.ts agent/verification-contract.ts
@@ -35,6 +39,7 @@ jobs:
             agent/native-executor-contract.ts agent/mcp-gateway-contract.ts
             agent/extraction-contract.ts agent/permission-contract.ts
             agent/credential-vault-contract.ts agent/update-contract.ts
+            agent/browser-control-contract.ts
             runtime/browser-control.ts runtime/desktop-control.ts runtime/capability-services.ts runtime/workspace-contract.ts runtime/extraction-planner.ts
           )
           for f in "${files[@]}"; do test -f "$root/$f" || { echo "Missing $root/$f"; exit 1; }; done
@@ -53,9 +58,9 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          grep -q '8f5d36bc16f57115aeeff34baf4ad6aa964d509c' browser-automation/windows-work-browser/upstream/BROWSEROS-PIN.md
-          grep -q '7765002ac88040aedc781be89afe68475a9d6c88' browser-automation/windows-work-browser/upstream/BROWSEROS-PIN.md
-          grep -q 'v0.50.3' browser-automation/windows-work-browser/upstream/OPTION-A-RELEASE.json
+          grep -q '8f5d36bc16f57115aeeff34baf4ad6aa964d509c' "$root/upstream/BROWSEROS-PIN.md"
+          grep -q '7765002ac88040aedc781be89afe68475a9d6c88' "$root/upstream/BROWSEROS-PIN.md"
+          grep -q 'v0.50.3' "$root/upstream/OPTION-A-RELEASE.json"
 
       - name: Validate security invariants
         shell: bash
@@ -65,4 +70,10 @@ jobs:
           grep -q 'requiresExplicitApproval' browser-automation/windows-work-browser/agent/permission-contract.ts
           grep -q 'CredentialVault' browser-automation/windows-work-browser/agent/credential-vault-contract.ts
           grep -q 'assertSafeEvidence' browser-automation/windows-work-browser/agent/evidence-schema.ts
-          grep -q 'denied' browser-automation/windows-work-browser/agent/action-contract.ts
+          grep -q 'use-credential' browser-automation/windows-work-browser/agent/credential-vault-contract.ts
+
+      - name: Validate release-state truthfulness
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -q 'NOT YET RELEASED\|NOT YET RELEASE' browser-automation/windows-work-browser/docs/FINAL-RELEASE-PACKAGE.md
