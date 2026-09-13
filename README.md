@@ -73,6 +73,10 @@ The normal path is event-driven. The existing 5-minute schedules remain availabl
 
 The watchdog runs every 5 minutes through [`global-document-pipeline-health.yml`](.github/workflows/global-document-pipeline-health.yml) and fails the workflow when a hard connection/stall issue is detected. It never creates fake documents and never modifies OCR behavior.
 
+### Telegram input delivery watchdog
+
+[`telegram-input-delivery-watchdog-v2.yml`](.github/workflows/telegram-input-delivery-watchdog-v2.yml) independently checks the UMVInputBot webhook through Telegram `getWebhookInfo` every 5 minutes and on relevant Telegram-pipeline changes. It verifies the canonical `telegram-input-v2` webhook URL and current Telegram webhook errors. When the webhook URL is wrong or Telegram reports a webhook error, it automatically re-registers the same configured webhook and performs a final verification. Pending Telegram updates are surfaced as a warning rather than treated as a dropped update; Telegram remains responsible for delivering queued webhook updates.
+
 See the full operating flow and thresholds in [School Document Pipeline — Production Flow & Operations](docs/school-document-pipeline.md).
 
 ### Production links
@@ -95,6 +99,7 @@ See the full operating flow and thresholds in [School Document Pipeline — Prod
 - [`global-document-publication.yml`](.github/workflows/global-document-publication.yml)
 - [`global-document-pipeline-health.yml`](.github/workflows/global-document-pipeline-health.yml)
 - [`global-system-health.yml`](.github/workflows/global-system-health.yml)
+- [`telegram-input-delivery-watchdog-v2.yml`](.github/workflows/telegram-input-delivery-watchdog-v2.yml)
 
 ## Important architecture rules
 
