@@ -8,6 +8,7 @@ on:
       - 'browser-automation/windows-work-browser/scripts/**'
       - 'browser-automation/windows-work-browser/package.json'
       - 'browser-automation/windows-work-browser/tsconfig.json'
+      - 'browser-automation/windows-work-browser/package-lock.json'
       - '.github/workflows/windows-work-browser-agent-ci.yml'
   pull_request:
     paths:
@@ -16,6 +17,7 @@ on:
       - 'browser-automation/windows-work-browser/scripts/**'
       - 'browser-automation/windows-work-browser/package.json'
       - 'browser-automation/windows-work-browser/tsconfig.json'
+      - 'browser-automation/windows-work-browser/package-lock.json'
       - '.github/workflows/windows-work-browser-agent-ci.yml'
   workflow_dispatch:
 
@@ -39,9 +41,9 @@ jobs:
         with:
           node-version: 24
           cache: npm
-          cache-dependency-path: browser-automation/windows-work-browser/package.json
+          cache-dependency-path: browser-automation/windows-work-browser/package-lock.json
       - name: Install dependencies
-        run: npm install --ignore-scripts
+        run: npm ci --ignore-scripts
       - name: Typecheck
         run: npm run typecheck
       - name: Build
