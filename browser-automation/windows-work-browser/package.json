@@ -5,8 +5,9 @@
   "type": "module",
   "engines": { "node": ">=20" },
   "scripts": {
+    "build": "tsc",
     "typecheck": "tsc --noEmit",
-    "test": "node --test dist-tests/*.test.js"
+    "test": "npm run build && node --test dist/runtime/*.test.js"
   },
   "devDependencies": {
     "typescript": "^5.8.3"
