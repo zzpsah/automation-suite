@@ -16,7 +16,7 @@ Last verified: 2026-09-13
 - External/production mutations require explicit authorization.
 
 ## Last automated change
-- Commit: 26a02d5b0758168888d75cf3f66103c09fe7762a
-- Change: chore: onboard DevOS portable project memory
+- Commit: 371e40898b4f7282a92559c863fe607ba9a09a55
+- Change: feat: remove human publication gate and use autonomous safety checks
 - Date: 2026-09-13
 - Durable context synchronization: completed
