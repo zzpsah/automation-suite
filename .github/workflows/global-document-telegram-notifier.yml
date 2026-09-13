@@ -32,11 +32,14 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y libreoffice
       - name: Install Python dependencies
-        run: python -m pip install --disable-pip-version-check requests boto3 pypdf Pillow
+        run: python -m pip install --disable-pip-version-check requests boto3 pypdf Pillow pytest
       - name: Run file delivery regression tests
         env:
           PYTHONPATH: global-automation/scripts/document
-        run: python -m unittest discover -s global-automation/scripts/document -p 'test_*.py'
+          SUPABASE_URL: https://example.invalid
+          SUPABASE_SERVICE_ROLE_KEY: test-only
+          TELEGRAM_OUTPUT_BOT_TOKEN: test-only
+        run: python -m pytest -q global-automation/scripts/document/test_*.py
       - name: Send published document notifications
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
