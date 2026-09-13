@@ -19,6 +19,7 @@
                     <ColumnDefinition Width="*" />
                     <ColumnDefinition Width="Auto" />
                     <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="Auto" />
                 </Grid.ColumnDefinitions>
                 <Button x:Name="BackButton" Grid.Column="0" Width="38" Height="34" Margin="0,0,6,0" Content="←" Click="Back_Click" />
                 <Button x:Name="ForwardButton" Grid.Column="1" Width="38" Height="34" Margin="0,0,6,0" Content="→" Click="Forward_Click" />
@@ -27,6 +28,7 @@
                 <TextBox x:Name="AddressBox" Grid.Column="4" Height="34" VerticalContentAlignment="Center" Padding="10,0" FontSize="14" KeyDown="AddressBox_KeyDown" />
                 <Button Grid.Column="5" Width="58" Height="34" Margin="8,0,0,0" Content="Go" Click="Go_Click" />
                 <Button Grid.Column="6" Width="72" Height="34" Margin="8,0,0,0" Content="+ Tab" Click="NewTab_Click" />
+                <Button Grid.Column="7" Width="92" Height="34" Margin="8,0,0,0" Content="Test Portal" Click="TestPortal_Click" />
             </Grid>
 
             <Border Margin="10,0,10,8" Padding="8" BorderThickness="1" BorderBrush="#D6D6D6" CornerRadius="6">
@@ -42,7 +44,7 @@
                              Padding="10,0"
                              VerticalContentAlignment="Center"
                              FontSize="14"
-                             ToolTip="DEVOS command. Ctrl+Space focuses here. Examples: read #status, click #next, type hello into #name, wait for #result, submit #save" />
+                             ToolTip="DEVOS command. Ctrl+Space focuses here. Use semicolons for bounded sequences, e.g. click #next; wait for #students; read #status" />
                     <Button x:Name="RunCommandButton"
                             Grid.Column="1"
                             Width="88"
@@ -52,7 +54,7 @@
                             Click="RunCommand_Click" />
                     <TextBlock x:Name="CommandStatus"
                                Grid.Column="2"
-                               MinWidth="170"
+                               MinWidth="190"
                                Margin="12,0,0,0"
                                VerticalAlignment="Center"
                                Text="Ready" />
