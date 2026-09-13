@@ -1,7 +1,8 @@
 import { execFileSync } from "node:child_process";
 import { writeFileSync } from "node:fs";
 
-const raw = execFileSync("npm", ["ls", "--all", "--json", "--omit=optional"], { encoding: "utf8" });
+const npmCommand = process.platform === "win32" ? "npm.cmd" : "npm";
+const raw = execFileSync(npmCommand, ["ls", "--all", "--json", "--omit=optional"], { encoding: "utf8" });
 const tree = JSON.parse(raw);
 const components = [];
 const seen = new Set();
