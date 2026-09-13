@@ -1,4 +1,5 @@
 using Devos.WorkBrowser.Browser;
+using Xunit;
 
 namespace Devos.WorkBrowser.Tests;
 
