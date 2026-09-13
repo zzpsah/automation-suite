@@ -32,7 +32,7 @@ jobs:
         id: tag
         shell: pwsh
         run: |
-          $tag = if ('${{ github.event_name }}' -eq 'workflow_dispatch') { '${{ inputs.release_tag }}' } else { '${{ github.ref_name }}' }
+          $tag = if ('${{ github.event_name }}' -eq 'workflow_dispatch') { '${{ inputs.release_tag }}' } else { '${{ github.ref_name }}' -replace '^release/', '' }
           if ($tag -notmatch '^browser-v[0-9]+\.[0-9]+\.[0-9]+(-preview\.[0-9]+)?$') { throw "Invalid developer release tag: $tag" }
           "tag=$tag" | Out-File $env:GITHUB_OUTPUT -Append
 
