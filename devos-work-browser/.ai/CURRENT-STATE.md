@@ -1,6 +1,6 @@
 # Current State
 
-Status: DEVOS Work Browser core v0.1 is code-complete and CI/package/startup-smoke verified on `feat/devos-work-browser-core`.
+Status: DEVOS Work Browser core v0.1 is code-complete and machine-verified end to end on `feat/devos-work-browser-core`.
 
 ## Verified core evidence
 - F0 custom Windows shell uses .NET 8 WPF + Microsoft WebView2.
@@ -14,22 +14,24 @@ Status: DEVOS Work Browser core v0.1 is code-complete and CI/package/startup-smo
 - The browser shell exposes a DEVOS command bar, `Ctrl+Space` focus, visible status/output and approval prompts.
 - The packaged **Test Portal** fixture contains 100 synthetic student records.
 - `process synthetic portal` runs a real adapter-driven workflow: open/read each record, checkpoint after every record, resume from the saved record, and export JSON + CSV.
-- Acceptance regression interrupts the synthetic workflow after record 47 and verifies a fresh workflow processes records 48-100 only, preserves the first 47 checkpointed records, and produces 100-record JSON/CSV exports.
+- The packaged EXE now exposes an isolated `--self-test` mode using a temporary DEVOS state/profile root so automated acceptance does not depend on or mutate ordinary browser task state.
 
-## Latest Windows verification
-- Final CI run `34778226824` on head `c3de7f7c9a39ebc1b3db466638cb64e6aecea7ad` completed successfully.
+## End-to-end packaged browser acceptance
+CI run `34790342697` on head `4b6539bc43c247e323fd141b57735c71df1328de` completed successfully.
 - Restore: success.
 - Build: success.
-- Tests: success, including active-task persistence, bounded multi-step planning, and synthetic portal 47 -> 48 recovery/export.
+- Unit/regression tests: success.
 - Self-contained `win-x64` publish: success.
 - Packaged synthetic portal presence check: success.
-- Packaged `DEVOS.WorkBrowser.exe` launch smoke: success.
+- Packaged end-to-end browser self-test: success.
+- The self-test launched the packaged WPF/WebView2 application, loaded the bundled portal, verified real adapter click/read behavior, processed records 1-47, persisted the 47→48 checkpoint boundary, resumed with a fresh workflow instance at record 48, completed through record 100, and verified 100-record JSON + CSV exports.
+- Normal packaged EXE startup smoke: success.
 - Artifact upload: success.
-- Artifact: `DEVOS-Work-Browser-win-x64`, artifact id `10323319172`, size `72301230` bytes.
-- Artifact digest: `sha256:3fb9563e3b5a54692b58d7aab00f127d0a6ce724938401353e6923a1ad4c8146`.
+- Artifact: `DEVOS-Work-Browser-win-x64`, artifact id `10328625708`, size `72304354` bytes.
+- Artifact digest: `sha256:9411ada2affa0ca31dee1683b41ccd6405182ba1041dc1de63773b97220fc2ed`.
 
 ## Remaining acceptance boundary
-The material core implementation is complete. CI proves compilation, regressions, packaging, packaged fixture presence and non-immediate packaged-app startup failure. It does not prove visual correctness or human interaction quality. Before merge/release, perform `ACCEPTANCE.md` on a real interactive Windows desktop.
+No material machine-verifiable core behavior remains untested in the v0.1 scope. The only remaining gate is human visual/interaction acceptance on a real Windows desktop using `ACCEPTANCE.md` (layout quality, perceived responsiveness, and hands-on UX). That gate must not be represented as completed by CI.
 
 ## Safety / scope
 - `main` remains untouched by this work.
