@@ -2,7 +2,17 @@ chrome.runtime.onInstalled.addListener(() => {
   chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true }).catch(() => {});
 });
 
-chrome.runtime.onMessage.addListener(async (message, sender) => {
+async function submitTask(goal, tabId) {
+  const response = await fetch('http://127.0.0.1:17321/tasks', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ goal, tabId, source: 'extension' }),
+  });
+  if (!response.ok) throw new Error(`Local agent returned HTTP ${response.status}.`);
+  return response.json();
+}
+
+chrome.runtime.onMessage.addListener((message, sender) => {
   if (message?.type !== 'WWB_TASK') return;
 
   const goal = typeof message.goal === 'string' ? message.goal.trim() : '';
@@ -11,11 +21,10 @@ chrome.runtime.onMessage.addListener(async (message, sender) => {
   const tabId = Number.isInteger(message.tabId) ? message.tabId : sender.tab?.id;
   if (!tabId) return;
 
-  // The extension only submits user intent. The agent runtime consumes it
-  // through the declared AutomationAction/MCP gate; there is no arbitrary
-  // shell, PowerShell, AHK, or script execution path here.
-  chrome.runtime.sendMessage({
-    type: 'WWB_TASK_ACCEPTED',
-    task: { goal, tabId, receivedAt: new Date().toISOString() },
-  }).catch(() => {});
+  submitTask(goal, tabId)
+    .then((task) => chrome.runtime.sendMessage({ type: 'WWB_TASK_ACCEPTED', task }).catch(() => {}))
+    .catch((error) => chrome.runtime.sendMessage({
+      type: 'WWB_TASK_FAILED',
+      error: error instanceof Error ? error.message : String(error),
+    }).catch(() => {}));
 });
