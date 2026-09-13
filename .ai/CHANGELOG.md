@@ -1,3 +1,10 @@
+## 2026-09-14 — Add durable local scan session storage
+- Commit: ae945d08d0c2b9c05adb165fa90454c9f986fc2f
+- Author: PRASHANT KUMAR SAH
+- Classification: meaningful
+- Changed files:
+- `android-document-scanner/app/src/main/java/com/devos/docscanner/ScanSessionStore.kt`
+
 ## 2026-09-14 — Add secure PDF sharing provider
 - Commit: 8ed3e77afcf2f016e31797e7052728b460176f29
 - Author: PRASHANT KUMAR SAH

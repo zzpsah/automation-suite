@@ -24,7 +24,7 @@ Last verified: 2026-09-14
 - External/production mutations require explicit authorization.
 
 ## Last automated change
-- Commit: 8ed3e77afcf2f016e31797e7052728b460176f29
-- Change: Add secure PDF sharing provider
+- Commit: ae945d08d0c2b9c05adb165fa90454c9f986fc2f
+- Change: Add durable local scan session storage
 - Date: 2026-09-14
 - Durable context synchronization: completed
