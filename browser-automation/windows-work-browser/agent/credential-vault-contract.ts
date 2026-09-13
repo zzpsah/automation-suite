@@ -17,7 +17,11 @@ export interface CredentialVault {
 }
 
 /**
+ * The only model-facing credential capability is the opaque `use-credential`
+ * operation: raw passwords/tokens are never returned to the AI, persisted in
+ * task state, or written to evidence logs.
+ *
  * Implementations must use Windows DPAPI/Credential Manager or an equivalent
- * OS-backed secret store. Raw passwords/tokens are never returned to the AI,
- * persisted in task state, or written to evidence logs.
+ * OS-backed secret store. `use-credential` must not expose secret material.
  */
+export const CREDENTIAL_CAPABILITY = "use-credential" as const;
