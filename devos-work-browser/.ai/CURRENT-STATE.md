@@ -1,6 +1,6 @@
 # Current State
 
-Status: DEVOS Work Browser core is code-complete and CI/package-verified on `feat/devos-work-browser-core`.
+Status: DEVOS Work Browser core is code-complete and CI/package/startup-smoke verified on `feat/devos-work-browser-core`.
 
 ## Verified core evidence
 - F0 custom Windows shell uses .NET 8 WPF + Microsoft WebView2.
@@ -11,21 +11,23 @@ Status: DEVOS Work Browser core is code-complete and CI/package-verified on `fea
 - F5 checkpoint store + task runner provide resume semantics.
 - F6 constrained human-language planner emits structured browser actions.
 - F7 approval policy requires explicit approval for upload/submit/delete/send operations.
+- The browser shell now exposes a DEVOS command bar, `Ctrl+Space` focus, visible status/output, and approval prompts for committing commands before execution in the active tab.
 - Recovery regression covers a 100-step workload resumed from checkpoint 47 and completes steps 48-100 without replaying earlier work.
 - `test-portal/index.html` provides 100 synthetic student records with pagination/detail interaction.
 
-## Windows verification
-- CI run `34776620603` on head `f99c46214635d87d1bc86cf1beddad3ec7f04895` completed successfully.
+## Latest Windows verification
+- CI run `34777351569` on head `e239236262280c4047b0b2165ceade59a8478fcc` completed successfully.
 - Restore: success.
-- Build: success with zero errors.
-- Tests: 14/14 passed.
+- Build: success.
+- Tests: success.
 - Self-contained `win-x64` publish: success.
+- Packaged `DEVOS.WorkBrowser.exe` launch smoke: success; process remained alive through the 8-second startup window and was then stopped by CI.
 - Artifact upload: success.
-- Artifact: `DEVOS-Work-Browser-win-x64`, artifact id `10323352493`, size `72285602` bytes.
-- Artifact digest: `sha256:79005bbea8b14bb2eee5f7d801bf773f29f10e678feef8cb6541bc1b98adbbfb`.
+- Artifact: `DEVOS-Work-Browser-win-x64`, artifact id `10324247109`, size `72287708` bytes.
+- Artifact digest: `sha256:3a0dff0e00a0dae858c2fc05f98d67e9df65fde6ab2d059f6709ae3b54cdb7b5`.
 
 ## Remaining acceptance boundary
-CI proves compilation, unit/regression behavior and packaging. It does not replace an interactive Windows desktop acceptance pass. Before release/merge, manually verify launch, browsing, multiple tabs, session restore, downloads and controlled automation against the synthetic portal.
+CI now proves compilation, unit/regression behavior, packaging, and non-immediate packaged-app startup failure. It still does not prove visual correctness or human interaction quality. Before merge/release, perform the real-desktop checklist in `ACCEPTANCE.md`, including navigation, tabs, session restore, downloads, command-bar execution, approval behavior, and same-browser control against the synthetic portal.
 
 ## Safety / scope
 - `main` remains untouched by this work.
