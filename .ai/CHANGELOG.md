@@ -1,3 +1,10 @@
+## 2026-09-13 — fix document processor offline concurrency test
+- Commit: 83e2287b3a5b075f49c2f8e812f6e9315f71614e
+- Author: PRASHANT KUMAR SAH
+- Classification: meaningful
+- Changed files:
+- `global-automation/scripts/document/test_govdoc_resilience.py`
+
 ## 2026-09-13 — fix notifier CI test environment and pytest execution
 - Commit: 44735cb1449084de0a05b7c1455830804876e1fc
 - Author: PRASHANT KUMAR SAH
