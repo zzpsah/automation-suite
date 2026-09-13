@@ -61,15 +61,26 @@ jobs:
           }
           "Signer: $($sig.SignerCertificate.Subject)"
 
-      - name: Install into isolated runner directory
+      - name: Install BrowserOS with bounded Chromium installer invocation
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
-          $installDir = Join-Path $env:RUNNER_TEMP 'windows-work-browser-install'
-          New-Item -ItemType Directory -Force -Path $installDir | Out-Null
-          $proc = Start-Process -FilePath $env:ARTIFACT_PATH -ArgumentList "/S", "/D=$installDir" -PassThru -Wait -WindowStyle Hidden
-          if ($proc.ExitCode -ne 0) { throw "Installer exited with code $($proc.ExitCode)" }
+          $proc = Start-Process -FilePath $env:ARTIFACT_PATH -ArgumentList '/silent', '/install', '--do-not-launch-chrome' -PassThru -WindowStyle Hidden
+          $completed = $proc.WaitForExit(90000)
+          if (-not $completed) {
+            try { Stop-Process -Id $proc.Id -Force -ErrorAction SilentlyContinue } catch {}
+            $installerLog = Join-Path $env:TEMP 'chromium_installer.log'
+            if (Test-Path $installerLog) { Get-Content $installerLog -Tail 200 }
+            throw 'BrowserOS installer did not exit within 90 seconds.'
+          }
+          if ($proc.ExitCode -ne 0) {
+            $installerLog = Join-Path $env:TEMP 'chromium_installer.log'
+            if (Test-Path $installerLog) { Get-Content $installerLog -Tail 200 }
+            throw "BrowserOS installer exited with code $($proc.ExitCode)"
+          }
+          $installDir = Join-Path $env:LOCALAPPDATA 'BrowserOS\Application'
           "INSTALL_DIR=$installDir" | Out-File -FilePath $env:GITHUB_ENV -Append
+          if (-not (Test-Path $installDir)) { throw "Expected BrowserOS install directory was not found: $installDir" }
 
       - name: Locate and launch installed browser
         shell: pwsh
@@ -79,15 +90,18 @@ jobs:
           New-Item -ItemType Directory -Force -Path $evidence | Out-Null
           $candidates = @(
             (Join-Path $env:INSTALL_DIR 'chrome.exe'),
-            (Join-Path $env:INSTALL_DIR 'BrowserOS.exe'),
-            (Join-Path $env:INSTALL_DIR 'Application\chrome.exe'),
-            (Join-Path $env:INSTALL_DIR 'Application\BrowserOS.exe')
+            (Join-Path $env:INSTALL_DIR 'BrowserOS.exe')
           )
           $browser = $candidates | Where-Object { Test-Path $_ } | Select-Object -First 1
-          if (-not $browser) { throw "Installed browser executable was not found under $env:INSTALL_DIR" }
+          if (-not $browser) {
+            Get-ChildItem -Path $env:INSTALL_DIR -Filter '*.exe' -Recurse -ErrorAction SilentlyContinue | Select-Object -ExpandProperty FullName | Set-Content (Join-Path $evidence 'installed-executables.txt')
+            throw "Installed BrowserOS executable was not found under $env:INSTALL_DIR"
+          }
           $hash = (Get-FileHash -Algorithm SHA256 -Path $browser).Hash.ToLowerInvariant()
-          $proc = Start-Process -FilePath $browser -ArgumentList '--new-window', 'about:blank' -PassThru
-          Start-Sleep -Seconds 5
+          $profile = Join-Path $env:RUNNER_TEMP 'windows-work-browser-profile'
+          New-Item -ItemType Directory -Force -Path $profile | Out-Null
+          $proc = Start-Process -FilePath $browser -ArgumentList '--new-window', 'about:blank', "--user-data-dir=$profile", '--no-first-run', '--no-default-browser-check' -PassThru
+          Start-Sleep -Seconds 8
           $running = -not $proc.HasExited
           if ($running) { Stop-Process -Id $proc.Id -Force }
           [ordered]@{
@@ -95,11 +109,12 @@ jobs:
             artifact_sha256 = $env:EXPECTED_SHA256
             installed_browser = $browser
             installed_browser_sha256 = $hash
+            install_dir = $env:INSTALL_DIR
             launched = $true
             observed_running = $running
             process_id = $proc.Id
           } | ConvertTo-Json | Set-Content (Join-Path $evidence 'browser-launch.json')
-          if (-not $running) { throw 'Installed browser did not remain running during launch smoke test.' }
+          if (-not $running) { throw 'Installed BrowserOS did not remain running during launch smoke test.' }
 
       - name: Upload verification evidence
         if: always()
