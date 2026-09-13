@@ -16,7 +16,7 @@ Last verified: 2026-09-13
 - External/production mutations require explicit authorization.
 
 ## Last automated change
-- Commit: 6ced64f7ed331b1641024bf77d74d75866419345
-- Change: release: school document pipeline v1.0.0 final e2e verification
+- Commit: ecf570a312c1755a027fda0653714681be26de6d
+- Change: feat: add Telegram input delivery watchdog
 - Date: 2026-09-13
 - Durable context synchronization: completed
