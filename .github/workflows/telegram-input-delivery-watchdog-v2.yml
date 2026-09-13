@@ -12,7 +12,7 @@ on:
   workflow_dispatch:
 
 concurrency:
-  group: telegram-input-delivery-watchdog
+  group: telegram-input-delivery-watchdog-v2
   cancel-in-progress: true
 
 jobs:
