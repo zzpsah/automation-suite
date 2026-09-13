@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { mkdtemp, readFile, rm } from "node:fs/promises";
+import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import * as path from "node:path";
 import { LocalFileService } from "./local-file-service";
@@ -30,12 +30,12 @@ test("MCP gateway maps only declared capabilities and preserves approval", async
   });
   assert.equal(action.capability, "browser.navigate");
   assert.equal(action.requiresApproval, false);
-  await assert.rejects(() => gateway.authorize({
+
+  const outbound = await gateway.authorize({
     requestId: "req-2",
     workspaceId: "ws-1",
     capability: "communication.send",
     arguments: { target: "chat-1", risk: "write" },
-  }), { message: /not allowed|approval/i });
+  });
+  assert.equal(outbound.requiresApproval, true);
 });
-
-void readFile;
