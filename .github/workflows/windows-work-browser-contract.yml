@@ -27,17 +27,22 @@ jobs:
           root='browser-automation/windows-work-browser'
           files=(
             README.md BUILD-STATUS.md
-            docs/BUILD-PLAN.md docs/RELEASE-GATES.md docs/THIRD-PARTY-NOTICES.md docs/IMPLEMENTATION-MATRIX.md
+            docs/BUILD-PLAN.md docs/RELEASE-GATES.md docs/THIRD-PARTY-NOTICES.md docs/IMPLEMENTATION-MATRIX.md docs/FINAL-RELEASE-PACKAGE.md docs/RELEASE-CHECKLIST.md docs/RELEASE-READINESS.json
             upstream/BROWSEROS-PIN.md upstream/REUSE-MATRIX.md upstream/BUILD-GATE.md upstream/OPTION-A-RELEASE.json
             agent/action-contract.ts agent/policy-engine.ts agent/evidence-schema.ts
-            agent/executor-contract.ts agent/verification-contract.ts
-            agent/task-contract.ts agent/task-runner.ts
-            agent/native-executor-contract.ts agent/mcp-gateway-contract.ts
-            agent/extraction-contract.ts agent/permission-contract.ts
+            agent/executor-contract.ts agent/verification-contract.ts agent/task-contract.ts agent/task-runner.ts
+            agent/native-executor-contract.ts agent/mcp-gateway-contract.ts agent/extraction-contract.ts agent/permission-contract.ts
             agent/credential-vault-contract.ts agent/update-contract.ts
             runtime/browser-control.ts runtime/desktop-control.ts runtime/capability-services.ts runtime/workspace-contract.ts runtime/extraction-planner.ts
+            extension/manifest.json extension/background.js extension/sidepanel.html extension/sidepanel.js extension/styles.css
           )
           for f in "${files[@]}"; do test -f "$root/$f" || { echo "Missing $root/$f"; exit 1; }; done
+
+      - name: Validate extension manifest
+        shell: bash
+        run: |
+          set -euo pipefail
+          node -e "const m=require('./browser-automation/windows-work-browser/extension/manifest.json'); if(m.manifest_version!==3) process.exit(1); if(!m.side_panel?.default_path) process.exit(1); console.log('Extension manifest OK')"
 
       - name: Reject arbitrary native execution from agent layer
         shell: bash
@@ -66,3 +71,17 @@ jobs:
           grep -q 'CredentialVault' browser-automation/windows-work-browser/agent/credential-vault-contract.ts
           grep -q 'assertSafeEvidence' browser-automation/windows-work-browser/agent/evidence-schema.ts
           grep -q 'requiresApproval' browser-automation/windows-work-browser/agent/action-contract.ts
+
+      - name: Validate fail-closed release readiness
+        shell: bash
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          const fs = require('fs');
+          const p = 'browser-automation/windows-work-browser/docs/RELEASE-READINESS.json';
+          const r = JSON.parse(fs.readFileSync(p, 'utf8'));
+          if (r.releaseReady !== false && r.releaseReady !== true) throw new Error('Invalid releaseReady value');
+          const values = Object.entries(r.verified);
+          if (values.some(([,v]) => typeof v !== 'boolean')) throw new Error('Readiness fields must be boolean');
+          console.log(`Release readiness manifest valid; releaseReady=${r.releaseReady}`);
+          NODE
