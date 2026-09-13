@@ -90,17 +90,21 @@ test("local release component integration suite", async () => {
 
     const workflow = new DeterministicWorkflowService(path.join(root, "checkpoints"));
     const events: string[] = [];
+    let releaseStepB: (() => void) | undefined;
+    const stepBGate = new Promise<void>((resolve) => { releaseStepB = resolve; });
     const created = await workflow.create("release-smoke", {
       steps: [
         { id: "step-a", run: async () => { events.push("a"); } },
-        { id: "step-b", run: async () => { await new Promise((resolve) => setTimeout(resolve, 25)); events.push("b"); } },
+        { id: "step-b", run: async () => { await stepBGate; events.push("b"); } },
       ],
     });
     const task = await workflow.run(created.id);
     for (let i = 0; i < 20 && events.length === 0; i += 1) await new Promise((resolve) => setTimeout(resolve, 10));
+    assert.deepEqual(events, ["a"]);
     await workflow.pause(task.taskId);
-    await new Promise((resolve) => setTimeout(resolve, 40));
+    await new Promise((resolve) => setTimeout(resolve, 20));
     await workflow.resume(task.taskId);
+    releaseStepB!();
     for (let i = 0; i < 30 && events.length < 2; i += 1) await new Promise((resolve) => setTimeout(resolve, 10));
     assert.deepEqual(events, ["a", "b"]);
 
