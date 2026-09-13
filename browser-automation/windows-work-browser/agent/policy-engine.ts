@@ -4,7 +4,7 @@ export type PolicyDecision =
   | { allowed: true; requiresApproval: boolean; reason: string }
   | { allowed: false; requiresApproval: true; reason: string };
 
-const DENIED_BY_DEFAULT: Risk[] = ["destructive", "sensitive"];
+const APPROVAL_REQUIRED_RISKS: Risk[] = ["destructive", "sensitive"];
 
 /**
  * Deterministic policy gate between an AI plan and an executor.
@@ -15,7 +15,7 @@ export function evaluateAction(action: AutomationAction): PolicyDecision {
     return { allowed: false, requiresApproval: true, reason: "Action id and reason are mandatory." };
   }
 
-  if (DENIED_BY_DEFAULT.includes(action.risk)) {
+  if (APPROVAL_REQUIRED_RISKS.includes(action.risk)) {
     return {
       allowed: true,
       requiresApproval: true,
@@ -23,7 +23,11 @@ export function evaluateAction(action: AutomationAction): PolicyDecision {
     };
   }
 
-  if (action.capability === "communication.send" || action.capability === "browser.upload" || action.capability === "desktop.print") {
+  if (
+    action.capability === "communication.send" ||
+    action.capability === "browser.upload" ||
+    action.capability === "desktop.print"
+  ) {
     return {
       allowed: true,
       requiresApproval: requiresApproval(action),
