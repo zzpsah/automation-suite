@@ -1,0 +1,28 @@
+{
+  "product": "windows-work-browser",
+  "channel": "option-a",
+  "releaseReady": false,
+  "verified": {
+    "browserArtifact": true,
+    "browserInstallLaunchCdp": true,
+    "agentTypecheckBuildRuntime": true,
+    "agentSbom": true,
+    "contractSecurityGate": true,
+    "playwrightSemanticWindowsE2E": false,
+    "mcpExternalInterop": false,
+    "nativeWindowsE2E": false,
+    "universalExtractionE2E": false,
+    "remoteFilesE2E": false,
+    "pdfImageE2E": false,
+    "communicationsE2E": false,
+    "workflowE2E": false,
+    "vaultRuntimeE2E": false,
+    "securityAdversarialE2E": false,
+    "licenseSourcePackage": false,
+    "updateRollbackE2E": false,
+    "signedInstaller": false,
+    "fullWindowsAcceptance": false
+  },
+  "promotionRule": "releaseReady may only become true when every mandatory verified field is true and the exact release commit has retained evidence.",
+  "updatedAt": "2026-09-13"
+}
