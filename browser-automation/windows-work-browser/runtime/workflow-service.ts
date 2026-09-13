@@ -10,9 +10,17 @@ export interface WorkflowDefinition {
   steps: WorkflowStep[];
 }
 
+type TaskRecord = {
+  workflowId: string;
+  input: unknown;
+  index: number;
+  status: "running" | "paused" | "cancelled" | "completed" | "failed";
+  executing: boolean;
+};
+
 export class DeterministicWorkflowService implements WorkflowService {
   private readonly workflows = new Map<string, WorkflowDefinition>();
-  private readonly tasks = new Map<string, { workflowId: string; input: unknown; index: number; status: "running" | "paused" | "cancelled" | "completed" | "failed" }>();
+  private readonly tasks = new Map<string, TaskRecord>();
   private readonly checkpoints: JsonCheckpointStore;
 
   constructor(checkpointRoot: string) {
@@ -31,16 +39,20 @@ export class DeterministicWorkflowService implements WorkflowService {
   async run(id: string, input?: unknown): Promise<{ taskId: string }> {
     if (!this.workflows.has(id)) throw new Error(`Unknown workflow: ${id}`);
     const taskId = `task-${Date.now()}-${this.tasks.size + 1}`;
-    this.tasks.set(taskId, { workflowId: id, input, index: 0, status: "running" });
+    this.tasks.set(taskId, { workflowId: id, input, index: 0, status: "running", executing: true });
     void this.execute(taskId);
     return { taskId };
   }
 
   private async execute(taskId: string): Promise<void> {
     const task = this.tasks.get(taskId);
-    if (!task) return;
+    if (!task || task.executing === false) return;
     const workflow = this.workflows.get(task.workflowId);
-    if (!workflow) { task.status = "failed"; return; }
+    if (!workflow) {
+      task.status = "failed";
+      task.executing = false;
+      return;
+    }
     try {
       const saved = await this.checkpoints.load(taskId);
       let index = saved?.nextIndex ?? task.index;
@@ -58,14 +70,17 @@ export class DeterministicWorkflowService implements WorkflowService {
         await this.checkpoints.save(taskId, index, outcomes);
       }
       task.status = "completed";
+      task.executing = false;
     } catch {
       task.status = "failed";
+      task.executing = false;
     }
   }
 
   async pause(taskId: string): Promise<void> {
     const task = this.tasks.get(taskId);
     if (!task) throw new Error(`Unknown task: ${taskId}`);
+    if (task.status === "completed" || task.status === "cancelled") return;
     task.status = "paused";
   }
 
@@ -74,7 +89,12 @@ export class DeterministicWorkflowService implements WorkflowService {
     if (!task) throw new Error(`Unknown task: ${taskId}`);
     if (task.status === "cancelled" || task.status === "completed") throw new Error(`Task ${taskId} cannot be resumed.`);
     task.status = "running";
-    void this.execute(taskId);
+    // If the original executor is still suspended inside a step, changing the
+    // state is sufficient; starting another executor would duplicate actions.
+    if (!task.executing) {
+      task.executing = true;
+      void this.execute(taskId);
+    }
   }
 
   async cancel(taskId: string): Promise<void> {
