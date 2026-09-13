@@ -1,0 +1,81 @@
+name: Telegram Input Delivery Watchdog
+
+on:
+  schedule:
+    - cron: '*/5 * * * *'
+  workflow_dispatch:
+
+concurrency:
+  group: telegram-input-delivery-watchdog
+  cancel-in-progress: true
+
+jobs:
+  watchdog:
+    name: Verify and recover UMVInputBot webhook delivery
+    runs-on: windows-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Inspect webhook health
+        id: inspect
+        shell: pwsh
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          WEBHOOK_URL: https://sxfnrwugsyfypqgfglzc.supabase.co/functions/v1/telegram-input-v2
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $info = Invoke-RestMethod -Method Get -Uri "https://api.telegram.org/bot$env:TELEGRAM_BOT_TOKEN/getWebhookInfo"
+          if (-not $info.ok) { throw 'Telegram getWebhookInfo failed.' }
+
+          $result = $info.result
+          Write-Host "Webhook URL: $($result.url)"
+          Write-Host "Pending updates: $($result.pending_update_count)"
+          Write-Host "Last error: $($result.last_error_message)"
+          Write-Host "Last error date: $($result.last_error_date)"
+
+          $urlMismatch = $result.url -ne $env:WEBHOOK_URL
+          $hasError = -not [string]::IsNullOrWhiteSpace($result.last_error_message)
+          $pending = [int]$result.pending_update_count
+
+          "url_mismatch=$urlMismatch" >> $env:GITHUB_OUTPUT
+          "has_error=$hasError" >> $env:GITHUB_OUTPUT
+          "pending=$pending" >> $env:GITHUB_OUTPUT
+
+          if (-not $urlMismatch -and -not $hasError -and $pending -eq 0) {
+            Write-Host 'Telegram webhook delivery is healthy.'
+            exit 0
+          }
+
+          Write-Warning 'Telegram webhook delivery needs recovery.'
+          exit 10
+
+      - name: Re-register webhook when unhealthy
+        if: failure() && (steps.inspect.outputs.url_mismatch == 'true' || steps.inspect.outputs.has_error == 'true')
+        shell: pwsh
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_WEBHOOK_SECRET: ${{ secrets.TELEGRAM_WEBHOOK_SECRET }}
+          WEBHOOK_URL: https://sxfnrwugsyfypqgfglzc.supabase.co/functions/v1/telegram-input-v2
+        run: |
+          ./global-automation/scripts/telegram/Set-TelegramWebhook.ps1 `
+            -BotToken $env:TELEGRAM_BOT_TOKEN `
+            -WebhookUrl $env:WEBHOOK_URL `
+            -SecretToken $env:TELEGRAM_WEBHOOK_SECRET
+
+      - name: Verify recovered webhook
+        if: failure() && (steps.inspect.outputs.url_mismatch == 'true' || steps.inspect.outputs.has_error == 'true')
+        shell: pwsh
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+        run: |
+          ./global-automation/scripts/telegram/Get-TelegramWebhook.ps1 -BotToken $env:TELEGRAM_BOT_TOKEN
+
+      - name: Alert on pending updates
+        if: steps.inspect.outputs.pending != '0'
+        shell: pwsh
+        run: |
+          Write-Warning "Telegram has $env:PENDING pending update(s). The queue will be monitored on the next watchdog cycle."
+        env:
+          PENDING: ${{ steps.inspect.outputs.pending }}
