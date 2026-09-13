@@ -153,13 +153,8 @@ jobs:
           Copy-Item 'browser-automation/windows-work-browser/scripts/start-work-browser.ps1' (Join-Path $bundle 'start-work-browser.ps1')
           Copy-Item 'browser-automation/windows-work-browser/RELEASE-READINESS.json' (Join-Path $bundle 'RELEASE-READINESS.json')
           Copy-Item 'browser-automation/windows-work-browser/sbom.cdx.json' (Join-Path $bundle 'sbom.cdx.json')
-          @"
-Windows Work Browser Developer Preview
-
-This package is for testing. It is not an Automation Suite production installer.
-Base BrowserOS: v0.50.3 x64
-BrowserOS SHA-256: $env:EXPECTED_SHA256
-"@ | Set-Content (Join-Path $bundle 'README.txt')
+          $readme = @('Windows Work Browser Developer Preview', '', 'Testing package; not an Automation Suite production installer.', 'Base BrowserOS: v0.50.3 x64', "BrowserOS SHA-256: $env:EXPECTED_SHA256") -join "`r`n"
+          Set-Content -Path (Join-Path $bundle 'README.txt') -Value $readme
           $tag = '${{ github.ref_name }}' -replace '^release/', ''
           $zip = Join-Path $env:RUNNER_TEMP "Windows-Work-Browser-$tag.zip"
           Compress-Archive -Path "$bundle\*" -DestinationPath $zip -Force
