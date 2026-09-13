@@ -17,22 +17,46 @@ public partial class MainWindow : Window
     private readonly string _profilePath = Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
         "DEVOS", "WorkBrowser", "Profile");
+    private CoreWebView2Environment? _environment;
 
     public MainWindow()
     {
         InitializeComponent();
-        Loaded += async (_, _) => await CreateTabAsync(HomeUri);
+        Loaded += MainWindow_Loaded;
         Closing += (_, _) => SessionStateStore.Save(CaptureSession());
     }
 
     private WebView2? ActiveView => BrowserTabs.SelectedItem is TabItem tab && _views.TryGetValue(tab, out var view) ? view : null;
 
-    private async Task CreateTabAsync(Uri uri)
+    private async void MainWindow_Loaded(object sender, RoutedEventArgs e)
     {
         Directory.CreateDirectory(_profilePath);
-        var environment = await CoreWebView2Environment.CreateAsync(userDataFolder: _profilePath);
+        _environment = await CoreWebView2Environment.CreateAsync(userDataFolder: _profilePath);
+
+        var session = SessionStateStore.Load();
+        if (session?.Tabs.Count > 0)
+        {
+            foreach (var url in session.Tabs)
+            {
+                if (Uri.TryCreate(url, UriKind.Absolute, out var uri)) await CreateTabAsync(uri);
+            }
+
+            if (BrowserTabs.Items.Count > 0)
+            {
+                BrowserTabs.SelectedIndex = Math.Clamp(session.SelectedIndex, 0, BrowserTabs.Items.Count - 1);
+            }
+        }
+        else
+        {
+            await CreateTabAsync(HomeUri);
+        }
+    }
+
+    private async Task CreateTabAsync(Uri uri)
+    {
+        _environment ??= await CoreWebView2Environment.CreateAsync(userDataFolder: _profilePath);
         var view = new WebView2();
-        await view.EnsureCoreWebView2Async(environment);
+        await view.EnsureCoreWebView2Async(_environment);
 
         var tab = new TabItem { Header = "New Tab", Content = view };
         _views[tab] = view;
@@ -61,9 +85,10 @@ public partial class MainWindow : Window
 
     private SessionState CaptureSession()
     {
-        var urls = _views.Values
-            .Select(v => v.Source?.ToString())
-            .Where(v => !string.IsNullOrWhiteSpace(v))
+        var urls = BrowserTabs.Items
+            .OfType<TabItem>()
+            .Select(tab => _views.TryGetValue(tab, out var view) ? view.Source?.ToString() : null)
+            .Where(value => !string.IsNullOrWhiteSpace(value))
             .Cast<string>()
             .ToList();
         return new SessionState(urls, BrowserTabs.SelectedIndex);
