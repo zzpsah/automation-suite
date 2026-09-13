@@ -1,0 +1,26 @@
+name: DEVOS Work Browser F0
+
+on:
+  pull_request:
+    paths:
+      - 'devos-work-browser/**'
+      - '.github/workflows/devos-work-browser-f0.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-and-test:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+      - name: Restore
+        run: dotnet restore devos-work-browser/Devos.WorkBrowser.sln
+      - name: Build
+        run: dotnet build devos-work-browser/Devos.WorkBrowser.sln -c Release --no-restore
+      - name: Test
+        run: dotnet test devos-work-browser/tests/Devos.WorkBrowser.Tests.csproj -c Release --no-build --verbosity normal
