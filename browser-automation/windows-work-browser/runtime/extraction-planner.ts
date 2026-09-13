@@ -1,25 +1,33 @@
-import type { ExtractionField, ExtractionPlan } from "../agent/extractor-contract";
+import type { ExtractionJob, ExtractionFormat } from "../agent/extraction-contract";
 
 export interface PlannedExtractionStep {
   operation: "open" | "list" | "extract" | "next" | "detail" | "deduplicate" | "export";
   description: string;
 }
 
-export function buildExtractionSteps(plan: ExtractionPlan): PlannedExtractionStep[] {
+export interface PlannerInput {
+  sourceDescription: string;
+  detailTraversal?: boolean;
+  deduplicateBy?: string[];
+}
+
+export function buildExtractionSteps(job: ExtractionJob, input: PlannerInput): PlannedExtractionStep[] {
   const steps: PlannedExtractionStep[] = [
-    { operation: "open", description: `Open source: ${plan.sourceDescription}` },
-    { operation: "list", description: "Identify record/listing elements." },
-    { operation: "extract", description: `Extract fields: ${plan.fields.map((f: ExtractionField) => f.name).join(", ")}` },
+    { operation: "open", description: `Open source: ${input.sourceDescription} (${job.source.startUrl})` },
+    { operation: "list", description: job.source.listSelector ? `Identify records using ${job.source.listSelector}.` : "Identify record/listing elements." },
+    { operation: "extract", description: `Extract fields: ${job.fields.join(", ")}` },
   ];
-  if (plan.detailTraversal?.length) {
+
+  if (input.detailTraversal || job.source.detailSelector) {
     steps.push({ operation: "detail", description: "Open each detail record and extract declared fields." });
   }
-  if (plan.pagination) {
-    steps.push({ operation: "next", description: `Traverse pagination using: ${plan.pagination.nextAction}` });
+  if (job.source.pagination) {
+    steps.push({ operation: "next", description: `Traverse pagination using ${job.source.pagination.strategy}.` });
   }
-  if (plan.deduplicateBy?.length) {
-    steps.push({ operation: "deduplicate", description: `Deduplicate by: ${plan.deduplicateBy.join(", ")}` });
+  if (input.deduplicateBy?.length) {
+    steps.push({ operation: "deduplicate", description: `Deduplicate by: ${input.deduplicateBy.join(", ")}` });
   }
-  steps.push({ operation: "export", description: `Export as ${plan.output}.` });
+  const format: ExtractionFormat = job.format;
+  steps.push({ operation: "export", description: `Export as ${format}.` });
   return steps;
 }
