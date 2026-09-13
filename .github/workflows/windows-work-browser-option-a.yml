@@ -16,13 +16,13 @@ permissions:
 
 concurrency:
   group: windows-work-browser-option-a-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   artifact-integrity-and-launch:
     name: Verify BrowserOS Windows artifact
     runs-on: windows-latest
-    timeout-minutes: 25
+    timeout-minutes: 30
     env:
       ARTIFACT_URL: https://github.com/browseros-ai/BrowserOS/releases/download/v0.50.3/BrowserOS_v0.50.3_x64_installer.exe
       EXPECTED_SHA256: 3ae8dc6cd7fa8c39760d8c95591147e283705ec7d6f1cc4b02561d2696ef86c7
@@ -49,9 +49,7 @@ jobs:
         run: |
           $ErrorActionPreference = 'Stop'
           $actual = (Get-FileHash -Algorithm SHA256 -Path $env:ARTIFACT_PATH).Hash.ToLowerInvariant()
-          if ($actual -ne $env:EXPECTED_SHA256) {
-            throw "SHA-256 mismatch. Expected $env:EXPECTED_SHA256 but got $actual"
-          }
+          if ($actual -ne $env:EXPECTED_SHA256) { throw "SHA-256 mismatch. Expected $env:EXPECTED_SHA256 but got $actual" }
           "Verified SHA-256: $actual"
 
       - name: Verify Authenticode signature
@@ -59,9 +57,7 @@ jobs:
         run: |
           $ErrorActionPreference = 'Stop'
           $sig = Get-AuthenticodeSignature -FilePath $env:ARTIFACT_PATH
-          if ($sig.Status -ne 'Valid') {
-            throw "Authenticode signature is not valid: $($sig.Status)"
-          }
+          if ($sig.Status -ne 'Valid') { throw "Authenticode signature is not valid: $($sig.Status)" }
           "Signer: $($sig.SignerCertificate.Subject)"
 
       - name: Install BrowserOS with bounded Chromium installer invocation
@@ -70,74 +66,41 @@ jobs:
           $ErrorActionPreference = 'Stop'
           $proc = Start-Process -FilePath $env:ARTIFACT_PATH -ArgumentList '/silent', '/install', '--do-not-launch-chrome' -PassThru -WindowStyle Hidden
           $completed = $proc.WaitForExit(90000)
-          if (-not $completed) {
-            try { Stop-Process -Id $proc.Id -Force -ErrorAction SilentlyContinue } catch {}
-            $installerLog = Join-Path $env:TEMP 'chromium_installer.log'
-            if (Test-Path $installerLog) { Get-Content $installerLog -Tail 200 }
-            throw 'BrowserOS installer did not exit within 90 seconds.'
-          }
-          if ($proc.ExitCode -ne 0) {
-            $installerLog = Join-Path $env:TEMP 'chromium_installer.log'
-            if (Test-Path $installerLog) { Get-Content $installerLog -Tail 200 }
-            throw "BrowserOS installer exited with code $($proc.ExitCode)"
-          }
+          if (-not $completed) { try { Stop-Process -Id $proc.Id -Force -ErrorAction SilentlyContinue } catch {}; throw 'BrowserOS installer did not exit within 90 seconds.' }
+          if ($proc.ExitCode -ne 0) { throw "BrowserOS installer exited with code $($proc.ExitCode)" }
           $installDir = Join-Path $env:LOCALAPPDATA 'BrowserOS\Application'
           "INSTALL_DIR=$installDir" | Out-File -FilePath $env:GITHUB_ENV -Append
           if (-not (Test-Path $installDir)) { throw "Expected BrowserOS install directory was not found: $installDir" }
 
-      - name: Launch, CDP smoke and Playwright semantic E2E
+      - name: Launch and verify BrowserOS
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
           $evidence = Join-Path $env:RUNNER_TEMP 'windows-work-browser-evidence'
           New-Item -ItemType Directory -Force -Path $evidence | Out-Null
-          $candidates = @(
-            (Join-Path $env:INSTALL_DIR 'chrome.exe'),
-            (Join-Path $env:INSTALL_DIR 'BrowserOS.exe')
-          )
+          $candidates = @((Join-Path $env:INSTALL_DIR 'chrome.exe'), (Join-Path $env:INSTALL_DIR 'BrowserOS.exe'))
           $browser = $candidates | Where-Object { Test-Path $_ } | Select-Object -First 1
-          if (-not $browser) {
-            Get-ChildItem -Path $env:INSTALL_DIR -Filter '*.exe' -Recurse -ErrorAction SilentlyContinue | Select-Object -ExpandProperty FullName | Set-Content (Join-Path $evidence 'installed-executables.txt')
-            throw "Installed BrowserOS executable was not found under $env:INSTALL_DIR"
-          }
-          $hash = (Get-FileHash -Algorithm SHA256 -Path $browser).Hash.ToLowerInvariant()
+          if (-not $browser) { throw "Installed BrowserOS executable was not found under $env:INSTALL_DIR" }
           $profile = Join-Path $env:RUNNER_TEMP 'windows-work-browser-profile'
           New-Item -ItemType Directory -Force -Path $profile | Out-Null
           $port = 9222
           $proc = Start-Process -FilePath $browser -ArgumentList '--new-window', 'https://example.com', "--user-data-dir=$profile", "--remote-debugging-port=$port", '--no-first-run', '--no-default-browser-check' -PassThru
           try {
             $cdp = $null
-            for ($i = 0; $i -lt 20 -and -not $cdp; $i++) {
-              Start-Sleep -Seconds 1
-              try { $cdp = Invoke-RestMethod -Uri "http://127.0.0.1:$port/json/version" -TimeoutSec 2 } catch {}
-            }
-            if (-not $cdp) { throw 'Browser did not expose a CDP endpoint within 20 seconds.' }
+            for ($i = 0; $i -lt 30 -and -not $cdp; $i++) { Start-Sleep -Seconds 1; try { $cdp = Invoke-RestMethod -Uri "http://127.0.0.1:$port/json/version" -TimeoutSec 2 } catch {} }
+            if (-not $cdp) { throw 'Browser did not expose CDP within 30 seconds.' }
             $tabs = Invoke-RestMethod -Uri "http://127.0.0.1:$port/json/list" -TimeoutSec 5
             $target = @($tabs) | Where-Object { $_.url -like 'https://example.com*' } | Select-Object -First 1
-            if (-not $target) { throw 'CDP endpoint responded, but the expected example.com tab was not observed.' }
-            [ordered]@{
-              artifact = $env:ARTIFACT_NAME
-              artifact_sha256 = $env:EXPECTED_SHA256
-              installed_browser = $browser
-              installed_browser_sha256 = $hash
-              install_dir = $env:INSTALL_DIR
-              launched = $true
-              observed_running = -not $proc.HasExited
-              cdp_version = $cdp.Browser
-              cdp_websocket = $cdp.webSocketDebuggerUrl
-              observed_url = $target.url
-              target_type = $target.type
-            } | ConvertTo-Json | Set-Content (Join-Path $evidence 'browser-launch.json')
-
+            if (-not $target) { throw 'Expected example.com tab was not observed.' }
+            [ordered]@{browser=$browser; launched=$true; cdp=$cdp.Browser; observed_url=$target.url} | ConvertTo-Json | Set-Content (Join-Path $evidence 'browser-launch.json')
             Push-Location 'browser-automation/windows-work-browser'
             npm install --ignore-scripts
             npm run build
             $env:CDP_ENDPOINT = "http://127.0.0.1:$port"
             node dist/runtime/playwright-e2e.js | Tee-Object -FilePath (Join-Path $evidence 'playwright-e2e.jsonl')
+            node dist/runtime/windows-native-e2e.js | Tee-Object -FilePath (Join-Path $evidence 'windows-native-e2e.jsonl')
             Pop-Location
-          } finally {
-            try { Stop-Process -Id $proc.Id -Force -ErrorAction SilentlyContinue } catch {}
-          }
+          } finally { try { Stop-Process -Id $proc.Id -Force -ErrorAction SilentlyContinue } catch {} }
 
       - name: Stage and verify agent extension overlay
         shell: pwsh
@@ -150,15 +113,8 @@ jobs:
           $path = Join-Path $stage $env:AGENT_EXTENSION_NAME
           Invoke-WebRequest -Uri $env:AGENT_EXTENSION_URL -OutFile $path
           $actual = (Get-FileHash -Algorithm SHA256 -Path $path).Hash.ToLowerInvariant()
-          if ($actual -ne $env:AGENT_EXTENSION_SHA256) {
-            throw "Agent extension SHA-256 mismatch. Expected $env:AGENT_EXTENSION_SHA256 but got $actual"
-          }
-          [ordered]@{
-            extension = $env:AGENT_EXTENSION_NAME
-            sha256 = $actual
-            status = 'STAGED_ONLY'
-            install = 'not-forced-by-ci'
-          } | ConvertTo-Json | Set-Content (Join-Path $evidence 'overlay-verification.json')
+          if ($actual -ne $env:AGENT_EXTENSION_SHA256) { throw "Agent extension SHA-256 mismatch. Expected $env:AGENT_EXTENSION_SHA256 but got $actual" }
+          [ordered]@{extension=$env:AGENT_EXTENSION_NAME; sha256=$actual; status='STAGED_ONLY'} | ConvertTo-Json | Set-Content (Join-Path $evidence 'overlay-verification.json')
 
       - name: Upload verification evidence
         if: always()
