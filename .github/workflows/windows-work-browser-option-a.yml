@@ -72,7 +72,7 @@ jobs:
           "INSTALL_DIR=$installDir" | Out-File -FilePath $env:GITHUB_ENV -Append
           if (-not (Test-Path $installDir)) { throw "Expected BrowserOS install directory was not found: $installDir" }
 
-      - name: Launch and verify BrowserOS
+      - name: Launch and verify BrowserOS plus Work Browser E2E
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
@@ -97,8 +97,14 @@ jobs:
             npm install --ignore-scripts
             npm run build
             $env:CDP_ENDPOINT = "http://127.0.0.1:$port"
-            node dist/runtime/playwright-e2e.js | Tee-Object -FilePath (Join-Path $evidence 'playwright-e2e.jsonl')
-            node dist/runtime/windows-native-e2e.js | Tee-Object -FilePath (Join-Path $evidence 'windows-native-e2e.jsonl')
+            $out = & node dist/runtime/playwright-e2e.js 2>&1
+            $exit = $LASTEXITCODE
+            $out | Tee-Object -FilePath (Join-Path $evidence 'playwright-e2e.jsonl')
+            if ($exit -ne 0) { throw "Playwright semantic E2E failed with exit code $exit" }
+            $nativeOut = & node dist/runtime/windows-native-e2e.js 2>&1
+            $nativeExit = $LASTEXITCODE
+            $nativeOut | Tee-Object -FilePath (Join-Path $evidence 'windows-native-e2e.jsonl')
+            if ($nativeExit -ne 0) { throw "Windows native E2E failed with exit code $nativeExit" }
             Pop-Location
           } finally { try { Stop-Process -Id $proc.Id -Force -ErrorAction SilentlyContinue } catch {} }
 
