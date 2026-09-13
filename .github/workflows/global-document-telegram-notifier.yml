@@ -48,4 +48,9 @@ jobs:
           B2_APPLICATION_KEY: ${{ secrets.B2_APPLICATION_KEY }}
           B2_BUCKET_NAME: ${{ secrets.B2_BUCKET_NAME }}
           DOCUMENT_ID: ${{ github.event.client_payload.document_id || github.event.inputs.document_id }}
-        run: python global-automation/scripts/document/telegram_publication_notifier_v3.py
+        run: |
+          if [ -n "$DOCUMENT_ID" ]; then
+            python global-automation/scripts/document/telegram_publication_notifier_targeted.py
+          else
+            python global-automation/scripts/document/telegram_publication_notifier_v3.py
+          fi
