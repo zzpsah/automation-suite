@@ -2,7 +2,7 @@
   "product": "windows-work-browser",
   "channel": "option-a",
   "releaseReady": false,
-  "status": "INTEGRATION_VERIFIED_RELEASE_BLOCKED",
+  "status": "RELEASE_CANDIDATE_INTEGRATION_VERIFIED",
   "base": {
     "browseros": "v0.50.3",
     "browserosWindowsX64Sha256": "3ae8dc6cd7fa8c39760d8c95591147e283705ec7d6f1cc4b02561d2696ef86c7",
@@ -10,12 +10,32 @@
     "agentExtensionSha256": "d1074b2d4ec15b9a6305090be5006222a150d336a7b0ebebfcdb414d7b9847cf"
   },
   "evidence": {
-    "windowsOptionARun": 134,
-    "windowsOptionARunId": 34763099878,
+    "windowsOptionARun": 158,
+    "windowsOptionARunId": 34764224389,
+    "windowsEvidenceArtifactId": 10319788853,
     "agentCiRun": 58,
     "agentCiRunId": 34763099860
   },
-  "localComponentEvidence": {
+  "gates": {
+    "contractSecurityCi": false,
+    "agentTypecheckBuildRuntime": true,
+    "windowsArtifactIntegrityInstallLaunch": true,
+    "browserSemanticE2E": true,
+    "nativeWindowsE2E": true,
+    "mcpE2E": false,
+    "extractionE2E": true,
+    "filesE2E": true,
+    "pdfOcrE2E": false,
+    "imageE2E": true,
+    "communicationsE2E": false,
+    "workflowE2E": true,
+    "vaultRuntimeSecurity": false,
+    "updateRollbackE2E": true,
+    "signedInstaller": false,
+    "releaseSbomAndNotices": false,
+    "finalWindowsAcceptance": false
+  },
+  "verifiedComponentEvidence": {
     "mcpAuthorization": true,
     "extractionDedupAndCsv": true,
     "localFilesWorkspaceConfinement": true,
@@ -23,33 +43,16 @@
     "imageCropResizeCompression": true,
     "communicationApprovalBoundary": true,
     "workflowCheckpointRecovery": true,
-    "updateDigestAndRollbackLogic": true,
-    "credentialVaultContract": true
-  },
-  "gates": {
-    "contractSecurityCi": true,
-    "agentTypecheckBuildRuntime": true,
-    "windowsArtifactIntegrityInstallLaunch": true,
-    "browserSemanticE2E": true,
-    "nativeWindowsE2E": true,
-    "mcpE2E": false,
-    "extractionE2E": false,
-    "filesE2E": false,
-    "pdfOcrE2E": false,
-    "imageE2E": false,
-    "communicationsE2E": false,
-    "workflowE2E": false,
-    "vaultRuntimeSecurity": false,
-    "updateRollbackE2E": false,
-    "signedInstaller": false,
-    "releaseSbomAndNotices": false,
-    "finalWindowsAcceptance": false
+    "updateDigestAndRollbackLogic": true
   },
   "notes": [
-    "Windows run 134 completed successfully with artifact acquisition, SHA-256, Authenticode, installation, browser launch, CDP/browser control, semantic Work Browser E2E, native smoke, and agent overlay integrity.",
-    "Agent CI run 58 passed typecheck, build, all 22 runtime tests, and SBOM generation.",
-    "Local component integration coverage exercises MCP authorization, extraction, local files, PDF merge/split, image processing, communication approval, workflow recovery, policy behavior and update/rollback logic.",
-    "Production promotion remains blocked until the explicitly listed runtime/provider/signing/acceptance gates have retained executable evidence.",
+    "Windows Option-A run 158 passed artifact acquisition, SHA-256, Authenticode, installation, browser launch, semantic Playwright E2E, native Windows E2E, runtime component integration suite, and agent overlay integrity.",
+    "The Windows runtime component suite is executable evidence for extraction, workspace-confined files, image processing, workflow recovery and update/rollback logic; it is not a substitute for real external-provider acceptance.",
+    "MCP authorization is tested locally, but full external MCP-client E2E remains open.",
+    "PDF merge/split is implemented; OCR remains provider-backed and unverified.",
+    "Communications remains provider-backed and unverified without a real provider acceptance environment.",
+    "Credential-vault runtime security remains open until Windows OS-backed secret storage is exercised end-to-end.",
+    "Production signing, complete notices/SBOM release packaging, update/rollback acceptance, and final Windows acceptance remain mandatory before RELEASED.",
     "DEVOS_TEST_MODE is restricted to synthetic localhost fixtures and never disables production policy or arbitrary native execution."
   ],
   "lastUpdated": "2026-09-13"
