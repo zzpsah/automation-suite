@@ -1,3 +1,10 @@
+## 2026-09-13 — feat(scanner): improve editor rewarp and camera flash
+- Commit: 99f39cb58a749f2fe1120d9a53171b1c24b2caff
+- Author: PRASHANT KUMAR SAH
+- Classification: meaningful
+- Changed files:
+- `android-document-scanner/app/src/main/java/com/devos/docscanner/MainActivity.kt`
+
 ## 2026-09-13 — feat(scanner): preserve source image for true corner rewarp
 - Commit: f008d4f07ddcd30051e0336bba257c7944fe19e6
 - Author: PRASHANT KUMAR SAH

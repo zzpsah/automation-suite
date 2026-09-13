@@ -16,7 +16,7 @@ Last verified: 2026-09-13
 - External/production mutations require explicit authorization.
 
 ## Last automated change
-- Commit: f008d4f07ddcd30051e0336bba257c7944fe19e6
-- Change: feat(scanner): preserve source image for true corner rewarp
+- Commit: 99f39cb58a749f2fe1120d9a53171b1c24b2caff
+- Change: feat(scanner): improve editor rewarp and camera flash
 - Date: 2026-09-13
 - Durable context synchronization: completed

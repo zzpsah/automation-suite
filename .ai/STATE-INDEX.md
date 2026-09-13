@@ -6,8 +6,8 @@ Generated automatically by Development OS.
 
 ## Repository
 - Branch: main
-- HEAD: f008d4f07ddcd30051e0336bba257c7944fe19e6
-- Last commit: feat(scanner): preserve source image for true corner rewarp
+- HEAD: 99f39cb58a749f2fe1120d9a53171b1c24b2caff
+- Last commit: feat(scanner): improve editor rewarp and camera flash
 - Last commit date: 2026-09-13
 - Last commit author: PRASHANT KUMAR SAH
 
