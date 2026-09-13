@@ -1,16 +1,19 @@
 {
   "name": "windows-work-browser-agent",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "private": true,
   "type": "commonjs",
   "engines": { "node": ">=20" },
   "scripts": {
     "build": "tsc",
     "typecheck": "tsc --noEmit",
-    "test": "npm run build && node --test dist/runtime/*.test.js"
+    "test": "npm run build && node --test dist/runtime/*.test.js",
+    "sbom": "node scripts/generate-sbom.mjs"
   },
   "dependencies": {
-    "playwright-core": "1.63.0"
+    "@cantoo/pdf-lib": "2.9.2",
+    "playwright-core": "1.63.0",
+    "sharp": "0.35.4"
   },
   "devDependencies": {
     "@types/node": "^24.3.0",
