@@ -1,6 +1,6 @@
 # Tasks
 
-## Core implemented
+## Core completed / verified
 - F0 Windows shell + embedded WebView2 + navigation + URL/search resolution.
 - F1 multi-tab browser core + persistent profile + downloads + session save/restore.
 - F2 same-browser automation adapter.
@@ -11,17 +11,14 @@
 - F7 mutation approval policy.
 - Synthetic 100-record portal fixture.
 - 100-step recovery regression resumed from checkpoint 47.
+- Windows CI restore/build/tests.
+- Self-contained win-x64 publish artifact.
 
-## Active final core gate
-- Run final Windows CI on latest head.
-- Verify restore/build/tests.
-- Verify self-contained `win-x64` publish step and artifact upload.
-- Update PR metadata with final evidence.
-
-## Still required outside CI before product release
+## Remaining acceptance before merge/release
 - Interactive Windows launch and UX acceptance on a real desktop.
-- Confirm WebView2 runtime/profile behavior, downloads and tab/session restore interactively.
-- Controlled browser automation acceptance against the synthetic portal.
+- Verify multiple tabs, profile/session persistence, downloads and browser navigation interactively.
+- Run controlled automation against `test-portal/index.html` and confirm same-browser DOM control.
+- Review PR #16 diff and merge only when explicitly desired.
 
-## Explicitly deferred feature layers
+## Deferred feature layers
 PDF/image tooling, OCR, printing, FTP/SFTP/WebDAV/SMB, MCP, multi-agent, workflow recorder and complex desktop automation.
