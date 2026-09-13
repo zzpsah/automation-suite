@@ -17,26 +17,34 @@ This file is the authoritative engineering status. It must only move to `RELEASE
 
 ## Verified engineering package
 
-- TypeScript agent/runtime workspace now has Node type declarations and CommonJS runtime output for deterministic CI execution.
-- Contract Gate passes all structural/security checks in the latest successful run.
-- Agent CI reaches build and runtime-test stages; runtime-test fixes are being iterated against concrete CI evidence.
+- TypeScript agent/runtime workspace compiles on Node 24.
+- Agent typecheck, build and runtime tests passed in the latest successful Agent CI run.
+- Capability-scoped Playwright semantic controller is implemented against Chromium CDP and pinned to Playwright Core `1.63.0`.
+- Deterministic MCP gateway maps requests only to declared `AutomationAction` capabilities and preserves approval boundaries.
+- Workspace-scoped local file adapter prevents path escape.
+- Contract Gate passes structural, immutable-pin and security-invariant checks.
+
+## Newly wired product proof
+
+- Windows Option A lane now launches the shipped BrowserOS artifact and runs a real Playwright `connectOverCDP` semantic smoke against the running browser.
+- Service security tests cover workspace path containment and MCP approval preservation.
 
 ## Mandatory product gates still open
 
-1. Playwright semantic browser executor E2E against the shipped BrowserOS browser.
-2. MCP gateway implementation + external-agent interoperability.
+1. Real BrowserOS extension installation/integration beyond artifact staging.
+2. MCP transport/server interoperability with an external agent client.
 3. Windows native Win32/UIA/AutoHotkey implementation + E2E.
 4. Universal extraction engine with pagination/detail traversal, deduplication and count verification.
-5. Local/FTP/SFTP/WebDAV/SMB file adapters.
+5. FTP/SFTP/WebDAV/SMB adapters.
 6. PDF/OCR/image engines, including crop/deskew/background removal/upload preparation.
 7. Communication providers with explicit send approval.
 8. Workflow recorder/player, scheduler, checkpoint persistence and recovery.
 9. DPAPI/Credential Manager runtime implementation.
-10. Security/adversarial runtime tests, including secret handling and capability isolation.
+10. Security/adversarial runtime tests for secret handling and capability isolation.
 11. Generated SBOM + third-party notices + BrowserOS AGPL source-obligation package.
 12. Verified update/rollback implementation.
-13. Product UI overlay, branding, signed Windows installer/update package.
-14. Full Windows end-to-end acceptance suite.
+13. Product UI overlay, branding and signed Windows installer/update package.
+14. Full Windows end-to-end acceptance suite spanning the mandatory product path.
 
 ## Promotion rule
 
@@ -48,7 +56,9 @@ A successful browser foundation run does not imply that the Work Browser product
 
 - Windows BrowserOS artifact/runtime foundation: **VERIFIED**
 - Contract/security CI: **VERIFIED**
-- Agent package: **BUILD VERIFIED; runtime test hardening in progress**
-- Product runtime adapters: **NOT COMPLETE**
+- Agent package: **BUILD + RUNTIME TEST VERIFIED**
+- Playwright browser-control semantic E2E: **WIRED / AWAITING LATEST WINDOWS RUN**
+- MCP/file integration foundation: **IMPLEMENTED / UNIT-TESTED**
+- Remaining product runtime adapters: **NOT COMPLETE**
 - Signed final installer: **NOT COMPLETE**
 - Release: **NOT RELEASED**
