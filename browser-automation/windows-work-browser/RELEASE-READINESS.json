@@ -57,8 +57,9 @@
     "MCP includes an external child-process stdio roundtrip test; full external third-party MCP-client interoperability remains outside the initial release gate.",
     "PDF merge/split is implemented and tested. OCR is optional for the initial release and remains a post-release provider capability.",
     "Communications provider delivery remains an optional integration; the core approval-bound communication framework is tested.",
-    "Windows credential storage now uses the Windows DPAPI Protect API and persists only protected blobs locally; plaintext is never returned to model-visible state or evidence.",
+    "Windows credential storage uses the Windows DPAPI Protect API and persists only protected blobs locally; plaintext is never returned to model-visible state or evidence.",
     "Production signing and final release notices/package publication remain environment-dependent final gates.",
+    "Developer preview packaging is test-only and must not be treated as a production installer.",
     "DEVOS_TEST_MODE is restricted to synthetic localhost fixtures and never disables production policy or arbitrary native execution."
   ],
   "lastUpdated": "2026-09-13"
