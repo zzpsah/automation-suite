@@ -32,9 +32,9 @@ jobs:
             agent/action-contract.ts agent/policy-engine.ts agent/evidence-schema.ts
             agent/executor-contract.ts agent/verification-contract.ts
             agent/task-contract.ts agent/task-runner.ts
-            agent/native-executor-contract.ts agent/mcp-contract.ts
-            agent/extractor-contract.ts agent/permission-contract.ts
-            agent/vault-contract.ts agent/update-contract.ts
+            agent/native-executor-contract.ts agent/mcp-gateway-contract.ts
+            agent/extraction-contract.ts agent/permission-contract.ts
+            agent/credential-vault-contract.ts agent/update-contract.ts
           )
           for f in "${files[@]}"; do test -f "$root/$f" || { echo "Missing $root/$f"; exit 1; }; done
 
@@ -61,5 +61,5 @@ jobs:
           set -euo pipefail
           grep -q 'APPROVAL_REQUIRED_RISKS' browser-automation/windows-work-browser/agent/policy-engine.ts
           grep -q 'requiresExplicitApproval' browser-automation/windows-work-browser/agent/permission-contract.ts
-          grep -q 'use-credential' browser-automation/windows-work-browser/agent/vault-contract.ts
+          grep -q 'use-credential' browser-automation/windows-work-browser/agent/credential-vault-contract.ts
           grep -q 'assertSafeEvidence' browser-automation/windows-work-browser/agent/evidence-schema.ts
