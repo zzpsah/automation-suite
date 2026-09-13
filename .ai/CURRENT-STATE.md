@@ -24,7 +24,7 @@ Last verified: 2026-09-14
 - External/production mutations require explicit authorization.
 
 ## Last automated change
-- Commit: adb940f60cbad811fe1aa5f27750e38102b59706
-- Change: Complete scanner capture, review, editing, persistence and export flow
+- Commit: 1721d324ba2225eb010491ac85426cf5c0154685
+- Change: Fix scanner image processor angle calculation
 - Date: 2026-09-14
 - Durable context synchronization: completed
