@@ -1,3 +1,10 @@
+## 2026-09-13 — fix notifier repository dispatch targeting
+- Commit: 1a761f6b919dcf778e8ca6a88db8107439dc7960
+- Author: PRASHANT KUMAR SAH
+- Classification: meaningful
+- Changed files:
+- `.github/workflows/global-document-telegram-notifier.yml`
+
 ## 2026-09-13 — docs: align runbook with autonomous publication and recovery
 - Commit: 93b1bc1c9d8d3deeda2d46a844bbe39eae97f0d1
 - Author: PRASHANT KUMAR SAH

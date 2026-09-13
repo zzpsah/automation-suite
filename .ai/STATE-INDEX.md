@@ -6,8 +6,8 @@ Generated automatically by Development OS.
 
 ## Repository
 - Branch: main
-- HEAD: 93b1bc1c9d8d3deeda2d46a844bbe39eae97f0d1
-- Last commit: docs: align runbook with autonomous publication and recovery
+- HEAD: 1a761f6b919dcf778e8ca6a88db8107439dc7960
+- Last commit: fix notifier repository dispatch targeting
 - Last commit date: 2026-09-13
 - Last commit author: PRASHANT KUMAR SAH
 
