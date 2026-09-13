@@ -1,39 +1,27 @@
 # Tasks
 
-## Completed / verified
+## Core implemented
 - F0 Windows shell + embedded WebView2 + navigation + URL/search resolution.
-- Windows CI build/test gate for F0.
-
-## Active
-- Verify combined F1-F5 implementation on Windows CI.
-- Fix compile/test defects without widening scope.
-
-## F1 Browser core
-- Multi-tab host.
-- Persistent WebView2 user profile.
-- DEVOS download directory handling.
-- Session snapshot persistence.
-
-## F2 Automation core
-- Same-browser click/type/read/wait adapter.
-- DOM table extraction primitive.
-
-## F3 Reliable execution
-- Structured actions.
-- Verification.
-- Bounded retries.
-
-## F4 Extraction
-- Parse table JSON.
-- Export CSV.
-
-## F5 Task engine
-- Checkpoint after each successful step.
-- Resume from checkpoint.
-
-## Next only after verification
+- F1 multi-tab browser core + persistent profile + downloads + session save/restore.
+- F2 same-browser automation adapter.
+- F3 structured execution + verification + bounded retry.
+- F4 table extraction + CSV export.
+- F5 checkpointed task engine + resume semantics.
 - F6 constrained natural-language planner.
-- F7 explicit approval semantics for mutations.
+- F7 mutation approval policy.
+- Synthetic 100-record portal fixture.
+- 100-step recovery regression resumed from checkpoint 47.
 
-## Explicitly deferred
+## Active final core gate
+- Run final Windows CI on latest head.
+- Verify restore/build/tests.
+- Verify self-contained `win-x64` publish step and artifact upload.
+- Update PR metadata with final evidence.
+
+## Still required outside CI before product release
+- Interactive Windows launch and UX acceptance on a real desktop.
+- Confirm WebView2 runtime/profile behavior, downloads and tab/session restore interactively.
+- Controlled browser automation acceptance against the synthetic portal.
+
+## Explicitly deferred feature layers
 PDF/image tooling, OCR, printing, FTP/SFTP/WebDAV/SMB, MCP, multi-agent, workflow recorder and complex desktop automation.
