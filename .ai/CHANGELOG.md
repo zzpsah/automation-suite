@@ -1,3 +1,10 @@
+## 2026-09-13 — docs: align runbook with autonomous publication and recovery
+- Commit: 93b1bc1c9d8d3deeda2d46a844bbe39eae97f0d1
+- Author: PRASHANT KUMAR SAH
+- Classification: meaningful
+- Changed files:
+- `global-automation/scripts/document/OPERATIONS_RUNBOOK.md`
+
 ## 2026-09-13 — feat: remove human publication gate and use autonomous safety checks
 - Commit: 371e40898b4f7282a92559c863fe607ba9a09a55
 - Author: PRASHANT KUMAR SAH

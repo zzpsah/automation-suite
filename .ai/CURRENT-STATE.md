@@ -16,7 +16,7 @@ Last verified: 2026-09-13
 - External/production mutations require explicit authorization.
 
 ## Last automated change
-- Commit: 371e40898b4f7282a92559c863fe607ba9a09a55
-- Change: feat: remove human publication gate and use autonomous safety checks
+- Commit: 93b1bc1c9d8d3deeda2d46a844bbe39eae97f0d1
+- Change: docs: align runbook with autonomous publication and recovery
 - Date: 2026-09-13
 - Durable context synchronization: completed

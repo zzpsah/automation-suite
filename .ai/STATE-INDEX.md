@@ -6,8 +6,8 @@ Generated automatically by Development OS.
 
 ## Repository
 - Branch: main
-- HEAD: 371e40898b4f7282a92559c863fe607ba9a09a55
-- Last commit: feat: remove human publication gate and use autonomous safety checks
+- HEAD: 93b1bc1c9d8d3deeda2d46a844bbe39eae97f0d1
+- Last commit: docs: align runbook with autonomous publication and recovery
 - Last commit date: 2026-09-13
 - Last commit author: PRASHANT KUMAR SAH
 
