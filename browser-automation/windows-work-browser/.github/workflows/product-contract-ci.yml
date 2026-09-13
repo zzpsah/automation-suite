@@ -4,35 +4,72 @@ on:
   push:
     paths:
       - 'browser-automation/windows-work-browser/**'
+      - '.github/workflows/**work-browser*'
   pull_request:
     paths:
       - 'browser-automation/windows-work-browser/**'
+      - '.github/workflows/**work-browser*'
+  workflow_dispatch:
+
+permissions:
+  contents: read
 
 jobs:
   contract:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
-      - name: Validate required product files
+      - name: Validate canonical contracts and release documents
         shell: bash
         run: |
           set -euo pipefail
           root='browser-automation/windows-work-browser'
-          for f in README.md BUILD-STATUS.md docs/BUILD-PLAN.md upstream/BROWSEROS-PIN.md upstream/REUSE-MATRIX.md upstream/bootstrap-windows.ps1 upstream/BUILD-GATE.md agent/action-contract.ts agent/policy-engine.ts agent/evidence-schema.ts; do
-            test -f "$root/$f"
-          done
-      - name: Reject direct arbitrary execution from agent layer
-        shell: bash
-        run: |
-          set -euo pipefail
-          root='browser-automation/windows-work-browser/agent'
-          if grep -RniE 'child_process|exec\(|execFile\(|spawn\(|powershell\s+-command|Invoke-Expression' "$root"; then
-            echo 'Potential direct arbitrary execution found in agent layer.'
-            exit 1
-          fi
+          files=(
+            README.md BUILD-STATUS.md
+            docs/BUILD-PLAN.md docs/RELEASE-GATES.md docs/THIRD-PARTY-NOTICES.md
+            upstream/BROWSEROS-PIN.md upstream/REUSE-MATRIX.md upstream/BUILD-GATE.md
+            upstream/OPTION-A-RELEASE.json upstream/OPTION-A-ARTIFACT-LANE.md
+            upstream/OPTION-A-WINDOWS-RUNBOOK.md upstream/OPTION-A-ARTIFACT-MANIFEST.schema.json
+            upstream/option-a-bootstrap.ps1 upstream/option-a-overlay-bootstrap.ps1
+            agent/action-contract.ts agent/policy-engine.ts agent/evidence-schema.ts
+            agent/executor-contract.ts agent/verification-contract.ts
+            agent/task-contract.ts agent/task-runner.ts
+            agent/native-executor-contract.ts
+            agent/mcp-contract.ts agent/mcp-gateway-contract.ts
+            agent/extractor-contract.ts agent/extraction-contract.ts
+            agent/permission-contract.ts
+            agent/vault-contract.ts agent/credential-vault-contract.ts
+            agent/update-contract.ts agent/browser-control-contract.ts
+            agent/work-tools-contract.ts agent/workflow-contract.ts
+          )
+          for f in "${files[@]}"; do test -f "$root/$f" || { echo "Missing $root/$f"; exit 1; }; done
+
       - name: Validate immutable upstream pins
         shell: bash
         run: |
           set -euo pipefail
           grep -q '8f5d36bc16f57115aeeff34baf4ad6aa964d509c' browser-automation/windows-work-browser/upstream/BROWSEROS-PIN.md
           grep -q '7765002ac88040aedc781be89afe68475a9d6c88' browser-automation/windows-work-browser/upstream/BROWSEROS-PIN.md
+          grep -q 'v0.50.3' browser-automation/windows-work-browser/upstream/OPTION-A-RELEASE.json
+          grep -q '3ae8dc6cd7fa8c39760d8c95591147e283705ec7d6f1cc4b02561d2696ef86c7' browser-automation/windows-work-browser/upstream/OPTION-A-RELEASE.json
+
+      - name: Reject arbitrary native execution from agent layer
+        shell: bash
+        run: |
+          set -euo pipefail
+          root='browser-automation/windows-work-browser/agent'
+          if grep -RniE 'child_process|exec\(|execFile\(|spawn\(|powershell[[:space:]]+-command|Invoke-Expression|cmd\.exe[[:space:]]+/c' "$root"; then
+            echo 'Potential direct arbitrary execution found in agent layer.'
+            exit 1
+          fi
+
+      - name: Validate security invariants
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -q 'APPROVAL_REQUIRED_RISKS' browser-automation/windows-work-browser/agent/policy-engine.ts
+          grep -q 'requiresExplicitApproval' browser-automation/windows-work-browser/agent/permission-contract.ts
+          grep -q 'use-credential' browser-automation/windows-work-browser/agent/vault-contract.ts
+          grep -q 'assertSafeEvidence' browser-automation/windows-work-browser/agent/evidence-schema.ts
+          grep -q 'McpGateway' browser-automation/windows-work-browser/agent/mcp-gateway-contract.ts
