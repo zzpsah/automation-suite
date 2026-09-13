@@ -9,15 +9,15 @@
 - F5 checkpointed task engine + resume semantics.
 - F6 constrained natural-language planner.
 - F7 mutation approval policy.
+- DEVOS command bar wired into the active browser tab with `Ctrl+Space`, status/output and approval prompts.
 - Synthetic 100-record portal fixture.
 - 100-step recovery regression resumed from checkpoint 47.
 - Windows CI restore/build/tests.
 - Self-contained win-x64 publish artifact.
+- Packaged EXE startup smoke on Windows CI.
 
 ## Remaining acceptance before merge/release
-- Interactive Windows launch and UX acceptance on a real desktop.
-- Verify multiple tabs, profile/session persistence, downloads and browser navigation interactively.
-- Run controlled automation against `test-portal/index.html` and confirm same-browser DOM control.
+- Perform `ACCEPTANCE.md` on a real interactive Windows desktop.
 - Review PR #16 diff and merge only when explicitly desired.
 
 ## Deferred feature layers
