@@ -6,14 +6,15 @@ This module is intentionally isolated under `devos-work-browser/` while it is in
 All product code, tests, fixtures and product-specific durable context stay under `devos-work-browser/` unless a repository-level integration is genuinely required.
 
 Repository-level integration:
-- `.github/workflows/devos-work-browser-f0.yml` — Windows restore/build/test plus self-contained win-x64 publish artifact.
+- `.github/workflows/devos-work-browser-f0.yml` — Windows restore/build/test, self-contained win-x64 publish, packaged-EXE startup smoke, and artifact upload.
 
 ## Application
 - `README.md` — product purpose and build notes.
+- `ACCEPTANCE.md` — real Windows interactive acceptance checklist before merge/release.
 - `Devos.WorkBrowser.sln` — .NET solution.
 - `src/Devos.WorkBrowser.csproj` — Windows WPF/WebView2 application.
 - `src/App.xaml` / `src/App.xaml.cs` — application bootstrap.
-- `src/MainWindow.xaml` / `src/MainWindow.xaml.cs` — browser shell, tab host, profile/session lifecycle, downloads and navigation.
+- `src/MainWindow.xaml` / `src/MainWindow.xaml.cs` — browser shell, tab host, profile/session lifecycle, downloads, navigation, DEVOS command bar, approval prompt and active-tab command execution.
 
 ## Browser layer
 - `src/Browser/UrlResolver.cs` — address vs search resolution.
@@ -49,4 +50,4 @@ Repository-level integration:
 - Draft PR: `#16` (`Build DEVOS Work Browser core`)
 
 ## Migration rule
-When a standalone repository becomes available, move this module as a unit. Do not copy unrelated `automation-suite` modules. Preserve Git evidence where practical, then rerun Windows build/test/publish verification in the new repository before continuing development.
+When a standalone repository becomes available, move this module as a unit. Do not copy unrelated `automation-suite` modules. Preserve Git evidence where practical, then rerun Windows build/test/publish/startup-smoke verification in the new repository before continuing development.
