@@ -12,12 +12,12 @@ Status: DEVOS Work Browser core v0.1 is code-complete and CI/package/startup-smo
 - F6 constrained human-language planner emits structured browser actions and supports semicolon-separated bounded sequences.
 - F7 approval policy requires explicit approval for committing command categories.
 - The browser shell exposes a DEVOS command bar, `Ctrl+Space` focus, visible status/output and approval prompts.
-- The packaged `Test Portal` fixture contains 100 synthetic student records.
+- The packaged **Test Portal** fixture contains 100 synthetic student records.
 - `process synthetic portal` runs a real adapter-driven workflow: open/read each record, checkpoint after every record, resume from the saved record, and export JSON + CSV.
 - Acceptance regression interrupts the synthetic workflow after record 47 and verifies a fresh workflow processes records 48-100 only, preserves the first 47 checkpointed records, and produces 100-record JSON/CSV exports.
 
 ## Latest Windows verification
-- CI run `34778073907` on code head `d9eaefb3aebdbcd6894c56f86ddbb2e8e8c93634` completed successfully.
+- Final CI run `34778226824` on head `c3de7f7c9a39ebc1b3db466638cb64e6aecea7ad` completed successfully.
 - Restore: success.
 - Build: success.
 - Tests: success, including active-task persistence, bounded multi-step planning, and synthetic portal 47 -> 48 recovery/export.
@@ -25,8 +25,8 @@ Status: DEVOS Work Browser core v0.1 is code-complete and CI/package/startup-smo
 - Packaged synthetic portal presence check: success.
 - Packaged `DEVOS.WorkBrowser.exe` launch smoke: success.
 - Artifact upload: success.
-- Artifact: `DEVOS-Work-Browser-win-x64`, artifact id `10323319017`, size `72301241` bytes.
-- Artifact digest: `sha256:e2c5886ac7afcdf50862b3a45521aa4b89d49a59db3da3e793f31dd850afbae4`.
+- Artifact: `DEVOS-Work-Browser-win-x64`, artifact id `10323319172`, size `72301230` bytes.
+- Artifact digest: `sha256:3fb9563e3b5a54692b58d7aab00f127d0a6ce724938401353e6923a1ad4c8146`.
 
 ## Remaining acceptance boundary
 The material core implementation is complete. CI proves compilation, regressions, packaging, packaged fixture presence and non-immediate packaged-app startup failure. It does not prove visual correctness or human interaction quality. Before merge/release, perform `ACCEPTANCE.md` on a real interactive Windows desktop.
