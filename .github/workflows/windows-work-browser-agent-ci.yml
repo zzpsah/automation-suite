@@ -1,0 +1,60 @@
+name: Windows Work Browser - Agent CI
+
+on:
+  push:
+    paths:
+      - 'browser-automation/windows-work-browser/agent/**'
+      - 'browser-automation/windows-work-browser/runtime/**'
+      - 'browser-automation/windows-work-browser/scripts/**'
+      - 'browser-automation/windows-work-browser/package.json'
+      - 'browser-automation/windows-work-browser/tsconfig.json'
+      - 'browser-automation/windows-work-browser/package-lock.json'
+      - '.github/workflows/windows-work-browser-agent-ci.yml'
+  pull_request:
+    paths:
+      - 'browser-automation/windows-work-browser/agent/**'
+      - 'browser-automation/windows-work-browser/runtime/**'
+      - 'browser-automation/windows-work-browser/scripts/**'
+      - 'browser-automation/windows-work-browser/package.json'
+      - 'browser-automation/windows-work-browser/tsconfig.json'
+      - 'browser-automation/windows-work-browser/package-lock.json'
+      - '.github/workflows/windows-work-browser-agent-ci.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: windows-work-browser-agent-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  typecheck-and-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: browser-automation/windows-work-browser
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Install dependencies
+        run: npm install --ignore-scripts --no-audit --no-fund
+      - name: Typecheck
+        run: npm run typecheck
+      - name: Build
+        run: npm run build
+      - name: Runtime tests
+        run: npm test
+      - name: Generate SBOM
+        run: node scripts/generate-sbom.mjs
+        env:
+          SBOM_OUT: sbom.cdx.json
+      - name: Upload SBOM
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-work-browser-agent-sbom
+          path: browser-automation/windows-work-browser/sbom.cdx.json
+          if-no-files-found: error

@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Work Browser</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <div>
+      <div class="eyebrow">AUTOMATION SUITE</div>
+      <h1>Work Browser</h1>
+    </div>
+    <span id="status" class="status">Ready</span>
+  </header>
+
+  <main>
+    <section class="hero">
+      <label for="goal">What should I do?</label>
+      <textarea id="goal" rows="4" placeholder="Example: Open each student record, collect the fields, and create a CSV."></textarea>
+      <button id="run" class="primary">Run task</button>
+    </section>
+
+    <section class="cards">
+      <button class="card" data-action="extract"><strong>Extract</strong><span>Collect tables, lists and detail records.</span></button>
+      <button class="card" data-action="pdf"><strong>PDF tools</strong><span>Merge, split, OCR and export.</span></button>
+      <button class="card" data-action="image"><strong>Image tools</strong><span>Crop, deskew, resize and compress.</span></button>
+      <button class="card" data-action="files"><strong>Files</strong><span>Local, FTP, SFTP, WebDAV and SMB.</span></button>
+    </section>
+
+    <section class="approval" id="approval" hidden>
+      <div>
+        <div class="eyebrow">APPROVAL REQUIRED</div>
+        <h2 id="approvalTitle">External side effect</h2>
+        <p id="approvalText"></p>
+      </div>
+      <div class="approval-actions">
+        <button id="deny">Deny</button>
+        <button id="allow" class="primary">Allow once</button>
+      </div>
+    </section>
+
+    <section>
+      <div class="section-title">Task activity</div>
+      <pre id="activity" class="activity">No activity yet.</pre>
+    </section>
+  </main>
+  <script src="sidepanel.js"></script>
+</body>
+</html>

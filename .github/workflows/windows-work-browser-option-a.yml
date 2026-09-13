@@ -1,0 +1,192 @@
+name: Windows Work Browser - Option A
+
+on:
+  push:
+    paths:
+      - 'browser-automation/windows-work-browser/**'
+      - '.github/workflows/windows-work-browser-option-a.yml'
+  pull_request:
+    paths:
+      - 'browser-automation/windows-work-browser/**'
+      - '.github/workflows/windows-work-browser-option-a.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: windows-work-browser-option-a-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  artifact-integrity-and-launch:
+    name: Verify BrowserOS Windows artifact
+    runs-on: windows-latest
+    timeout-minutes: 40
+    env:
+      ARTIFACT_URL: https://github.com/browseros-ai/BrowserOS/releases/download/v0.50.3/BrowserOS_v0.50.3_x64_installer.exe
+      EXPECTED_SHA256: 3ae8dc6cd7fa8c39760d8c95591147e283705ec7d6f1cc4b02561d2696ef86c7
+      ARTIFACT_NAME: BrowserOS_v0.50.3_x64_installer.exe
+      AGENT_EXTENSION_URL: https://github.com/browseros-ai/BrowserOS/releases/download/ext-agent/v0.0.156.0/agent-0.0.156.0.crx
+      AGENT_EXTENSION_SHA256: d1074b2d4ec15b9a6305090be5006222a150d336a7b0ebebfcdb414d7b9847cf
+      AGENT_EXTENSION_NAME: agent-0.0.156.0.crx
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download pinned artifact
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $stage = Join-Path $env:RUNNER_TEMP 'windows-work-browser'
+          New-Item -ItemType Directory -Force -Path $stage | Out-Null
+          $path = Join-Path $stage $env:ARTIFACT_NAME
+          Invoke-WebRequest -Uri $env:ARTIFACT_URL -OutFile $path
+          "ARTIFACT_PATH=$path" | Out-File -FilePath $env:GITHUB_ENV -Append
+
+      - name: Verify SHA-256
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $actual = (Get-FileHash -Algorithm SHA256 -Path $env:ARTIFACT_PATH).Hash.ToLowerInvariant()
+          if ($actual -ne $env:EXPECTED_SHA256) { throw "SHA-256 mismatch. Expected $env:EXPECTED_SHA256 but got $actual" }
+          "Verified SHA-256: $actual"
+
+      - name: Verify Authenticode signature
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $sig = Get-AuthenticodeSignature -FilePath $env:ARTIFACT_PATH
+          if ($sig.Status -ne 'Valid') { throw "Authenticode signature is not valid: $($sig.Status)" }
+          "Signer: $($sig.SignerCertificate.Subject)"
+
+      - name: Install BrowserOS with bounded Chromium installer invocation
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $proc = Start-Process -FilePath $env:ARTIFACT_PATH -ArgumentList '/silent', '/install', '--do-not-launch-chrome' -PassThru -WindowStyle Hidden
+          $completed = $proc.WaitForExit(90000)
+          if (-not $completed) { try { Stop-Process -Id $proc.Id -Force -ErrorAction SilentlyContinue } catch {}; throw 'BrowserOS installer did not exit within 90 seconds.' }
+          if ($proc.ExitCode -ne 0) { throw "BrowserOS installer exited with code $($proc.ExitCode)" }
+          $installDir = Join-Path $env:LOCALAPPDATA 'BrowserOS\Application'
+          "INSTALL_DIR=$installDir" | Out-File -FilePath $env:GITHUB_ENV -Append
+          if (-not (Test-Path $installDir)) { throw "Expected BrowserOS install directory was not found: $installDir" }
+
+      - name: Launch and verify BrowserOS plus Work Browser E2E
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $evidence = Join-Path $env:RUNNER_TEMP 'windows-work-browser-evidence'
+          New-Item -ItemType Directory -Force -Path $evidence | Out-Null
+          $candidates = @((Join-Path $env:INSTALL_DIR 'chrome.exe'), (Join-Path $env:INSTALL_DIR 'BrowserOS.exe'))
+          $browser = $candidates | Where-Object { Test-Path $_ } | Select-Object -First 1
+          if (-not $browser) { throw "Installed BrowserOS executable was not found under $env:INSTALL_DIR" }
+          $profile = Join-Path $env:RUNNER_TEMP 'windows-work-browser-profile'
+          New-Item -ItemType Directory -Force -Path $profile | Out-Null
+          $port = 9222
+          $proc = Start-Process -FilePath $browser -ArgumentList '--new-window', 'https://example.com', "--user-data-dir=$profile", "--remote-debugging-port=$port", '--no-first-run', '--no-default-browser-check' -PassThru
+          try {
+            $cdp = $null
+            for ($i = 0; $i -lt 30 -and -not $cdp; $i++) { Start-Sleep -Seconds 1; try { $cdp = Invoke-RestMethod -Uri "http://127.0.0.1:$port/json/version" -TimeoutSec 2 } catch {} }
+            if (-not $cdp) { throw 'Browser did not expose CDP within 30 seconds.' }
+            $tabs = Invoke-RestMethod -Uri "http://127.0.0.1:$port/json/list" -TimeoutSec 5
+            $target = @($tabs) | Where-Object { $_.url -like 'https://example.com*' } | Select-Object -First 1
+            if (-not $target) { throw 'Expected example.com tab was not observed.' }
+            [ordered]@{browser=$browser; launched=$true; cdp=$cdp.Browser; observed_url=$target.url} | ConvertTo-Json | Set-Content (Join-Path $evidence 'browser-launch.json')
+            Push-Location 'browser-automation/windows-work-browser'
+            npm install --ignore-scripts --no-audit --no-fund
+            npm run build
+            $env:CDP_ENDPOINT = "http://127.0.0.1:$port"
+            $out = & node dist/runtime/playwright-e2e.js 2>&1
+            $exit = $LASTEXITCODE
+            $out | Tee-Object -FilePath (Join-Path $evidence 'playwright-e2e.jsonl')
+            if ($exit -ne 0) { throw "Playwright semantic E2E failed with exit code $exit" }
+            $nativeOut = & node dist/runtime/windows-native-e2e.js 2>&1
+            $nativeExit = $LASTEXITCODE
+            $nativeOut | Tee-Object -FilePath (Join-Path $evidence 'windows-native-e2e.jsonl')
+            if ($nativeExit -ne 0) { throw "Windows native E2E failed with exit code $nativeExit" }
+            Pop-Location
+          } finally { try { Stop-Process -Id $proc.Id -Force -ErrorAction SilentlyContinue } catch {} }
+
+      - name: Run Windows runtime component integration suite
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $evidence = Join-Path $env:RUNNER_TEMP 'windows-work-browser-evidence'
+          Push-Location 'browser-automation/windows-work-browser'
+          try {
+            npm install --ignore-scripts --no-audit --no-fund
+            npm run test 2>&1 | Tee-Object -FilePath (Join-Path $evidence 'runtime-component-tests.log')
+            if ($LASTEXITCODE -ne 0) { throw "Runtime component integration suite failed with exit code $LASTEXITCODE" }
+          } finally { Pop-Location }
+
+      - name: Stage and verify agent extension overlay
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $evidence = Join-Path $env:RUNNER_TEMP 'windows-work-browser-evidence'
+          New-Item -ItemType Directory -Force -Path $evidence | Out-Null
+          $stage = Join-Path $env:RUNNER_TEMP 'windows-work-browser-overlay'
+          New-Item -ItemType Directory -Force -Path $stage | Out-Null
+          $path = Join-Path $stage $env:AGENT_EXTENSION_NAME
+          Invoke-WebRequest -Uri $env:AGENT_EXTENSION_URL -OutFile $path
+          $actual = (Get-FileHash -Algorithm SHA256 -Path $path).Hash.ToLowerInvariant()
+          if ($actual -ne $env:AGENT_EXTENSION_SHA256) { throw "Agent extension SHA-256 mismatch. Expected $env:AGENT_EXTENSION_SHA256 but got $actual" }
+          [ordered]@{extension=$env:AGENT_EXTENSION_NAME; sha256=$actual; status='STAGED_ONLY'} | ConvertTo-Json | Set-Content (Join-Path $evidence 'overlay-verification.json')
+
+      - name: Assemble developer preview bundle
+        if: startsWith(github.ref, 'refs/heads/release/browser-v')
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $bundle = Join-Path $env:RUNNER_TEMP 'Windows-Work-Browser-Developer-Preview'
+          New-Item -ItemType Directory -Force -Path $bundle | Out-Null
+          Push-Location 'browser-automation/windows-work-browser'
+          try { npm install --ignore-scripts --no-audit --no-fund; npm run sbom } finally { Pop-Location }
+          Copy-Item $env:ARTIFACT_PATH (Join-Path $bundle 'BrowserOS-Windows-x64-installer.exe')
+          Copy-Item 'browser-automation/windows-work-browser/dist' (Join-Path $bundle 'agent-runtime') -Recurse
+          Copy-Item 'browser-automation/windows-work-browser/extension' (Join-Path $bundle 'extension') -Recurse
+          Copy-Item 'browser-automation/windows-work-browser/runtime' (Join-Path $bundle 'runtime') -Recurse
+          Copy-Item 'browser-automation/windows-work-browser/agent' (Join-Path $bundle 'agent-contracts') -Recurse
+          Copy-Item 'browser-automation/windows-work-browser/docs' (Join-Path $bundle 'docs') -Recurse
+          Copy-Item 'browser-automation/windows-work-browser/scripts/Start-Work-Browser.cmd' (Join-Path $bundle 'Start-Work-Browser.cmd')
+          Copy-Item 'browser-automation/windows-work-browser/scripts/start-work-browser.ps1' (Join-Path $bundle 'start-work-browser.ps1')
+          Copy-Item 'browser-automation/windows-work-browser/RELEASE-READINESS.json' (Join-Path $bundle 'RELEASE-READINESS.json')
+          Copy-Item 'browser-automation/windows-work-browser/sbom.cdx.json' (Join-Path $bundle 'sbom.cdx.json')
+          $readme = @('Windows Work Browser Developer Preview', '', 'Testing package; not an Automation Suite production installer.', 'Base BrowserOS: v0.50.3 x64', "BrowserOS SHA-256: $env:EXPECTED_SHA256") -join "`r`n"
+          Set-Content -Path (Join-Path $bundle 'README.txt') -Value $readme
+          $tag = '${{ github.ref_name }}' -replace '^release/', ''
+          $zip = Join-Path $env:RUNNER_TEMP "Windows-Work-Browser-$tag.zip"
+          Compress-Archive -Path "$bundle\*" -DestinationPath $zip -Force
+          "RELEASE_BUNDLE=$zip" | Out-File $env:GITHUB_ENV -Append
+
+      - name: Upload developer preview bundle
+        if: startsWith(github.ref, 'refs/heads/release/browser-v')
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-work-browser-developer-preview
+          path: ${{ env.RELEASE_BUNDLE }}
+          if-no-files-found: error
+
+      - name: Publish developer prerelease
+        if: startsWith(github.ref, 'refs/heads/release/browser-v')
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $tag = '${{ github.ref_name }}' -replace '^release/', ''
+          gh release view $tag 2>$null
+          if ($LASTEXITCODE -eq 0) {
+            gh release upload $tag $env:RELEASE_BUNDLE --clobber
+          } else {
+            gh release create $tag $env:RELEASE_BUNDLE --title "Windows Work Browser $tag" --prerelease --generate-notes
+          }
+
+      - name: Upload verification evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-work-browser-option-a-evidence
+          path: ${{ runner.temp }}/windows-work-browser-evidence
+          if-no-files-found: warn

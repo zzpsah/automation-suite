@@ -1,0 +1,66 @@
+name: Windows Work Browser Contract CI
+
+on:
+  push:
+    paths:
+      - 'browser-automation/windows-work-browser/**'
+  pull_request:
+    paths:
+      - 'browser-automation/windows-work-browser/**'
+
+jobs:
+  contract:
+    runs-on: windows-latest
+    defaults:
+      run:
+        working-directory: browser-automation/windows-work-browser
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Validate required project structure
+        shell: pwsh
+        run: |
+          $required = @(
+            'README.md',
+            'BUILD-STATUS.md',
+            'docs/BUILD-PLAN.md',
+            'docs/UPSTREAM-LOCK.md',
+            'docs/UPSTREAM-RESEARCH-2026-09.md',
+            'docs/COMPOSITION-MATRIX.md',
+            'docs/WINDOWS-BUILD-BOOTSTRAP.md',
+            'docs/CI-CONTRACT.md',
+            '.ai/PROJECT-CONTEXT.md',
+            'agent/action-contract.ts'
+          )
+          foreach ($path in $required) {
+            if (-not (Test-Path $path)) { throw "Missing required path: $path" }
+          }
+
+      - name: Reject premature compiled status
+        shell: pwsh
+        run: |
+          $status = Get-Content 'BUILD-STATUS.md' -Raw
+          if ($status -match '(?im)Status:\s*\*\*COMPILED\*\*') {
+            if (-not (Test-Path 'artifacts/windows-build-evidence.json')) {
+              throw 'COMPILED status requires artifacts/windows-build-evidence.json'
+            }
+          }
+
+      - name: Validate TypeScript action contract
+        shell: pwsh
+        run: |
+          if (Get-Command npx -ErrorAction SilentlyContinue) {
+            npx --yes typescript --version
+            npx --yes tsc --noEmit --target ES2022 --module NodeNext agent/action-contract.ts
+          } else {
+            Write-Host 'npx unavailable; contract syntax check deferred to dedicated toolchain.'
+          }
+
+      - name: Security contract scan
+        shell: pwsh
+        run: |
+          $contract = Get-Content 'agent/action-contract.ts' -Raw
+          if ($contract -notmatch 'requiresApproval') { throw 'Approval policy hook missing from action contract.' }
+          if ($contract -match 'eval\s*\(') { throw 'eval() is prohibited in the action contract.' }
+          Write-Host 'Security contract checks passed.'

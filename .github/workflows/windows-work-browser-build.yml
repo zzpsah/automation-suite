@@ -1,0 +1,60 @@
+name: Windows Work Browser Build Lane
+
+on:
+  workflow_dispatch:
+    inputs:
+      lane:
+        description: "A=integration, B=full Chromium source build"
+        required: true
+        default: "A"
+        type: choice
+        options: [A, B]
+
+jobs:
+  build:
+    runs-on: [self-hosted, windows, x64]
+    timeout-minutes: 360
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Verify Windows host
+        run: |
+          $ErrorActionPreference = 'Stop'
+          if ($env:RUNNER_OS -ne 'Windows') { throw 'Windows runner required' }
+          git --version
+          python --version
+          $free = (Get-PSDrive -Name (Get-Location).Drive.Name).Free / 1GB
+          Write-Host ("Free disk: {0:N1} GB" -f $free)
+          if ('${{ inputs.lane }}' -eq 'B' -and $free -lt 90) { throw 'Full Chromium lane requires roughly 100GB free disk.' }
+
+      - name: Acquire pinned upstream sources
+        run: .\browser-automation\windows-work-browser\upstream\bootstrap-windows.ps1 -Root "$env:RUNNER_TEMP\wwb-upstream"
+
+      - name: Fast integration lane
+        if: ${{ inputs.lane == 'A' }}
+        run: |
+          Get-Content "$env:RUNNER_TEMP\wwb-upstream\SOURCE-MANIFEST.json"
+          Write-Host 'Integration lane is ready for an approved Windows BrowserOS binary/artifact.'
+
+      - name: Full Chromium source build
+        if: ${{ inputs.lane == 'B' }}
+        run: |
+          $browseros = "$env:RUNNER_TEMP\wwb-upstream\BrowserOS"
+          $chromium = "$env:RUNNER_TEMP\chromium\src"
+          if (-not (Test-Path $chromium)) { throw 'Provision Chromium/depot_tools on this self-hosted runner first.' }
+          Set-Location "$browseros\packages\browseros"
+          uv sync
+          uv run browseros build --preset release --product browseros --chromium-src $chromium
+
+      - name: Collect provenance evidence
+        if: always()
+        run: |
+          $out = "$env:GITHUB_WORKSPACE\browser-automation\windows-work-browser\build-evidence"
+          New-Item -ItemType Directory -Force $out | Out-Null
+          if (Test-Path "$env:RUNNER_TEMP\wwb-upstream\SOURCE-MANIFEST.json") { Copy-Item "$env:RUNNER_TEMP\wwb-upstream\SOURCE-MANIFEST.json" $out -Force }
+          Get-ComputerInfo | Select-Object WindowsProductName,WindowsVersion,OsBuildNumber | ConvertTo-Json | Set-Content "$out\host.json"
