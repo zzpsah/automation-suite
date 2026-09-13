@@ -10,10 +10,9 @@
     "agentExtensionSha256": "d1074b2d4ec15b9a6305090be5006222a150d336a7b0ebebfcdb414d7b9847cf"
   },
   "evidence": {
-    "windowsOptionARun": 118,
-    "windowsOptionARunId": 34761164626,
-    "windowsEvidenceArtifactId": 10319430419,
-    "windowsEvidenceDigest": "sha256:496a0b89ef1acb6da4d853d5f3840fc4616cf64857112de613b8d0f1c56e2077",
+    "windowsOptionARun": 121,
+    "windowsOptionARunId": 34761487885,
+    "windowsEvidenceArtifactId": 10319725163,
     "agentCiRun": 41,
     "agentCiRunId": 34760818099
   },
@@ -21,7 +20,7 @@
     "contractSecurityCi": true,
     "agentTypecheckBuildRuntime": true,
     "windowsArtifactIntegrityInstallLaunch": true,
-    "browserSemanticE2E": false,
+    "browserSemanticE2E": true,
     "nativeWindowsE2E": true,
     "mcpE2E": false,
     "extractionE2E": false,
@@ -38,8 +37,9 @@
   },
   "promotionRule": "releaseReady becomes true only after every mandatory gate is proven by retained executable evidence.",
   "notes": [
-    "Windows evidence artifact confirms browser launch/CDP and native Windows executor smoke; agent overlay is integrity-verified but not force-installed by CI.",
-    "Browser semantic task E2E remains separate from launch/CDP evidence and is not marked complete from this run alone."
+    "Windows run 121 completed successfully with real browser navigation, type, click, verify and extract operations through the Work Browser PlaywrightController over CDP.",
+    "The same run completed the bounded Windows native smoke and agent overlay integrity checks.",
+    "Test mode may use synthetic localhost fixtures only; it never disables the production policy boundary or grants arbitrary native execution."
   ],
   "lastUpdated": "2026-09-13"
 }
