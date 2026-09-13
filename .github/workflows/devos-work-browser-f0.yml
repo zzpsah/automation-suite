@@ -33,6 +33,23 @@ jobs:
           if (-not (Test-Path $portal)) {
             throw "Packaged synthetic portal fixture is missing: $portal"
           }
+      - name: Run packaged end-to-end browser self-test
+        shell: pwsh
+        run: |
+          $exe = (Resolve-Path 'devos-work-browser/artifacts/win-x64/DEVOS.WorkBrowser.exe').Path
+          $process = Start-Process -FilePath $exe -ArgumentList '--self-test' -PassThru
+          $deadline = (Get-Date).AddSeconds(120)
+          while (-not $process.HasExited -and (Get-Date) -lt $deadline) {
+            Start-Sleep -Milliseconds 500
+            $process.Refresh()
+          }
+          if (-not $process.HasExited) {
+            Stop-Process -Id $process.Id -Force
+            throw 'DEVOS Work Browser end-to-end self-test timed out after 120 seconds.'
+          }
+          if ($process.ExitCode -ne 0) {
+            throw "DEVOS Work Browser end-to-end self-test failed with exit code $($process.ExitCode)."
+          }
       - name: Launch packaged app smoke
         shell: pwsh
         run: |
