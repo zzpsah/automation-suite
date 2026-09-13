@@ -1,3 +1,10 @@
+## 2026-09-13 — use targeted notifier for document dispatch
+- Commit: 7c0577be5c383e4653fbca462f2f84ff2d4684ef
+- Author: PRASHANT KUMAR SAH
+- Classification: meaningful
+- Changed files:
+- `.github/workflows/global-document-telegram-notifier.yml`
+
 ## 2026-09-13 — add targeted autonomous Telegram delivery runner
 - Commit: d0c24eae0f11926f359f7abe1162eb7694bd092e
 - Author: PRASHANT KUMAR SAH

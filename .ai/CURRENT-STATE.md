@@ -16,7 +16,7 @@ Last verified: 2026-09-13
 - External/production mutations require explicit authorization.
 
 ## Last automated change
-- Commit: d0c24eae0f11926f359f7abe1162eb7694bd092e
-- Change: add targeted autonomous Telegram delivery runner
+- Commit: 7c0577be5c383e4653fbca462f2f84ff2d4684ef
+- Change: use targeted notifier for document dispatch
 - Date: 2026-09-13
 - Durable context synchronization: completed
