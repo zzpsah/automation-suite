@@ -1,22 +1,28 @@
 # Current State
 
-Status: core implementation advancing on `feat/devos-work-browser-core`.
+Status: DEVOS Work Browser core implemented on `feat/devos-work-browser-core`; final packaging verification in progress.
 
-## Verified foundation
-- F0 custom Windows shell is implemented with .NET 8 WPF + Microsoft WebView2.
-- Exact branch head `4b3f06ba8d74449d4f6f311bfc5a5ef9b2bb9ee2` passed Windows CI run `34774126122` (restore, build and tests all successful).
-- F0 therefore has build/test evidence. Interactive Windows acceptance remains separate.
-
-## Current implementation slice
-- F1: multi-tab host, shared persistent WebView2 profile, DEVOS download directory, session snapshot persistence.
+## Verified core evidence
+- F0 custom Windows shell uses .NET 8 WPF + Microsoft WebView2.
+- Exact head `5a91724dc20bde1222a70a70e44f46084eeb457a` passed Windows CI run `34776388649` with restore, build and tests all successful.
+- F1: multi-tab browser host, shared persistent WebView2 profile, DEVOS download directory, session snapshot save + restore.
 - F2: same-browser WebView2 automation adapter for click/type/read/wait/table extraction.
 - F3: deterministic action executor with verification and bounded retry.
 - F4: table extraction parser + CSV serialization.
-- F5: checkpoint store + task runner that resumes from the last completed step.
+- F5: checkpoint store + task runner with resume semantics.
+- F6: constrained human-language planner that emits structured browser actions.
+- F7: approval policy requiring explicit approval for upload/submit/delete/send operations.
+- Recovery regression covers a synthetic 100-step workload resumed from checkpoint 47 and completes steps 48-100 without replaying earlier steps.
 
-These F1-F5 changes are implementation evidence only until the new branch head passes CI.
+## Test infrastructure
+- `test-portal/index.html` provides 100 synthetic student records with pagination and record detail interaction.
+
+## Packaging gate
+- Windows CI is being extended to publish a self-contained `win-x64` artifact after build/test success.
+- The latest branch head after CI/documentation/test-fixture changes must pass the final workflow before packaging is considered verified.
 
 ## Boundaries
 - `main` remains untouched by this work.
-- AI planner, complex mutation, PDF/image tooling, OCR, printing, FTP/SFTP/WebDAV/SMB, MCP and multi-agent remain deferred.
-- No claim of live portal automation is made until interactive browser acceptance is performed.
+- Interactive Windows launch/UX acceptance remains separate from CI compilation/tests.
+- Live portal automation, real credentials, production mutations and destructive actions are not proven by offline/CI tests.
+- PDF/image tooling, OCR, printing, FTP/SFTP/WebDAV/SMB, MCP, multi-agent, workflow recorder and complex desktop automation remain deferred feature layers.
