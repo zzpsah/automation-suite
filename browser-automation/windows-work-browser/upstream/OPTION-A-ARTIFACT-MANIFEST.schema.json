@@ -1,0 +1,50 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Windows Work Browser Option A Artifact Manifest",
+  "type": "object",
+  "required": ["product", "upstream", "artifact", "verification", "overlay"],
+  "properties": {
+    "product": {"type": "string", "const": "windows-work-browser"},
+    "upstream": {
+      "type": "object",
+      "required": ["project", "release_or_revision"],
+      "properties": {
+        "project": {"type": "string"},
+        "release_or_revision": {"type": "string"}
+      },
+      "additionalProperties": false
+    },
+    "artifact": {
+      "type": "object",
+      "required": ["platform", "architecture", "filename", "download_url"],
+      "properties": {
+        "platform": {"type": "string", "const": "windows"},
+        "architecture": {"type": "string", "enum": ["x64", "arm64"]},
+        "filename": {"type": "string"},
+        "download_url": {"type": "string", "format": "uri"},
+        "sha256": {"type": "string", "pattern": "^[A-Fa-f0-9]{64}$"}
+      },
+      "additionalProperties": false
+    },
+    "verification": {
+      "type": "object",
+      "required": ["status"],
+      "properties": {
+        "status": {"type": "string", "enum": ["UNVERIFIED", "VERIFIED", "REJECTED"]},
+        "verified_at": {"type": "string", "format": "date-time"},
+        "verified_by": {"type": "string"}
+      },
+      "additionalProperties": false
+    },
+    "overlay": {
+      "type": "object",
+      "required": ["revision", "method"],
+      "properties": {
+        "revision": {"type": "string"},
+        "method": {"type": "string", "enum": ["extension", "agent", "mcp", "native-messaging", "service", "documented-integration"]}
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}
