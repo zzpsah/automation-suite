@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
-import { fileURLToPath } from "node:url";
+import { join } from "node:path";
 
 function runRequest(command: string, args: string[], request: object): Promise<Record<string, unknown>> {
   return new Promise((resolve, reject) => {
@@ -37,7 +37,7 @@ function runRequest(command: string, args: string[], request: object): Promise<R
 }
 
 test("MCP stdio works as an external child process", async () => {
-  const serverPath = fileURLToPath(new URL("./mcp-stdio-server.js", import.meta.url));
+  const serverPath = join(__dirname, "mcp-stdio-server.js");
   const result = await runRequest(process.execPath, [serverPath], {
     jsonrpc: "2.0",
     id: 1,
