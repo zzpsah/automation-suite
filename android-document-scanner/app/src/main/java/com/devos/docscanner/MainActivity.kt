@@ -7,7 +7,6 @@ import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.Matrix
 import android.graphics.PointF
-import android.net.Uri
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -50,7 +49,6 @@ import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
@@ -114,7 +112,8 @@ class MainActivity : ComponentActivity() {
                         val cropped = runCatching { if (opencvAvailable) ImageProcessor.warp(bitmap, quad) else bitmap.copy(Bitmap.Config.ARGB_8888, false) }.getOrElse { bitmap.copy(Bitmap.Config.ARGB_8888, false) }
                         val page = ScanPage(bitmap, cropped, quad)
                         val next = pages + page
-                        runOnUiThread { pages = next; ScanSessionStore.save(context, next); selected = next.lastIndex; processing = false; screen = "review" }
+                        ScanSessionStore.save(context, next)
+                        runOnUiThread { pages = next; selected = next.lastIndex; processing = false; screen = "review" }
                     }
                 }
                 "review" -> ReviewView(pages, selected, { selected = it }, { screen = "camera" }, { if (selected >= 0) screen = "edit" }, { savePdf.launch("DevOS-Scan-${System.currentTimeMillis()}.pdf") }, {
@@ -124,7 +123,7 @@ class MainActivity : ComponentActivity() {
                         startActivity(Intent.createChooser(Intent(Intent.ACTION_SEND).apply { type = "application/pdf"; putExtra(Intent.EXTRA_STREAM, uri); addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION) }, "Share scan"))
                     }.onFailure { error = "Unable to share PDF" }
                 }, { pages = emptyList(); selected = -1; ScanSessionStore.clear(context); screen = "camera" })
-                "edit" -> if (selected >= 0) EditorView(pages[selected], opencvAvailable, { updated -> val next = pages.toMutableList().also { it[selected] = updated }; pages = next; ScanSessionStore.save(context, next); screen = "review" }, { screen = "review" }, { error = it })
+                "edit" -> if (selected >= 0) EditorView(pages[selected], opencvAvailable, { updated -> val next = pages.toMutableList().also { it[selected] = updated }; ScanSessionStore.save(context, next); pages = next; screen = "review" }, { screen = "review" }, { error = it })
             }
             if (processing) ProcessingOverlay()
             error?.let { message -> AlertDialog(onDismissRequest = { error = null }, title = { Text("Scanner error") }, text = { Text(message) }, confirmButton = { TextButton(onClick = { error = null }) { Text("OK") } }) }
@@ -142,22 +141,31 @@ class MainActivity : ComponentActivity() {
 
     @Composable
     private fun CameraView(flash: Boolean, onFlash: () -> Unit, disabled: Boolean, onError: (String) -> Unit, onCapture: (Bitmap) -> Unit) {
-        val context = LocalContext.current; val lifecycleOwner = androidx.lifecycle.compose.LocalLifecycleOwner.current
-        val executor = remember { Executors.newSingleThreadExecutor() }; var imageCapture by remember { mutableStateOf<ImageCapture?>(null) }
+        val context = LocalContext.current
+        val lifecycleOwner = LocalLifecycleOwner.current
+        val executor = remember { Executors.newSingleThreadExecutor() }
+        var imageCapture by remember { mutableStateOf<ImageCapture?>(null) }
         DisposableEffect(Unit) { onDispose { executor.shutdown() } }
         LaunchedEffect(flash) { imageCapture?.flashMode = if (flash) ImageCapture.FLASH_MODE_ON else ImageCapture.FLASH_MODE_OFF }
         Box(Modifier.fillMaxSize().background(Color.Black)) {
-            AndroidView(Modifier.fillMaxSize(), factory = { viewContext -> PreviewView(viewContext).also { previewView ->
-                val future = ProcessCameraProvider.getInstance(viewContext)
-                future.addListener({
-                    runCatching {
-                        val provider = future.get()
-                        val preview = Preview.Builder().build().also { it.setSurfaceProvider(previewView.surfaceProvider) }
-                        val capture = ImageCapture.Builder().setCaptureMode(ImageCapture.CAPTURE_MODE_MAXIMIZE_QUALITY).setJpegQuality(98).setFlashMode(if (flash) ImageCapture.FLASH_MODE_ON else ImageCapture.FLASH_MODE_OFF).build()
-                        imageCapture = capture; provider.unbindAll(); provider.bindToLifecycle(lifecycleOwner, CameraSelector.DEFAULT_BACK_CAMERA, preview, capture)
-                    }.onFailure { ContextCompat.getMainExecutor(viewContext).execute { onError("Camera could not start: ${it.message ?: "unknown error"}") } }
-                }, ContextCompat.getMainExecutor(viewContext))
-            } })
+            AndroidView(
+                factory = { viewContext ->
+                    PreviewView(viewContext).also { previewView ->
+                        val future = ProcessCameraProvider.getInstance(viewContext)
+                        future.addListener({
+                            runCatching {
+                                val provider = future.get()
+                                val preview = Preview.Builder().build().also { it.setSurfaceProvider(previewView.surfaceProvider) }
+                                val capture = ImageCapture.Builder().setCaptureMode(ImageCapture.CAPTURE_MODE_MAXIMIZE_QUALITY).setJpegQuality(98).setFlashMode(if (flash) ImageCapture.FLASH_MODE_ON else ImageCapture.FLASH_MODE_OFF).build()
+                                imageCapture = capture
+                                provider.unbindAll()
+                                provider.bindToLifecycle(lifecycleOwner, CameraSelector.DEFAULT_BACK_CAMERA, preview, capture)
+                            }.onFailure { ContextCompat.getMainExecutor(viewContext).execute { onError("Camera could not start: ${it.message ?: "unknown error"}") } }
+                        }, ContextCompat.getMainExecutor(viewContext))
+                    }
+                },
+                modifier = Modifier.fillMaxSize()
+            )
             Column(Modifier.fillMaxSize().padding(22.dp)) {
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) { Text("DEVOS SCAN", color = Color.White, fontSize = 22.sp); IconButton(onClick = onFlash, enabled = !disabled) { Icon(if (flash) Icons.Default.FlashOn else Icons.Default.FlashOff, "Flash", tint = Color.White) } }
                 Spacer(Modifier.weight(1f)); Text("Align the full page inside the frame", color = Color.White.copy(alpha = .9f), modifier = Modifier.align(Alignment.CenterHorizontally)); Spacer(Modifier.height(20.dp))
