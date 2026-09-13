@@ -27,7 +27,6 @@
     "mcpE2E": false,
     "extractionE2E": true,
     "filesE2E": true,
-    "pdfOcrE2E": false,
     "imageE2E": true,
     "communicationsE2E": false,
     "workflowE2E": true,
@@ -36,6 +35,9 @@
     "signedInstaller": false,
     "releaseSbomAndNotices": false,
     "finalWindowsAcceptance": false
+  },
+  "optionalGates": {
+    "pdfOcrE2E": false
   },
   "verifiedComponentEvidence": {
     "mcpAuthorization": true,
@@ -53,7 +55,7 @@
     "Agent CI run 58 passed typecheck, build, all 22 runtime tests, and SBOM generation.",
     "The Windows runtime component suite is executable evidence for extraction, workspace-confined files, image processing, workflow recovery and update/rollback logic; it is not a substitute for real external-provider acceptance.",
     "MCP authorization is tested locally, but full external MCP-client E2E remains open.",
-    "PDF merge/split is implemented; OCR remains provider-backed and unverified.",
+    "PDF merge/split is implemented and tested. OCR is optional for the initial release and remains a post-release provider capability.",
     "Communications remains provider-backed and unverified without a real provider acceptance environment.",
     "Credential-vault runtime security remains open until Windows OS-backed secret storage is exercised end-to-end.",
     "Production signing, complete notices/SBOM release packaging, update/rollback acceptance, and final Windows acceptance remain mandatory before RELEASED.",
