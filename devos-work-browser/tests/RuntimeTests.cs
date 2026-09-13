@@ -19,7 +19,7 @@ public sealed class RuntimeTests
     [Fact]
     public async Task TaskRunner_ResumesFromCheckpoint()
     {
-        var directory = Path.Combine(Path.GetTempPath(), "devos-work-browser-tests", Guid.NewGuid().ToString("N"));
+        var directory = NewTempDirectory();
         var store = new CheckpointStore(directory);
         store.Save(new TaskCheckpoint("t1", 1, DateTimeOffset.UtcNow));
         var adapter = new FakeAdapter();
@@ -36,6 +36,29 @@ public sealed class RuntimeTests
         Assert.Equal("#second", adapter.Clicked.Single());
         Assert.Equal(2, store.Load("t1")!.NextStepIndex);
     }
+
+    [Fact]
+    public async Task TaskRunner_ResumesHundredRecordRunFromRecord47()
+    {
+        var directory = NewTempDirectory();
+        var store = new CheckpointStore(directory);
+        store.Save(new TaskCheckpoint("hundred", 47, DateTimeOffset.UtcNow));
+        var adapter = new FakeAdapter();
+        var runner = new TaskRunner(new ActionExecutor(adapter), store);
+        var steps = Enumerable.Range(1, 100)
+            .Select(index => new BrowserAction(BrowserActionKind.Click, $"#record-{index}"))
+            .ToList();
+
+        var results = await runner.RunAsync("hundred", steps);
+
+        Assert.Equal(53, results.Count);
+        Assert.Equal("#record-48", adapter.Clicked.First());
+        Assert.Equal("#record-100", adapter.Clicked.Last());
+        Assert.Equal(100, store.Load("hundred")!.NextStepIndex);
+    }
+
+    private static string NewTempDirectory()
+        => Path.Combine(Path.GetTempPath(), "devos-work-browser-tests", Guid.NewGuid().ToString("N"));
 
     private sealed class FakeAdapter : IAutomationAdapter
     {
