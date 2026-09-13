@@ -5,6 +5,8 @@ using System.Windows.Controls;
 using System.Windows.Input;
 using Devos.WorkBrowser.Automation;
 using Devos.WorkBrowser.Browser;
+using Devos.WorkBrowser.Planning;
+using Devos.WorkBrowser.Runtime;
 using Microsoft.Web.WebView2.Core;
 using Microsoft.Web.WebView2.Wpf;
 
@@ -14,10 +16,12 @@ public partial class MainWindow : Window
 {
     private static readonly Uri HomeUri = new("https://www.google.com/");
     private readonly Dictionary<TabItem, WebView2> _views = new();
+    private readonly NaturalLanguagePlanner _planner = new();
     private readonly string _profilePath = Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
         "DEVOS", "WorkBrowser", "Profile");
     private CoreWebView2Environment? _environment;
+    private bool _commandRunning;
 
     public MainWindow()
     {
@@ -124,6 +128,88 @@ public partial class MainWindow : Window
     private void Home_Click(object sender, RoutedEventArgs e) { if (ActiveView is not null) ActiveView.Source = HomeUri; }
     private async void NewTab_Click(object sender, RoutedEventArgs e) => await CreateTabAsync(HomeUri);
     private void BrowserTabs_SelectionChanged(object sender, SelectionChangedEventArgs e) => UpdateNavigationState();
+
+    private async void RunCommand_Click(object sender, RoutedEventArgs e) => await ExecuteCurrentCommandAsync();
+
+    private async void Window_PreviewKeyDown(object sender, KeyEventArgs e)
+    {
+        if (e.Key == Key.Space && Keyboard.Modifiers.HasFlag(ModifierKeys.Control))
+        {
+            CommandBox.Focus();
+            CommandBox.SelectAll();
+            e.Handled = true;
+            return;
+        }
+
+        if (e.Key == Key.Enter && ReferenceEquals(Keyboard.FocusedElement, CommandBox))
+        {
+            e.Handled = true;
+            await ExecuteCurrentCommandAsync();
+        }
+    }
+
+    private async Task ExecuteCurrentCommandAsync()
+    {
+        if (_commandRunning) return;
+        var adapter = CreateAutomationAdapter();
+        if (adapter is null)
+        {
+            CommandStatus.Text = "Browser not ready";
+            return;
+        }
+
+        PlannedCommand plan;
+        try
+        {
+            plan = _planner.Plan(CommandBox.Text);
+        }
+        catch (Exception ex)
+        {
+            CommandStatus.Text = ex.Message;
+            return;
+        }
+
+        if (plan.RequiresApproval)
+        {
+            var approval = MessageBox.Show(
+                $"DEVOS wants to perform a committing action:\n\n{plan.Summary}\n\nApprove this action?",
+                "DEVOS approval required",
+                MessageBoxButton.YesNo,
+                MessageBoxImage.Warning,
+                MessageBoxResult.No);
+            if (approval != MessageBoxResult.Yes)
+            {
+                CommandStatus.Text = "Approval declined";
+                return;
+            }
+        }
+
+        _commandRunning = true;
+        RunCommandButton.IsEnabled = false;
+        CommandStatus.Text = plan.Summary;
+        try
+        {
+            var executor = new ActionExecutor(adapter);
+            foreach (var action in plan.Actions)
+            {
+                var result = await executor.ExecuteAsync(action);
+                if (!result.Success)
+                {
+                    CommandStatus.Text = $"Failed: {result.Error}";
+                    return;
+                }
+
+                CommandStatus.Text = string.IsNullOrWhiteSpace(result.Output)
+                    ? $"Done ({result.Attempts} attempt{(result.Attempts == 1 ? string.Empty : "s")})"
+                    : result.Output;
+            }
+        }
+        finally
+        {
+            _commandRunning = false;
+            RunCommandButton.IsEnabled = true;
+        }
+    }
 
     private void UpdateNavigationState()
     {
