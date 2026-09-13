@@ -16,7 +16,7 @@ Last verified: 2026-09-13
 - External/production mutations require explicit authorization.
 
 ## Last automated change
-- Commit: 4c4db9453cac9080bb43cada5deff940bd6ce416
-- Change: chore(browser): remove duplicate overlay entrypoint
+- Commit: f008d4f07ddcd30051e0336bba257c7944fe19e6
+- Change: feat(scanner): preserve source image for true corner rewarp
 - Date: 2026-09-13
 - Durable context synchronization: completed

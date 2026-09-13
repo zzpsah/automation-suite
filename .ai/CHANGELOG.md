@@ -1,3 +1,10 @@
+## 2026-09-13 — feat(scanner): preserve source image for true corner rewarp
+- Commit: f008d4f07ddcd30051e0336bba257c7944fe19e6
+- Author: PRASHANT KUMAR SAH
+- Classification: meaningful
+- Changed files:
+- `android-document-scanner/app/src/main/java/com/devos/docscanner/ScannerModels.kt`
+
 ## 2026-09-13 — chore(browser): remove duplicate overlay entrypoint
 - Commit: 4c4db9453cac9080bb43cada5deff940bd6ce416
 - Author: PRASHANT KUMAR SAH

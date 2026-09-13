@@ -6,8 +6,8 @@ Generated automatically by Development OS.
 
 ## Repository
 - Branch: main
-- HEAD: 4c4db9453cac9080bb43cada5deff940bd6ce416
-- Last commit: chore(browser): remove duplicate overlay entrypoint
+- HEAD: f008d4f07ddcd30051e0336bba257c7944fe19e6
+- Last commit: feat(scanner): preserve source image for true corner rewarp
 - Last commit date: 2026-09-13
 - Last commit author: PRASHANT KUMAR SAH
 
