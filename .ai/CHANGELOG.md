@@ -1,3 +1,10 @@
+## 2026-09-13 — docs: document Telegram input delivery watchdog
+- Commit: 4a0bdb035d8a8df57f51854041bb324931235989
+- Author: PRASHANT KUMAR SAH
+- Classification: meaningful
+- Changed files:
+- `README.md`
+
 ## 2026-09-13 — fix: run Telegram watchdog on relevant changes
 - Commit: 339178eb10ec3071706bcc0b14d15de882ae06eb
 - Author: PRASHANT KUMAR SAH
