@@ -1,0 +1,65 @@
+name: Windows Work Browser - Contract Gate
+
+on:
+  push:
+    paths:
+      - 'browser-automation/windows-work-browser/**'
+      - '.github/workflows/windows-work-browser-contract.yml'
+  pull_request:
+    paths:
+      - 'browser-automation/windows-work-browser/**'
+      - '.github/workflows/windows-work-browser-contract.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate required contracts and release documents
+        shell: bash
+        run: |
+          set -euo pipefail
+          root='browser-automation/windows-work-browser'
+          files=(
+            README.md BUILD-STATUS.md
+            docs/BUILD-PLAN.md docs/RELEASE-GATES.md docs/THIRD-PARTY-NOTICES.md
+            upstream/BROWSEROS-PIN.md upstream/REUSE-MATRIX.md upstream/BUILD-GATE.md
+            agent/action-contract.ts agent/policy-engine.ts agent/evidence-schema.ts
+            agent/executor-contract.ts agent/verification-contract.ts
+            agent/task-contract.ts agent/task-runner.ts
+            agent/native-executor-contract.ts agent/mcp-contract.ts
+            agent/extractor-contract.ts agent/permission-contract.ts
+            agent/vault-contract.ts agent/update-contract.ts
+          )
+          for f in "${files[@]}"; do test -f "$root/$f" || { echo "Missing $root/$f"; exit 1; }; done
+
+      - name: Reject arbitrary native execution from agent layer
+        shell: bash
+        run: |
+          set -euo pipefail
+          root='browser-automation/windows-work-browser/agent'
+          if grep -RniE 'child_process|exec\(|execFile\(|spawn\(|powershell\s+-command|Invoke-Expression|cmd\.exe\s+/c' "$root"; then
+            echo 'Potential direct arbitrary execution found in agent layer.'
+            exit 1
+          fi
+
+      - name: Validate immutable upstream pins
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -q '8f5d36bc16f57115aeeff34baf4ad6aa964d509c' browser-automation/windows-work-browser/upstream/BROWSEROS-PIN.md
+          grep -q '7765002ac88040aedc781be89afe68475a9d6c88' browser-automation/windows-work-browser/upstream/BROWSEROS-PIN.md
+
+      - name: Validate security invariants
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -q 'APPROVAL_REQUIRED_RISKS' browser-automation/windows-work-browser/agent/policy-engine.ts
+          grep -q 'requiresExplicitApproval' browser-automation/windows-work-browser/agent/permission-contract.ts
+          grep -q 'use-credential' browser-automation/windows-work-browser/agent/vault-contract.ts
+          grep -q 'assertSafeEvidence' browser-automation/windows-work-browser/agent/evidence-schema.ts
