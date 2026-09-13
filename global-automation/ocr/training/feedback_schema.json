@@ -1,0 +1,19 @@
+{
+  "schema_version": "1.0",
+  "description": "Privacy-safe feedback record for continuous OCR language-pack improvement",
+  "required": ["sample_id", "language_pack", "observed", "correction", "source_type", "review_status"],
+  "fields": {
+    "sample_id": "stable non-sensitive identifier",
+    "language_pack": "e.g. bihar_education",
+    "language_pack_version": "version observed when candidate was generated",
+    "observed": "OCR token or short phrase",
+    "correction": "verified canonical token or phrase",
+    "source_type": "ocr_correction | authority_alias | subject_term | admin_term | district_alias",
+    "source_project": "optional project identifier, never document content",
+    "frequency": "observed occurrence count",
+    "review_status": "candidate | approved | rejected",
+    "evidence_hash": "optional hash of source evidence; never store document text",
+    "created_at": "timestamp",
+    "reviewed_at": "optional timestamp"
+  }
+}
