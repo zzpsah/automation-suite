@@ -12,7 +12,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 concurrency:
   group: windows-work-browser-option-a-${{ github.ref }}
@@ -22,7 +22,7 @@ jobs:
   artifact-integrity-and-launch:
     name: Verify BrowserOS Windows artifact
     runs-on: windows-latest
-    timeout-minutes: 35
+    timeout-minutes: 40
     env:
       ARTIFACT_URL: https://github.com/browseros-ai/BrowserOS/releases/download/v0.50.3/BrowserOS_v0.50.3_x64_installer.exe
       EXPECTED_SHA256: 3ae8dc6cd7fa8c39760d8c95591147e283705ec7d6f1cc4b02561d2696ef86c7
@@ -133,6 +133,60 @@ jobs:
           $actual = (Get-FileHash -Algorithm SHA256 -Path $path).Hash.ToLowerInvariant()
           if ($actual -ne $env:AGENT_EXTENSION_SHA256) { throw "Agent extension SHA-256 mismatch. Expected $env:AGENT_EXTENSION_SHA256 but got $actual" }
           [ordered]@{extension=$env:AGENT_EXTENSION_NAME; sha256=$actual; status='STAGED_ONLY'} | ConvertTo-Json | Set-Content (Join-Path $evidence 'overlay-verification.json')
+
+      - name: Assemble developer preview bundle
+        if: startsWith(github.ref, 'refs/heads/release/browser-v')
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $bundle = Join-Path $env:RUNNER_TEMP 'Windows-Work-Browser-Developer-Preview'
+          New-Item -ItemType Directory -Force -Path $bundle | Out-Null
+          Push-Location 'browser-automation/windows-work-browser'
+          try { npm install --ignore-scripts --no-audit --no-fund; npm run sbom } finally { Pop-Location }
+          Copy-Item $env:ARTIFACT_PATH (Join-Path $bundle 'BrowserOS-Windows-x64-installer.exe')
+          Copy-Item 'browser-automation/windows-work-browser/dist' (Join-Path $bundle 'agent-runtime') -Recurse
+          Copy-Item 'browser-automation/windows-work-browser/extension' (Join-Path $bundle 'extension') -Recurse
+          Copy-Item 'browser-automation/windows-work-browser/runtime' (Join-Path $bundle 'runtime') -Recurse
+          Copy-Item 'browser-automation/windows-work-browser/agent' (Join-Path $bundle 'agent-contracts') -Recurse
+          Copy-Item 'browser-automation/windows-work-browser/docs' (Join-Path $bundle 'docs') -Recurse
+          Copy-Item 'browser-automation/windows-work-browser/scripts/Start-Work-Browser.cmd' (Join-Path $bundle 'Start-Work-Browser.cmd')
+          Copy-Item 'browser-automation/windows-work-browser/scripts/start-work-browser.ps1' (Join-Path $bundle 'start-work-browser.ps1')
+          Copy-Item 'browser-automation/windows-work-browser/RELEASE-READINESS.json' (Join-Path $bundle 'RELEASE-READINESS.json')
+          Copy-Item 'browser-automation/windows-work-browser/sbom.cdx.json' (Join-Path $bundle 'sbom.cdx.json')
+          @"
+Windows Work Browser Developer Preview
+
+This package is for testing. It is not an Automation Suite production installer.
+Base BrowserOS: v0.50.3 x64
+BrowserOS SHA-256: $env:EXPECTED_SHA256
+"@ | Set-Content (Join-Path $bundle 'README.txt')
+          $tag = '${{ github.ref_name }}' -replace '^release/', ''
+          $zip = Join-Path $env:RUNNER_TEMP "Windows-Work-Browser-$tag.zip"
+          Compress-Archive -Path "$bundle\*" -DestinationPath $zip -Force
+          "RELEASE_BUNDLE=$zip" | Out-File $env:GITHUB_ENV -Append
+
+      - name: Upload developer preview bundle
+        if: startsWith(github.ref, 'refs/heads/release/browser-v')
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-work-browser-developer-preview
+          path: ${{ env.RELEASE_BUNDLE }}
+          if-no-files-found: error
+
+      - name: Publish developer prerelease
+        if: startsWith(github.ref, 'refs/heads/release/browser-v')
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $tag = '${{ github.ref_name }}' -replace '^release/', ''
+          gh release view $tag 2>$null
+          if ($LASTEXITCODE -eq 0) {
+            gh release upload $tag $env:RELEASE_BUNDLE --clobber
+          } else {
+            gh release create $tag $env:RELEASE_BUNDLE --title "Windows Work Browser $tag" --prerelease --generate-notes
+          }
 
       - name: Upload verification evidence
         if: always()
