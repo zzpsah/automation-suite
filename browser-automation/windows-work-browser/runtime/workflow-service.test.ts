@@ -13,15 +13,18 @@ test("workflow service checkpoints completed steps and supports pause/resume", a
     const created = await service.create("demo", {
       steps: [
         { id: "a", run: async () => { events.push("a"); } },
-        { id: "b", run: async () => { events.push("b"); } },
+        { id: "b", run: async () => { await new Promise((resolve) => setTimeout(resolve, 50)); events.push("b"); } },
+        { id: "c", run: async () => { events.push("c"); } },
       ],
     });
     const task = await service.run(created.id);
-    for (let i = 0; i < 20 && events.length < 2; i += 1) await new Promise((resolve) => setTimeout(resolve, 10));
-    assert.deepEqual(events, ["a", "b"]);
+    for (let i = 0; i < 20 && events.length < 1; i += 1) await new Promise((resolve) => setTimeout(resolve, 10));
     await service.pause(task.taskId);
-    await service.resume(task.taskId);
+    await new Promise((resolve) => setTimeout(resolve, 80));
     assert.equal(events.filter((value) => value === "a").length, 1);
+    await service.resume(task.taskId);
+    for (let i = 0; i < 30 && events.length < 3; i += 1) await new Promise((resolve) => setTimeout(resolve, 10));
+    assert.deepEqual(events, ["a", "b", "c"]);
   } finally {
     await rm(root, { recursive: true, force: true });
   }
