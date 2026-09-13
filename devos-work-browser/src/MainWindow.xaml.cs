@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.IO;
+using System.Text.Json;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
@@ -18,22 +19,26 @@ public partial class MainWindow : Window
     private static readonly Uri HomeUri = new("https://www.google.com/");
     private readonly Dictionary<TabItem, WebView2> _views = new();
     private readonly NaturalLanguagePlanner _planner = new();
-    private readonly string _stateRoot = Path.Combine(
-        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-        "DEVOS", "WorkBrowser");
+    private readonly string _stateRoot;
     private readonly string _profilePath;
     private readonly CheckpointStore _checkpoints;
     private readonly ActiveTaskStore _activeTasks;
     private readonly SyntheticPortalCheckpointStore _syntheticPortalCheckpoints;
+    private readonly bool _enableRecoveryPrompts;
+    private readonly TaskCompletionSource<bool> _browserReady = new(TaskCreationOptions.RunContinuationsAsynchronously);
     private CoreWebView2Environment? _environment;
     private bool _commandRunning;
 
-    public MainWindow()
+    public MainWindow(string? stateRoot = null, bool enableRecoveryPrompts = true)
     {
+        _stateRoot = stateRoot ?? Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+            "DEVOS", "WorkBrowser");
         _profilePath = Path.Combine(_stateRoot, "Profile");
         _checkpoints = new CheckpointStore(Path.Combine(_stateRoot, "Tasks"));
         _activeTasks = new ActiveTaskStore(Path.Combine(_stateRoot, "active-task.json"));
         _syntheticPortalCheckpoints = new SyntheticPortalCheckpointStore(Path.Combine(_stateRoot, "synthetic-portal-checkpoint.json"));
+        _enableRecoveryPrompts = enableRecoveryPrompts;
 
         InitializeComponent();
         Loaded += MainWindow_Loaded;
@@ -44,32 +49,45 @@ public partial class MainWindow : Window
 
     private async void MainWindow_Loaded(object sender, RoutedEventArgs e)
     {
-        Directory.CreateDirectory(_profilePath);
-        _environment = await CoreWebView2Environment.CreateAsync(userDataFolder: _profilePath);
-
-        var session = SessionStateStore.Load();
-        if (session?.Tabs.Count > 0)
+        try
         {
-            foreach (var url in session.Tabs)
+            Directory.CreateDirectory(_profilePath);
+            _environment = await CoreWebView2Environment.CreateAsync(userDataFolder: _profilePath);
+
+            var session = SessionStateStore.Load();
+            if (session?.Tabs.Count > 0)
             {
-                if (Uri.TryCreate(url, UriKind.Absolute, out var uri)) await CreateTabAsync(uri);
+                foreach (var url in session.Tabs)
+                {
+                    if (Uri.TryCreate(url, UriKind.Absolute, out var uri)) await CreateTabAsync(uri);
+                }
+
+                if (BrowserTabs.Items.Count > 0)
+                {
+                    BrowserTabs.SelectedIndex = Math.Clamp(session.SelectedIndex, 0, BrowserTabs.Items.Count - 1);
+                }
+            }
+            else
+            {
+                await CreateTabAsync(HomeUri);
             }
 
-            if (BrowserTabs.Items.Count > 0)
+            _browserReady.TrySetResult(true);
+
+            if (_enableRecoveryPrompts)
             {
-                BrowserTabs.SelectedIndex = Math.Clamp(session.SelectedIndex, 0, BrowserTabs.Items.Count - 1);
+                await TryResumePendingTaskAsync();
+                var portalCheckpoint = _syntheticPortalCheckpoints.Load();
+                if (portalCheckpoint is not null)
+                {
+                    CommandStatus.Text = $"Synthetic portal recovery available at record {portalCheckpoint.NextRecordId}";
+                }
             }
         }
-        else
+        catch (Exception ex)
         {
-            await CreateTabAsync(HomeUri);
-        }
-
-        await TryResumePendingTaskAsync();
-        var portalCheckpoint = _syntheticPortalCheckpoints.Load();
-        if (portalCheckpoint is not null)
-        {
-            CommandStatus.Text = $"Synthetic portal recovery available at record {portalCheckpoint.NextRecordId}";
+            _browserReady.TrySetException(ex);
+            CommandStatus.Text = $"Startup failed: {ex.Message}";
         }
     }
 
@@ -280,6 +298,82 @@ public partial class MainWindow : Window
             _commandRunning = false;
             RunCommandButton.IsEnabled = true;
         }
+    }
+
+    internal async Task<bool> RunAutomatedAcceptanceAsync(CancellationToken cancellationToken = default)
+    {
+        await _browserReady.Task.WaitAsync(TimeSpan.FromSeconds(30), cancellationToken);
+        await NavigateToTestPortalAsync();
+
+        var adapter = CreateAutomationAdapter() ?? throw new InvalidOperationException("Self-test browser adapter is unavailable.");
+        if (!await adapter.WaitForSelectorAsync("#students", TimeSpan.FromSeconds(15)))
+        {
+            throw new TimeoutException("Self-test portal did not become ready.");
+        }
+
+        var initialStatus = await adapter.ReadTextAsync("#status");
+        if (!string.Equals(initialStatus, "ready", StringComparison.OrdinalIgnoreCase))
+        {
+            throw new InvalidOperationException($"Unexpected initial portal status: {initialStatus}");
+        }
+
+        await adapter.ClickAsync("#next");
+        var pageDeadline = DateTimeOffset.UtcNow + TimeSpan.FromSeconds(5);
+        while (DateTimeOffset.UtcNow < pageDeadline)
+        {
+            var page = await adapter.ReadTextAsync("#page");
+            if (page?.Contains("Page 2 of 10", StringComparison.OrdinalIgnoreCase) == true) break;
+            await Task.Delay(75, cancellationToken);
+        }
+
+        if ((await adapter.ReadTextAsync("#page"))?.Contains("Page 2 of 10", StringComparison.OrdinalIgnoreCase) != true)
+        {
+            throw new InvalidOperationException("Real adapter click/read verification failed.");
+        }
+
+        _syntheticPortalCheckpoints.Clear();
+        var outputDirectory = Path.Combine(_stateRoot, "SelfTestExport");
+        if (Directory.Exists(outputDirectory)) Directory.Delete(outputDirectory, recursive: true);
+
+        var firstRun = new SyntheticPortalWorkflow(adapter, _syntheticPortalCheckpoints);
+        var interrupted = await firstRun.RunAsync(outputDirectory, stopAfterRecord: 47, cancellationToken);
+        if (interrupted.Completed || interrupted.ProcessedCount != 47)
+        {
+            throw new InvalidOperationException($"Expected self-test interruption at record 47; got {interrupted.ProcessedCount}.");
+        }
+
+        var checkpoint = _syntheticPortalCheckpoints.Load();
+        if (checkpoint?.NextRecordId != 48 || checkpoint.Records.Count != 47)
+        {
+            throw new InvalidOperationException("Self-test checkpoint did not preserve the 47→48 recovery boundary.");
+        }
+
+        var resumedRun = new SyntheticPortalWorkflow(adapter, _syntheticPortalCheckpoints);
+        var completed = await resumedRun.RunAsync(outputDirectory, cancellationToken: cancellationToken);
+        if (!completed.Completed || completed.ProcessedCount != SyntheticPortalWorkflow.RecordCount)
+        {
+            throw new InvalidOperationException($"Self-test recovery completed {completed.ProcessedCount} records instead of 100.");
+        }
+
+        if (completed.JsonPath is null || completed.CsvPath is null || !File.Exists(completed.JsonPath) || !File.Exists(completed.CsvPath))
+        {
+            throw new InvalidOperationException("Self-test JSON/CSV export files are missing.");
+        }
+
+        var records = JsonSerializer.Deserialize<List<SyntheticStudentRecord>>(await File.ReadAllTextAsync(completed.JsonPath, cancellationToken));
+        if (records?.Count != 100 || records[0].Id != 1 || records[^1].Id != 100)
+        {
+            throw new InvalidOperationException("Self-test JSON export does not contain records 1 through 100.");
+        }
+
+        var csvLines = await File.ReadAllLinesAsync(completed.CsvPath, cancellationToken);
+        if (csvLines.Length != 101 || !csvLines[1].StartsWith("1,", StringComparison.Ordinal) || !csvLines[^1].StartsWith("100,", StringComparison.Ordinal))
+        {
+            throw new InvalidOperationException("Self-test CSV export does not contain the expected 100 records.");
+        }
+
+        CommandStatus.Text = "Automated acceptance PASS — 100/100 records";
+        return true;
     }
 
     private async Task TryResumePendingTaskAsync()
