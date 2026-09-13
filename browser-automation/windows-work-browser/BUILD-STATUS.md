@@ -1,10 +1,10 @@
 # Windows Work Browser — Build Status
 
-**Status: OPTION-A RUNTIME VERIFICATION IN PROGRESS**
+**Status: VERIFIED FOUNDATION / NOT YET RELEASE CANDIDATE**
 
-This file deliberately prevents the project from being reported as production-ready without evidence.
+This file deliberately prevents the project from being reported as production-ready without product-level evidence.
 
-## Current state
+## Verified in CI
 
 - Repository architecture: established
 - Action/executor/policy/task/verification contracts: established
@@ -13,38 +13,47 @@ This file deliberately prevents the project from being reported as production-re
 - Universal extraction/resume contract: established
 - Permission Center contract: established
 - Credential vault/opaque lease contract: established
+- Evidence redaction boundary: hardened to key/schema inspection
 - Upstream/provenance registry: established
 - BrowserOS Windows release artifact: pinned to `v0.50.3` x64 installer
 - Upstream artifact SHA-256: `3ae8dc6cd7fa8c39760d8c95591147e283705ec7d6f1cc4b02561d2696ef86c7`
-- Option A artifact bootstrap: implemented
-- Option A Windows CI gate: implemented on repository root workflow
-- Previous Windows Option A run: **BLOCKED AT INSTALLER** — download, SHA-256, and Authenticode passed; the installer invocation did not exit before cancellation and browser launch was skipped.
-- Installer gate was corrected to use Chromium-style `/silent /install`, prevent automatic browser launch, use a 90-second bounded wait, and verify the actual `%LOCALAPPDATA%\BrowserOS\Application` install path.
-- New runtime verification is required after the installer-gate correction; no success is claimed yet.
+- Option A Windows CI run **#26 / 34756826023: SUCCESS**
+- Download gate: PASS
+- SHA-256 gate: PASS
+- Authenticode gate: PASS; signer observed as Felafax, Inc.
+- BrowserOS installation gate: PASS
+- Browser launch gate: PASS
+- CDP endpoint/navigation smoke gate: PASS (`https://example.com` target observed)
+- Agent extension overlay artifact integrity gate: PASS
+- Evidence bundle: retained as GitHub Actions artifact `windows-work-browser-option-a-evidence` (artifact `10316889516`)
 - Full Chromium/BrowserOS source checkout: not required for Option A delivery, retained as fallback build lane
 - Local Windows interactive desktop validation: not available from this integration environment
 
-## Required evidence before candidate promotion
+## Still blocking Release Candidate
 
-1. Windows runner downloads the exact pinned installer.
-2. SHA-256 matches the pinned release digest.
-3. Authenticode signature is valid.
-4. Installer completes using a bounded, reproducible invocation.
-5. Installed BrowserOS executable is located at the expected Windows path and launches.
-6. HTTPS/new-tab/tab-window/profile smoke tests pass.
-7. Browser-control/CDP/MCP overlay smoke tests pass.
-8. Native Windows bridge is policy-gated and verified.
-9. Evidence artifacts and hashes are retained.
-10. License/SBOM/release package is complete.
-11. Update/rollback behavior is verified.
-12. End-to-end product gates for extraction, files/PDF, communications, workflows, vault, permissions, security, and recovery are green.
+1. Real browser-control task execution through the Work Browser action pipeline.
+2. MCP end-to-end tool call through policy → executor → verification.
+3. Native Windows bridge implementation and end-to-end verification.
+4. Universal extraction implementation with pagination/detail traversal/resume and source-count verification.
+5. Files/PDF/image capability implementations.
+6. Communication integrations with explicit send approval.
+7. Workflow scheduler/Teach Mode/recovery implementation.
+8. Real Windows DPAPI/Credential Manager vault adapter and permission enforcement.
+9. Security E2E/adversarial tests.
+10. Generated SBOM + complete license/attribution package for the exact distributable.
+11. Update/rollback implementation and tested recovery.
+12. Final product installer/package and end-to-end Windows acceptance evidence.
 
-## Important distinction
+## Promotion rule
 
-A successful CI run proves only the gates executed by that run. It does **not** prove the entire Work Browser product is complete. The product remains below production-ready until browser-control, desktop automation, extraction, files/PDF, communications, workflows, vault/permissions, installer/update/rollback, and full integration evidence are green.
+A successful BrowserOS artifact smoke test proves the browser foundation only. It does **not** prove the Work Browser product is complete. Promotion remains:
+
+`DEVELOPMENT → VERIFIED → RELEASE CANDIDATE → RELEASED`
+
+The current product is **VERIFIED FOUNDATION**, not `RELEASE CANDIDATE`.
 
 ## Execution order
 
-`pin -> acquire -> verify -> install -> launch -> browser-smoke -> browser-control -> MCP -> native -> extraction -> files/PDF -> workflows -> vault/permissions -> security -> license/SBOM -> update/rollback -> release -> retain evidence`
+`pin → acquire → verify → install → launch → browser-smoke → browser-control → MCP → native → extraction → files/PDF → workflows → vault/permissions → security → license/SBOM → update/rollback → release → retain evidence`
 
 No documentation-only success, unrelated CI success, or simulated result may be treated as product completion.
