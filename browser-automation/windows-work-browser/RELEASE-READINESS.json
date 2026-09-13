@@ -13,8 +13,19 @@
     "windowsOptionARun": 121,
     "windowsOptionARunId": 34761487885,
     "windowsEvidenceArtifactId": 10319725163,
-    "agentCiRun": 41,
-    "agentCiRunId": 34760818099
+    "agentCiRun": 58,
+    "agentCiRunId": 34763099860
+  },
+  "localComponentEvidence": {
+    "mcpAuthorization": true,
+    "extractionDedupAndCsv": true,
+    "localFilesWorkspaceConfinement": true,
+    "pdfMergeSplit": true,
+    "imageCropResizeCompression": true,
+    "communicationApprovalBoundary": true,
+    "workflowCheckpointRecovery": true,
+    "updateDigestAndRollbackLogic": true,
+    "credentialVaultContract": true
   },
   "gates": {
     "contractSecurityCi": true,
@@ -39,6 +50,8 @@
   "notes": [
     "Windows run 121 completed successfully with real browser navigation, type, click, verify and extract operations through the Work Browser PlaywrightController over CDP.",
     "The same run completed the bounded Windows native smoke and agent overlay integrity checks.",
+    "Agent CI run 58 passed typecheck, build, runtime tests, and SBOM generation.",
+    "Local component suite now exercises MCP authorization, extraction, local files, PDF merge/split, image processing, communication approval, workflow recovery and update/rollback logic.",
     "Test mode may use synthetic localhost fixtures only; it never disables the production policy boundary or grants arbitrary native execution."
   ],
   "lastUpdated": "2026-09-13"
