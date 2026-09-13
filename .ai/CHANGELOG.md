@@ -1,3 +1,10 @@
+## 2026-09-13 — add targeted autonomous Telegram delivery runner
+- Commit: d0c24eae0f11926f359f7abe1162eb7694bd092e
+- Author: PRASHANT KUMAR SAH
+- Classification: meaningful
+- Changed files:
+- `global-automation/scripts/document/telegram_publication_notifier_targeted.py`
+
 ## 2026-09-13 — fix notifier repository dispatch targeting
 - Commit: 1a761f6b919dcf778e8ca6a88db8107439dc7960
 - Author: PRASHANT KUMAR SAH

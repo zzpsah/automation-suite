@@ -16,7 +16,7 @@ Last verified: 2026-09-13
 - External/production mutations require explicit authorization.
 
 ## Last automated change
-- Commit: 1a761f6b919dcf778e8ca6a88db8107439dc7960
-- Change: fix notifier repository dispatch targeting
+- Commit: d0c24eae0f11926f359f7abe1162eb7694bd092e
+- Change: add targeted autonomous Telegram delivery runner
 - Date: 2026-09-13
 - Durable context synchronization: completed
