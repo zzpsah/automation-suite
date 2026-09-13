@@ -105,8 +105,19 @@ export class PlaywrightController implements BrowserController {
         }
         case "extract": {
           const selector = action.target ?? "body";
-          const text = await page.locator(selector).first().innerText({ timeout });
-          return { ok: true, detail: text.slice(0, 100_000) };
+          const locator = page.locator(selector).first();
+          const text = await locator.innerText({ timeout });
+          const fields = await locator.locator("input, textarea, select").evaluateAll((elements) =>
+            elements.map((element) => ({
+              name: element.getAttribute("name") ?? element.id ?? element.tagName.toLowerCase(),
+              value: (element as HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement).value ?? "",
+            })),
+          );
+          const fieldText = fields
+            .filter((field) => field.value !== "")
+            .map((field) => `${field.name}=${field.value}`)
+            .join("\n");
+          return { ok: true, detail: [text, fieldText].filter(Boolean).join("\n").slice(0, 100_000) };
         }
         case "new-tab": {
           const newPage = await page.context().newPage();
