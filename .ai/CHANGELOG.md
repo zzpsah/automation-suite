@@ -1,3 +1,10 @@
+## 2026-09-13 — feat(browser): open DEVOS agent from page launcher
+- Commit: 90533555098969229c8fdaf3aa5fac7c9c41d062
+- Author: PRASHANT KUMAR SAH
+- Classification: meaningful
+- Changed files:
+- `browser-automation/windows-work-browser/extension/background.js`
+
 ## 2026-09-13 — feat(browser): add visible DEVOS AI page launcher
 - Commit: 03d5c098861096637006a6b908f0c044d8f58742
 - Author: PRASHANT KUMAR SAH

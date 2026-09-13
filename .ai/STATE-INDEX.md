@@ -6,8 +6,8 @@ Generated automatically by Development OS.
 
 ## Repository
 - Branch: main
-- HEAD: 03d5c098861096637006a6b908f0c044d8f58742
-- Last commit: feat(browser): add visible DEVOS AI page launcher
+- HEAD: 90533555098969229c8fdaf3aa5fac7c9c41d062
+- Last commit: feat(browser): open DEVOS agent from page launcher
 - Last commit date: 2026-09-13
 - Last commit author: PRASHANT KUMAR SAH
 
