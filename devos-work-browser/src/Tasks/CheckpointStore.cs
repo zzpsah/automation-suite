@@ -14,14 +14,22 @@ public sealed class CheckpointStore
     public void Save(TaskCheckpoint checkpoint)
     {
         Directory.CreateDirectory(_directory);
-        var path = Path.Combine(_directory, $"{checkpoint.TaskId}.json");
+        var path = GetPath(checkpoint.TaskId);
         File.WriteAllText(path, JsonSerializer.Serialize(checkpoint, new JsonSerializerOptions { WriteIndented = true }));
     }
 
     public TaskCheckpoint? Load(string taskId)
     {
-        var path = Path.Combine(_directory, $"{taskId}.json");
+        var path = GetPath(taskId);
         if (!File.Exists(path)) return null;
         return JsonSerializer.Deserialize<TaskCheckpoint>(File.ReadAllText(path));
     }
+
+    public void Delete(string taskId)
+    {
+        var path = GetPath(taskId);
+        if (File.Exists(path)) File.Delete(path);
+    }
+
+    private string GetPath(string taskId) => Path.Combine(_directory, $"{taskId}.json");
 }
