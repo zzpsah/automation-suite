@@ -31,8 +31,6 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 24
-          cache: npm
-          cache-dependency-path: browser-automation/windows-work-browser/package-lock.json
       - name: Install dependencies
         run: npm install --ignore-scripts
       - name: Typecheck
