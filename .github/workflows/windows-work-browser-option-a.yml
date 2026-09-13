@@ -1,0 +1,84 @@
+name: Windows Work Browser - Option A
+
+on:
+  push:
+    paths:
+      - 'browser-automation/windows-work-browser/**'
+      - '.github/workflows/windows-work-browser-option-a.yml'
+  pull_request:
+    paths:
+      - 'browser-automation/windows-work-browser/**'
+      - '.github/workflows/windows-work-browser-option-a.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  artifact-integrity-and-launch:
+    name: Verify BrowserOS Windows artifact
+    runs-on: windows-latest
+    timeout-minutes: 15
+    env:
+      ARTIFACT_URL: https://github.com/browseros-ai/BrowserOS/releases/download/v0.50.3/BrowserOS_v0.50.3_x64_installer.exe
+      EXPECTED_SHA256: 3ae8dc6cd7fa8c39760d8c95591147e283705ec7d6f1cc4b02561d2696ef86c7
+      ARTIFACT_NAME: BrowserOS_v0.50.3_x64_installer.exe
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download pinned artifact
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $stage = Join-Path $env:RUNNER_TEMP 'windows-work-browser'
+          New-Item -ItemType Directory -Force -Path $stage | Out-Null
+          $path = Join-Path $stage $env:ARTIFACT_NAME
+          Invoke-WebRequest -Uri $env:ARTIFACT_URL -OutFile $path
+          "ARTIFACT_PATH=$path" | Out-File -FilePath $env:GITHUB_ENV -Append
+
+      - name: Verify SHA-256
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $actual = (Get-FileHash -Algorithm SHA256 -Path $env:ARTIFACT_PATH).Hash.ToLowerInvariant()
+          if ($actual -ne $env:EXPECTED_SHA256) {
+            throw "SHA-256 mismatch. Expected $env:EXPECTED_SHA256 but got $actual"
+          }
+          "Verified SHA-256: $actual"
+
+      - name: Verify Authenticode signature
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $sig = Get-AuthenticodeSignature -FilePath $env:ARTIFACT_PATH
+          if ($sig.Status -ne 'Valid') {
+            throw "Authenticode signature is not valid: $($sig.Status)"
+          }
+          "Signer: $($sig.SignerCertificate.Subject)"
+
+      - name: Launch installer smoke gate
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $evidence = Join-Path $env:RUNNER_TEMP 'windows-work-browser-evidence'
+          New-Item -ItemType Directory -Force -Path $evidence | Out-Null
+          $proc = Start-Process -FilePath $env:ARTIFACT_PATH -ArgumentList '/? ' -PassThru -WindowStyle Hidden
+          Start-Sleep -Seconds 3
+          $stillRunning = -not $proc.HasExited
+          if ($stillRunning) { Stop-Process -Id $proc.Id -Force }
+          [ordered]@{
+            artifact = $env:ARTIFACT_NAME
+            sha256 = $env:EXPECTED_SHA256
+            launched = $true
+            installer_exited = $proc.HasExited
+            process_id = $proc.Id
+          } | ConvertTo-Json | Set-Content (Join-Path $evidence 'installer-launch.json')
+
+      - name: Upload verification evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-work-browser-option-a-evidence
+          path: ${{ runner.temp }}/windows-work-browser-evidence
+          if-no-files-found: warn
