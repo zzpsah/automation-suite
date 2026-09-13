@@ -60,10 +60,14 @@ export class WindowsCredentialVault implements CredentialVault {
     if (!id || !origin || !secret) throw new Error("Credential id, origin and secret are required.");
     await this.load();
 
+    // Use the Windows DPAPI directly instead of PowerShell Security cmdlets so
+    // the implementation is independent of module auto-loading on hosted runners.
     const script = [
       "$ErrorActionPreference='Stop'",
-      "$s=ConvertTo-SecureString $env:WWB_SECRET -AsPlainText -Force",
-      "$s | ConvertFrom-SecureString",
+      "Add-Type -AssemblyName System.Security",
+      "$bytes=[Text.Encoding]::UTF8.GetBytes($env:WWB_SECRET)",
+      "$protected=[Security.Cryptography.ProtectedData]::Protect($bytes,$null,[Security.Cryptography.DataProtectionScope]::CurrentUser)",
+      "[Convert]::ToBase64String($protected)",
     ].join(";");
     const { stdout } = await execFileAsync("powershell.exe", ["-NoProfile", "-NonInteractive", "-Command", script], {
       env: { ...process.env, WWB_SECRET: secret },
