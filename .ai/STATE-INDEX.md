@@ -6,8 +6,8 @@ Generated automatically by Development OS.
 
 ## Repository
 - Branch: main
-- HEAD: b4e3900ad4282c3cbdc8ac4c46c91b221dde9cdd
-- Last commit: feat: harden Telegram input delivery watchdog
+- HEAD: 339178eb10ec3071706bcc0b14d15de882ae06eb
+- Last commit: fix: run Telegram watchdog on relevant changes
 - Last commit date: 2026-09-13
 - Last commit author: PRASHANT KUMAR SAH
 

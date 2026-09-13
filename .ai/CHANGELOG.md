@@ -1,3 +1,10 @@
+## 2026-09-13 — fix: run Telegram watchdog on relevant changes
+- Commit: 339178eb10ec3071706bcc0b14d15de882ae06eb
+- Author: PRASHANT KUMAR SAH
+- Classification: meaningful
+- Changed files:
+- `.github/workflows/telegram-input-delivery-watchdog-v2.yml`
+
 ## 2026-09-13 — feat: harden Telegram input delivery watchdog
 - Commit: b4e3900ad4282c3cbdc8ac4c46c91b221dde9cdd
 - Author: PRASHANT KUMAR SAH

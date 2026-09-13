@@ -16,7 +16,7 @@ Last verified: 2026-09-13
 - External/production mutations require explicit authorization.
 
 ## Last automated change
-- Commit: b4e3900ad4282c3cbdc8ac4c46c91b221dde9cdd
-- Change: feat: harden Telegram input delivery watchdog
+- Commit: 339178eb10ec3071706bcc0b14d15de882ae06eb
+- Change: fix: run Telegram watchdog on relevant changes
 - Date: 2026-09-13
 - Durable context synchronization: completed
