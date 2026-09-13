@@ -31,7 +31,7 @@ concurrency:
 jobs:
   typecheck-and-test:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
     defaults:
       run:
         working-directory: browser-automation/windows-work-browser
@@ -40,8 +40,6 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 24
-          cache: npm
-          cache-dependency-path: browser-automation/windows-work-browser/package-lock.json
       - name: Install dependencies
         run: npm ci --ignore-scripts
       - name: Typecheck
