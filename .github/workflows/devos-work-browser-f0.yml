@@ -1,4 +1,4 @@
-name: DEVOS Work Browser F0
+name: DEVOS Work Browser Core
 
 on:
   pull_request:
@@ -11,7 +11,7 @@ permissions:
   contents: read
 
 jobs:
-  build-and-test:
+  build-test-publish:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
@@ -24,3 +24,11 @@ jobs:
         run: dotnet build devos-work-browser/Devos.WorkBrowser.sln -c Release --no-restore
       - name: Test
         run: dotnet test devos-work-browser/tests/Devos.WorkBrowser.Tests.csproj -c Release --no-build --verbosity normal
+      - name: Publish Windows x64
+        run: dotnet publish devos-work-browser/src/Devos.WorkBrowser.csproj -c Release -r win-x64 --self-contained true --no-restore -o devos-work-browser/artifacts/win-x64
+      - name: Upload Windows artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: DEVOS-Work-Browser-win-x64
+          path: devos-work-browser/artifacts/win-x64/
+          if-no-files-found: error
