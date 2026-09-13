@@ -1,0 +1,33 @@
+{
+  "product": "windows-work-browser",
+  "channel": "option-a",
+  "releaseReady": false,
+  "status": "INTEGRATION_VERIFIED_RELEASE_BLOCKED",
+  "base": {
+    "browseros": "v0.50.3",
+    "browserosWindowsX64Sha256": "3ae8dc6cd7fa8c39760d8c95591147e283705ec7d6f1cc4b02561d2696ef86c7",
+    "agentExtension": "v0.0.156.0",
+    "agentExtensionSha256": "d1074b2d4ec15b9a6305090be5006222a150d336a7b0ebebfcdb414d7b9847cf"
+  },
+  "gates": {
+    "contractSecurityCi": true,
+    "agentTypecheckBuildRuntime": true,
+    "windowsArtifactIntegrityInstallLaunch": true,
+    "browserSemanticE2E": false,
+    "nativeWindowsE2E": false,
+    "mcpE2E": false,
+    "extractionE2E": false,
+    "filesE2E": false,
+    "pdfOcrE2E": false,
+    "imageE2E": false,
+    "communicationsE2E": false,
+    "workflowE2E": false,
+    "vaultRuntimeSecurity": false,
+    "updateRollbackE2E": false,
+    "signedInstaller": false,
+    "releaseSbomAndNotices": false,
+    "finalWindowsAcceptance": false
+  },
+  "promotionRule": "releaseReady becomes true only after every mandatory gate is proven by retained executable evidence.",
+  "lastUpdated": "2026-09-13"
+}
