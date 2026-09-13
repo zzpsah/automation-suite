@@ -16,7 +16,7 @@ Last verified: 2026-09-13
 - External/production mutations require explicit authorization.
 
 ## Last automated change
-- Commit: 83e2287b3a5b075f49c2f8e812f6e9315f71614e
-- Change: fix document processor offline concurrency test
+- Commit: d4006183577eaaa4b3fe1c73e1162d0335d4edfd
+- Change: fix notifier unit test contract and offline env
 - Date: 2026-09-13
 - Durable context synchronization: completed

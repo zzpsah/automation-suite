@@ -1,3 +1,10 @@
+## 2026-09-13 — fix notifier unit test contract and offline env
+- Commit: d4006183577eaaa4b3fe1c73e1162d0335d4edfd
+- Author: PRASHANT KUMAR SAH
+- Classification: meaningful
+- Changed files:
+- `global-automation/scripts/document/test_telegram_publication_notifier.py`
+
 ## 2026-09-13 — fix document processor offline concurrency test
 - Commit: 83e2287b3a5b075f49c2f8e812f6e9315f71614e
 - Author: PRASHANT KUMAR SAH
