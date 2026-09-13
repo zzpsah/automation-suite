@@ -16,7 +16,7 @@ Last verified: 2026-09-13
 - External/production mutations require explicit authorization.
 
 ## Last automated change
-- Commit: 90533555098969229c8fdaf3aa5fac7c9c41d062
-- Change: feat(browser): open DEVOS agent from page launcher
+- Commit: 4c4db9453cac9080bb43cada5deff940bd6ce416
+- Change: chore(browser): remove duplicate overlay entrypoint
 - Date: 2026-09-13
 - Durable context synchronization: completed

@@ -1,3 +1,10 @@
+## 2026-09-13 — chore(browser): remove duplicate overlay entrypoint
+- Commit: 4c4db9453cac9080bb43cada5deff940bd6ce416
+- Author: PRASHANT KUMAR SAH
+- Classification: meaningful
+- Changed files:
+- `browser-automation/windows-work-browser/extension/content.js`
+
 ## 2026-09-13 — feat(browser): open DEVOS agent from page launcher
 - Commit: 90533555098969229c8fdaf3aa5fac7c9c41d062
 - Author: PRASHANT KUMAR SAH
