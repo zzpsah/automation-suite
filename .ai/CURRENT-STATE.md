@@ -24,7 +24,7 @@ Last verified: 2026-09-14
 - External/production mutations require explicit authorization.
 
 ## Last automated change
-- Commit: 1721d324ba2225eb010491ac85426cf5c0154685
-- Change: Fix scanner image processor angle calculation
+- Commit: 9489b74a8a6da741d5e52971c851de2901dec0ec
+- Change: Fix AndroidView scanner camera binding
 - Date: 2026-09-14
 - Durable context synchronization: completed

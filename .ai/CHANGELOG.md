@@ -1,3 +1,10 @@
+## 2026-09-14 — Fix AndroidView scanner camera binding
+- Commit: 9489b74a8a6da741d5e52971c851de2901dec0ec
+- Author: PRASHANT KUMAR SAH
+- Classification: meaningful
+- Changed files:
+- `android-document-scanner/app/src/main/java/com/devos/docscanner/MainActivity.kt`
+
 ## 2026-09-14 — Fix scanner image processor angle calculation
 - Commit: 1721d324ba2225eb010491ac85426cf5c0154685
 - Author: PRASHANT KUMAR SAH
