@@ -19,8 +19,15 @@ The Windows Work Browser release package must contain:
 
 - Product: Windows Work Browser
 - Channel: Option A
-- Current upstream BrowserOS: v0.50.3 x64
-- Current status: `VERIFIED FOUNDATION / NOT YET RELEASED`
+- BrowserOS base: v0.50.3 x64
+- Agent extension: v0.0.156.0
+- Current status: `INTEGRATION VERIFIED / RELEASE CANDIDATE BLOCKED`
+
+## Verified gates
+
+- Contract/security CI: PASS
+- Agent typecheck/build/runtime package: PASS
+- BrowserOS Windows acquisition/integrity/install/launch/CDP foundation: PASS
 
 ## Mandatory final acceptance
 
