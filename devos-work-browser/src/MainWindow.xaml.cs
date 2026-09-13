@@ -24,6 +24,7 @@ public partial class MainWindow : Window
     private readonly string _profilePath;
     private readonly CheckpointStore _checkpoints;
     private readonly ActiveTaskStore _activeTasks;
+    private readonly SyntheticPortalCheckpointStore _syntheticPortalCheckpoints;
     private CoreWebView2Environment? _environment;
     private bool _commandRunning;
 
@@ -32,6 +33,7 @@ public partial class MainWindow : Window
         _profilePath = Path.Combine(_stateRoot, "Profile");
         _checkpoints = new CheckpointStore(Path.Combine(_stateRoot, "Tasks"));
         _activeTasks = new ActiveTaskStore(Path.Combine(_stateRoot, "active-task.json"));
+        _syntheticPortalCheckpoints = new SyntheticPortalCheckpointStore(Path.Combine(_stateRoot, "synthetic-portal-checkpoint.json"));
 
         InitializeComponent();
         Loaded += MainWindow_Loaded;
@@ -64,6 +66,11 @@ public partial class MainWindow : Window
         }
 
         await TryResumePendingTaskAsync();
+        var portalCheckpoint = _syntheticPortalCheckpoints.Load();
+        if (portalCheckpoint is not null)
+        {
+            CommandStatus.Text = $"Synthetic portal recovery available at record {portalCheckpoint.NextRecordId}";
+        }
     }
 
     private async Task CreateTabAsync(Uri uri)
@@ -137,21 +144,42 @@ public partial class MainWindow : Window
     private void Reload_Click(object sender, RoutedEventArgs e) => ActiveView?.Reload();
     private void Home_Click(object sender, RoutedEventArgs e) { if (ActiveView is not null) ActiveView.Source = HomeUri; }
     private async void NewTab_Click(object sender, RoutedEventArgs e) => await CreateTabAsync(HomeUri);
+
+    private async void CloseTab_Click(object sender, RoutedEventArgs e)
+    {
+        if (_commandRunning || BrowserTabs.SelectedItem is not TabItem tab) return;
+        if (_views.Remove(tab, out var view)) view.Dispose();
+        BrowserTabs.Items.Remove(tab);
+        if (BrowserTabs.Items.Count == 0) await CreateTabAsync(HomeUri);
+        UpdateNavigationState();
+    }
+
     private void BrowserTabs_SelectionChanged(object sender, SelectionChangedEventArgs e) => UpdateNavigationState();
 
-    private async void TestPortal_Click(object sender, RoutedEventArgs e)
+    private async Task NavigateToTestPortalAsync()
     {
         var portalPath = Path.Combine(AppContext.BaseDirectory, "test-portal", "index.html");
         if (!File.Exists(portalPath))
         {
-            CommandStatus.Text = "Synthetic portal fixture is missing";
-            return;
+            throw new FileNotFoundException("Synthetic portal fixture is missing.", portalPath);
         }
 
         var uri = new Uri(portalPath);
         if (ActiveView is null) await CreateTabAsync(uri);
         else ActiveView.Source = uri;
-        CommandStatus.Text = "Synthetic portal loaded";
+    }
+
+    private async void TestPortal_Click(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            await NavigateToTestPortalAsync();
+            CommandStatus.Text = "Synthetic portal loaded";
+        }
+        catch (Exception ex)
+        {
+            CommandStatus.Text = ex.Message;
+        }
     }
 
     private async void RunCommand_Click(object sender, RoutedEventArgs e) => await ExecuteCurrentCommandAsync();
@@ -176,11 +204,17 @@ public partial class MainWindow : Window
     private async Task ExecuteCurrentCommandAsync()
     {
         if (_commandRunning) return;
+        var command = CommandBox.Text.Trim();
+        if (string.Equals(command, "process synthetic portal", StringComparison.OrdinalIgnoreCase))
+        {
+            await RunSyntheticPortalAsync();
+            return;
+        }
 
         PlannedCommand plan;
         try
         {
-            plan = _planner.Plan(CommandBox.Text);
+            plan = _planner.Plan(command);
         }
         catch (Exception ex)
         {
@@ -202,6 +236,50 @@ public partial class MainWindow : Window
             DateTimeOffset.UtcNow);
         _activeTasks.Save(task);
         await ExecuteTaskAsync(task);
+    }
+
+    private async Task RunSyntheticPortalAsync()
+    {
+        if (_commandRunning) return;
+        _commandRunning = true;
+        RunCommandButton.IsEnabled = false;
+        try
+        {
+            var adapter = CreateAutomationAdapter();
+            if (adapter is null)
+            {
+                CommandStatus.Text = "Browser not ready";
+                return;
+            }
+
+            if (!await adapter.WaitForSelectorAsync("#students", TimeSpan.FromSeconds(1)))
+            {
+                await NavigateToTestPortalAsync();
+                if (!await adapter.WaitForSelectorAsync("#students", TimeSpan.FromSeconds(5)))
+                {
+                    throw new InvalidOperationException("Synthetic portal did not become ready.");
+                }
+            }
+
+            var outputDirectory = Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
+                "Downloads", "DEVOS", "SyntheticPortalExport");
+            var workflow = new SyntheticPortalWorkflow(adapter, _syntheticPortalCheckpoints);
+            CommandStatus.Text = "Processing synthetic portal…";
+            var result = await workflow.RunAsync(outputDirectory);
+            CommandStatus.Text = result.Completed
+                ? $"Exported {result.ProcessedCount} records to {outputDirectory}"
+                : $"Paused after {result.ProcessedCount} records";
+        }
+        catch (Exception ex)
+        {
+            CommandStatus.Text = $"Synthetic portal paused: {ex.Message}";
+        }
+        finally
+        {
+            _commandRunning = false;
+            RunCommandButton.IsEnabled = true;
+        }
     }
 
     private async Task TryResumePendingTaskAsync()
