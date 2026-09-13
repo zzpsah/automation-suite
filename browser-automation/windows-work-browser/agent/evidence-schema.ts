@@ -22,12 +22,38 @@ export interface EvidenceRecord {
   };
 }
 
-/** Evidence must contain references, never secret values or raw credentials. */
-export function assertSafeEvidence(record: EvidenceRecord): void {
-  const serialized = JSON.stringify(record).toLowerCase();
-  for (const forbidden of ["password", "secret", "access_token", "refresh_token", "client_secret"]) {
-    if (serialized.includes(forbidden)) {
-      throw new Error(`Unsafe evidence field detected: ${forbidden}`);
-    }
+const SECRET_KEYS = new Set([
+  "password",
+  "secret",
+  "access_token",
+  "refresh_token",
+  "client_secret",
+  "authorization",
+  "cookie",
+  "set-cookie",
+]);
+
+function assertNoSecretKeys(value: unknown, path = "evidence"): void {
+  if (Array.isArray(value)) {
+    value.forEach((item, index) => assertNoSecretKeys(item, `${path}[${index}]`));
+    return;
   }
+
+  if (!value || typeof value !== "object") return;
+
+  for (const [key, child] of Object.entries(value)) {
+    if (SECRET_KEYS.has(key.toLowerCase())) {
+      throw new Error(`Unsafe evidence field key detected at ${path}.${key}`);
+    }
+    assertNoSecretKeys(child, `${path}.${key}`);
+  }
+}
+
+/**
+ * Evidence may describe a password-related workflow, but it may not contain
+ * secret-bearing fields. Values are inspected by schema/key, not substring,
+ * so legitimate summaries such as "password form opened" remain valid.
+ */
+export function assertSafeEvidence(record: EvidenceRecord): void {
+  assertNoSecretKeys(record);
 }
