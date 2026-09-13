@@ -7,6 +7,7 @@ using Devos.WorkBrowser.Automation;
 using Devos.WorkBrowser.Browser;
 using Devos.WorkBrowser.Planning;
 using Devos.WorkBrowser.Runtime;
+using Devos.WorkBrowser.Tasks;
 using Microsoft.Web.WebView2.Core;
 using Microsoft.Web.WebView2.Wpf;
 
@@ -17,14 +18,21 @@ public partial class MainWindow : Window
     private static readonly Uri HomeUri = new("https://www.google.com/");
     private readonly Dictionary<TabItem, WebView2> _views = new();
     private readonly NaturalLanguagePlanner _planner = new();
-    private readonly string _profilePath = Path.Combine(
+    private readonly string _stateRoot = Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-        "DEVOS", "WorkBrowser", "Profile");
+        "DEVOS", "WorkBrowser");
+    private readonly string _profilePath;
+    private readonly CheckpointStore _checkpoints;
+    private readonly ActiveTaskStore _activeTasks;
     private CoreWebView2Environment? _environment;
     private bool _commandRunning;
 
     public MainWindow()
     {
+        _profilePath = Path.Combine(_stateRoot, "Profile");
+        _checkpoints = new CheckpointStore(Path.Combine(_stateRoot, "Tasks"));
+        _activeTasks = new ActiveTaskStore(Path.Combine(_stateRoot, "active-task.json"));
+
         InitializeComponent();
         Loaded += MainWindow_Loaded;
         Closing += (_, _) => SessionStateStore.Save(CaptureSession());
@@ -54,6 +62,8 @@ public partial class MainWindow : Window
         {
             await CreateTabAsync(HomeUri);
         }
+
+        await TryResumePendingTaskAsync();
     }
 
     private async Task CreateTabAsync(Uri uri)
@@ -129,6 +139,21 @@ public partial class MainWindow : Window
     private async void NewTab_Click(object sender, RoutedEventArgs e) => await CreateTabAsync(HomeUri);
     private void BrowserTabs_SelectionChanged(object sender, SelectionChangedEventArgs e) => UpdateNavigationState();
 
+    private async void TestPortal_Click(object sender, RoutedEventArgs e)
+    {
+        var portalPath = Path.Combine(AppContext.BaseDirectory, "test-portal", "index.html");
+        if (!File.Exists(portalPath))
+        {
+            CommandStatus.Text = "Synthetic portal fixture is missing";
+            return;
+        }
+
+        var uri = new Uri(portalPath);
+        if (ActiveView is null) await CreateTabAsync(uri);
+        else ActiveView.Source = uri;
+        CommandStatus.Text = "Synthetic portal loaded";
+    }
+
     private async void RunCommand_Click(object sender, RoutedEventArgs e) => await ExecuteCurrentCommandAsync();
 
     private async void Window_PreviewKeyDown(object sender, KeyEventArgs e)
@@ -151,12 +176,6 @@ public partial class MainWindow : Window
     private async Task ExecuteCurrentCommandAsync()
     {
         if (_commandRunning) return;
-        var adapter = CreateAutomationAdapter();
-        if (adapter is null)
-        {
-            CommandStatus.Text = "Browser not ready";
-            return;
-        }
 
         PlannedCommand plan;
         try
@@ -169,46 +188,103 @@ public partial class MainWindow : Window
             return;
         }
 
-        if (plan.RequiresApproval)
+        if (plan.RequiresApproval && !RequestApproval(plan.Summary, "DEVOS approval required"))
         {
-            var approval = MessageBox.Show(
-                $"DEVOS wants to perform a committing action:\n\n{plan.Summary}\n\nApprove this action?",
-                "DEVOS approval required",
-                MessageBoxButton.YesNo,
-                MessageBoxImage.Warning,
-                MessageBoxResult.No);
-            if (approval != MessageBoxResult.Yes)
-            {
-                CommandStatus.Text = "Approval declined";
-                return;
-            }
+            CommandStatus.Text = "Approval declined";
+            return;
+        }
+
+        var task = new ActiveTask(
+            Guid.NewGuid().ToString("N"),
+            plan.Summary,
+            plan.Actions,
+            plan.RequiresApproval,
+            DateTimeOffset.UtcNow);
+        _activeTasks.Save(task);
+        await ExecuteTaskAsync(task);
+    }
+
+    private async Task TryResumePendingTaskAsync()
+    {
+        var task = _activeTasks.Load();
+        if (task is null) return;
+
+        var message = task.RequiresApproval
+            ? $"A committing DEVOS task was interrupted:\n\n{task.Summary}\n\nResume it? A fresh approval is required."
+            : $"A DEVOS task was interrupted:\n\n{task.Summary}\n\nResume from the last checkpoint?";
+
+        var resume = MessageBox.Show(
+            message,
+            "DEVOS recovery",
+            MessageBoxButton.YesNo,
+            task.RequiresApproval ? MessageBoxImage.Warning : MessageBoxImage.Question,
+            MessageBoxResult.No);
+
+        if (resume != MessageBoxResult.Yes)
+        {
+            CancelTask(task.TaskId);
+            CommandStatus.Text = "Interrupted task cancelled";
+            return;
+        }
+
+        await ExecuteTaskAsync(task);
+    }
+
+    private async Task ExecuteTaskAsync(ActiveTask task)
+    {
+        if (_commandRunning) return;
+        var adapter = CreateAutomationAdapter();
+        if (adapter is null)
+        {
+            CommandStatus.Text = "Browser not ready; task preserved for recovery";
+            return;
         }
 
         _commandRunning = true;
         RunCommandButton.IsEnabled = false;
-        CommandStatus.Text = plan.Summary;
+        CommandStatus.Text = task.Summary;
         try
         {
-            var executor = new ActionExecutor(adapter);
-            foreach (var action in plan.Actions)
-            {
-                var result = await executor.ExecuteAsync(action);
-                if (!result.Success)
-                {
-                    CommandStatus.Text = $"Failed: {result.Error}";
-                    return;
-                }
+            var runner = new TaskRunner(new ActionExecutor(adapter), _checkpoints);
+            var results = await runner.RunAsync(task.TaskId, task.Actions);
+            var checkpoint = _checkpoints.Load(task.TaskId);
+            var completed = checkpoint?.NextStepIndex >= task.Actions.Count;
 
-                CommandStatus.Text = string.IsNullOrWhiteSpace(result.Output)
-                    ? $"Done ({result.Attempts} attempt{(result.Attempts == 1 ? string.Empty : "s")})"
-                    : result.Output;
+            if (completed)
+            {
+                var last = results.LastOrDefault();
+                _activeTasks.Clear();
+                _checkpoints.Delete(task.TaskId);
+                CommandStatus.Text = !string.IsNullOrWhiteSpace(last?.Output)
+                    ? last.Output
+                    : $"Done: {task.Actions.Count} step{(task.Actions.Count == 1 ? string.Empty : "s")}";
+                return;
             }
+
+            var failure = results.LastOrDefault(result => !result.Success);
+            CommandStatus.Text = failure is null
+                ? "Task paused; checkpoint preserved"
+                : $"Paused: {failure.Error}. Checkpoint preserved.";
         }
         finally
         {
             _commandRunning = false;
             RunCommandButton.IsEnabled = true;
         }
+    }
+
+    private static bool RequestApproval(string summary, string title)
+        => MessageBox.Show(
+            $"DEVOS wants to perform a committing action:\n\n{summary}\n\nApprove this action?",
+            title,
+            MessageBoxButton.YesNo,
+            MessageBoxImage.Warning,
+            MessageBoxResult.No) == MessageBoxResult.Yes;
+
+    private void CancelTask(string taskId)
+    {
+        _activeTasks.Clear();
+        _checkpoints.Delete(taskId);
     }
 
     private void UpdateNavigationState()
