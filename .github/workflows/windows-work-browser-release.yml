@@ -1,0 +1,99 @@
+name: Windows Work Browser - Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: 'Release tag to publish, e.g. browser-v0.1.0'
+        required: true
+        type: string
+  push:
+    tags:
+      - 'browser-v*'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: windows-work-browser-release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  release-gate:
+    runs-on: windows-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout exact release ref
+        uses: actions/checkout@v4
+
+      - name: Verify pinned release manifest
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $manifest = Get-Content -Raw 'browser-automation/windows-work-browser/upstream/OPTION-A-RELEASE.json' | ConvertFrom-Json
+          if ($manifest.product -ne 'windows-work-browser') { throw 'Product mismatch.' }
+          if ($manifest.upstream.release -ne 'v0.50.3') { throw 'Unexpected BrowserOS release.' }
+          if ($manifest.artifact.arch -ne 'x64') { throw 'Unexpected architecture.' }
+          if ($manifest.artifact.sha256.Length -ne 64) { throw 'Artifact digest missing.' }
+          Write-Host "Pinned release: $($manifest.upstream.release)"
+          Write-Host "Artifact: $($manifest.artifact.filename)"
+
+      - name: Verify Option A artifact
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $manifest = Get-Content -Raw 'browser-automation/windows-work-browser/upstream/OPTION-A-RELEASE.json' | ConvertFrom-Json
+          $dir = Join-Path $env:RUNNER_TEMP 'release-artifacts'
+          New-Item -ItemType Directory -Force -Path $dir | Out-Null
+          $file = Join-Path $dir $manifest.artifact.filename
+          Invoke-WebRequest -Uri $manifest.artifact.download_url -OutFile $file
+          $actual = (Get-FileHash -Algorithm SHA256 $file).Hash.ToLowerInvariant()
+          if ($actual -ne $manifest.artifact.sha256.ToLowerInvariant()) { throw "SHA-256 mismatch: $actual" }
+          $sig = Get-AuthenticodeSignature $file
+          if ($sig.Status -ne 'Valid') { throw "Invalid Authenticode signature: $($sig.Status)" }
+          "ARTIFACT=$file" | Out-File $env:GITHUB_ENV -Append
+
+      - name: Validate agent package contracts
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $root = 'browser-automation/windows-work-browser'
+          $required = @(
+            'README.md','docs/RELEASE-GATES.md','docs/THIRD-PARTY-NOTICES.md','docs/FINAL-RELEASE-PACKAGE.md',
+            'agent/action-contract.ts','agent/policy-engine.ts','agent/task-runner.ts',
+            'agent/permission-contract.ts','agent/credential-vault-contract.ts','agent/evidence-schema.ts',
+            'runtime/automation-runtime.ts','runtime/cdp-adapter.ts'
+          )
+          foreach ($file in $required) { if (-not (Test-Path (Join-Path $root $file))) { throw "Missing release file: $file" } }
+
+      - name: Generate release evidence manifest
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $out = Join-Path $env:RUNNER_TEMP 'release-evidence'
+          New-Item -ItemType Directory -Force -Path $out | Out-Null
+          $commit = git rev-parse HEAD
+          $manifest = Get-Content -Raw 'browser-automation/windows-work-browser/upstream/OPTION-A-RELEASE.json' | ConvertFrom-Json
+          [ordered]@{
+            product = 'windows-work-browser'
+            release_ref = if ($env:GITHUB_REF_NAME) { $env:GITHUB_REF_NAME } else { 'manual' }
+            commit = $commit
+            browseros_release = $manifest.upstream.release
+            artifact = $manifest.artifact.filename
+            artifact_sha256 = $manifest.artifact.sha256
+            generated_utc = (Get-Date).ToUniversalTime().ToString('o')
+            mandatory_runtime_acceptance = 'required before promotion'
+            status = 'CANDIDATE-GATED'
+          } | ConvertTo-Json | Set-Content (Join-Path $out 'RELEASE-EVIDENCE.json')
+
+      - name: Upload release evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-work-browser-release-evidence
+          path: ${{ runner.temp }}/release-evidence
+
+      - name: Stop promotion without complete acceptance evidence
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          throw 'Release publication is gated: final Work Browser runtime acceptance evidence is not present in this repository-managed release pipeline yet.'
