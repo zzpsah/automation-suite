@@ -6,8 +6,8 @@ Generated automatically by Development OS.
 
 ## Repository
 - Branch: main
-- HEAD: 27bb7f01166bd34024b89342bddde4ce0f95d5fe
-- Last commit: feat: add Windows Work Browser developer preview
+- HEAD: 0cec7db3a698d02cccb2eccd3e044a643e94196b
+- Last commit: feat(browser): expose visible DEVOS AI overlay on webpages
 - Last commit date: 2026-09-13
 - Last commit author: PRASHANT KUMAR SAH
 

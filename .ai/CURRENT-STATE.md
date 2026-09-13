@@ -16,7 +16,7 @@ Last verified: 2026-09-13
 - External/production mutations require explicit authorization.
 
 ## Last automated change
-- Commit: 27bb7f01166bd34024b89342bddde4ce0f95d5fe
-- Change: feat: add Windows Work Browser developer preview
+- Commit: 0cec7db3a698d02cccb2eccd3e044a643e94196b
+- Change: feat(browser): expose visible DEVOS AI overlay on webpages
 - Date: 2026-09-13
 - Durable context synchronization: completed

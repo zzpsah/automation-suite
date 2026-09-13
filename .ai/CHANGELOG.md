@@ -1,3 +1,10 @@
+## 2026-09-13 — feat(browser): expose visible DEVOS AI overlay on webpages
+- Commit: 0cec7db3a698d02cccb2eccd3e044a643e94196b
+- Author: PRASHANT KUMAR SAH
+- Classification: meaningful
+- Changed files:
+- `browser-automation/windows-work-browser/extension/manifest.json`
+
 ## 2026-09-13 — feat: add Windows Work Browser developer preview
 - Commit: 27bb7f01166bd34024b89342bddde4ce0f95d5fe
 - Author: PRASHANT KUMAR SAH
