@@ -5,7 +5,6 @@ import android.graphics.PointF
 import org.opencv.android.Utils
 import org.opencv.core.*
 import org.opencv.imgproc.Imgproc
-import kotlin.math.abs
 import kotlin.math.hypot
 
 object ImageProcessor {
@@ -13,7 +12,7 @@ object ImageProcessor {
         if (bitmap.width < 80 || bitmap.height < 80) return null
         val scale = minOf(1.0, 1600.0 / maxOf(bitmap.width, bitmap.height).toDouble())
         val working = if (scale < 0.999) Bitmap.createScaledBitmap(bitmap, (bitmap.width * scale).toInt(), (bitmap.height * scale).toInt(), true) else bitmap
-        val src = Mat(); val gray = Mat(); val edges = Mat(); val kernel = Mat()
+        val src = Mat(); val gray = Mat(); val edges = Mat(); val kernel = Mat(); val hierarchy = Mat()
         return try {
             Utils.bitmapToMat(working, src)
             Imgproc.cvtColor(src, gray, Imgproc.COLOR_RGBA2GRAY)
@@ -22,29 +21,31 @@ object ImageProcessor {
             kernel.create(3, 3, CvType.CV_8U)
             Imgproc.morphologyEx(edges, edges, Imgproc.MORPH_CLOSE, kernel)
             val contours = ArrayList<MatOfPoint>()
-            Imgproc.findContours(edges, contours, Mat(), Imgproc.RETR_LIST, Imgproc.CHAIN_APPROX_SIMPLE)
+            Imgproc.findContours(edges, contours, hierarchy, Imgproc.RETR_LIST, Imgproc.CHAIN_APPROX_SIMPLE)
             val imageArea = src.width() * src.height().toDouble()
             var best: Quad? = null
             var bestScore = 0.0
             contours.sortedByDescending { Imgproc.contourArea(it) }.take(80).forEach { contour ->
                 val area = Imgproc.contourArea(contour)
-                if (area < imageArea * 0.10) return@forEach
+                if (area < imageArea * 0.10) { contour.release(); return@forEach }
                 val source = MatOfPoint2f(*contour.toArray().map { Point(it.x, it.y) }.toTypedArray())
                 val approx = MatOfPoint2f()
                 val perimeter = Imgproc.arcLength(source, true)
                 Imgproc.approxPolyDP(source, approx, 0.018 * perimeter, true)
-                if (approx.total() != 4L) return@forEach
-                val points = order(approx.toArray().map { PointF((it.x / scale).toFloat(), (it.y / scale).toFloat()) })
-                if (!isConvex(points) || !goodAngles(points)) return@forEach
-                val rectangularity = area / maxOf(1.0, boundingArea(points))
-                val edgePenalty = points.count { it.x < bitmap.width * .01f || it.x > bitmap.width * .99f || it.y < bitmap.height * .01f || it.y > bitmap.height * .99f } * .015
-                val score = (area / imageArea) * .72 + rectangularity * .28 - edgePenalty
-                if (score > bestScore) { bestScore = score; best = Quad(points) }
-                source.release(); approx.release()
+                if (approx.total() == 4L) {
+                    val points = order(approx.toArray().map { PointF((it.x / scale).toFloat(), (it.y / scale).toFloat()) })
+                    if (isConvex(points) && goodAngles(points)) {
+                        val rectangularity = area / maxOf(1.0, boundingArea(points))
+                        val edgePenalty = points.count { it.x < bitmap.width * .01f || it.x > bitmap.width * .99f || it.y < bitmap.height * .01f || it.y > bitmap.height * .99f } * .015
+                        val score = (area / imageArea) * .72 + rectangularity * .28 - edgePenalty
+                        if (score > bestScore) { bestScore = score; best = Quad(points) }
+                    }
+                }
+                source.release(); approx.release(); contour.release()
             }
             if (bestScore >= .18) best else null
         } finally {
-            src.release(); gray.release(); edges.release(); kernel.release()
+            src.release(); gray.release(); edges.release(); kernel.release(); hierarchy.release()
             if (working !== bitmap) working.recycle()
         }
     }
@@ -57,7 +58,7 @@ object ImageProcessor {
 
     private fun boundingArea(p: List<PointF>): Double {
         val width = maxOf(hypot((p[1].x - p[0].x).toDouble(), (p[1].y - p[0].y).toDouble()), hypot((p[2].x - p[3].x).toDouble(), (p[2].y - p[3].y).toDouble()))
-        val height = maxOf(hypot((p[3].x - p[0].x).toDouble(), (p[2].y - p[1].y).toDouble()))
+        val height = maxOf(hypot((p[3].x - p[0].x).toDouble(), (p[3].y - p[0].y).toDouble()), hypot((p[2].x - p[1].x).toDouble(), (p[2].y - p[1].y).toDouble()))
         return width * height
     }
 
@@ -80,7 +81,7 @@ object ImageProcessor {
     }
 
     fun warp(bitmap: Bitmap, quad: Quad): Bitmap {
-        val src = Mat(); val from = MatOfPoint2f(); val to = MatOfPoint2f(); val transform = Mat(); val out = Mat()
+        val src = Mat(); val from = MatOfPoint2f(); val to = MatOfPoint2f(); val out = Mat()
         return try {
             Utils.bitmapToMat(bitmap, src); val p = quad.points
             fun d(a: PointF, b: PointF) = hypot((a.x - b.x).toDouble(), (a.y - b.y).toDouble())
@@ -88,13 +89,11 @@ object ImageProcessor {
             val h = maxOf(d(p[0], p[3]), d(p[1], p[2])).coerceAtLeast(1.0).coerceAtMost(8000.0).toInt()
             from.fromArray(*p.map { Point(it.x.toDouble(), it.y.toDouble()) }.toTypedArray())
             to.fromArray(Point(0.0, 0.0), Point((w - 1).toDouble(), 0.0), Point((w - 1).toDouble(), (h - 1).toDouble()), Point(0.0, (h - 1).toDouble()))
-            transform.put(0, 0, Imgproc.getPerspectiveTransform(from, to).get(0, 0))
-            transform.release()
-            val m = Imgproc.getPerspectiveTransform(from, to)
-            Imgproc.warpPerspective(src, out, m, Size(w.toDouble(), h.toDouble()), Imgproc.INTER_CUBIC, Core.BORDER_REPLICATE)
-            m.release()
+            val transform = Imgproc.getPerspectiveTransform(from, to)
+            try { Imgproc.warpPerspective(src, out, transform, Size(w.toDouble(), h.toDouble()), Imgproc.INTER_CUBIC, Core.BORDER_REPLICATE) }
+            finally { transform.release() }
             Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888).also { Utils.matToBitmap(out, it) }
-        } finally { src.release(); from.release(); to.release(); transform.release(); out.release() }
+        } finally { src.release(); from.release(); to.release(); out.release() }
     }
 
     fun applyFilter(bitmap: Bitmap, filter: ScanFilter): Bitmap {
