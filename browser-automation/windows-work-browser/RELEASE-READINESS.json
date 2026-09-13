@@ -13,11 +13,13 @@
     "windowsOptionARun": 158,
     "windowsOptionARunId": 34764224389,
     "windowsEvidenceArtifactId": 10319788853,
+    "contractGateRun": 134,
+    "contractGateRunId": 34764601360,
     "agentCiRun": 58,
     "agentCiRunId": 34763099860
   },
   "gates": {
-    "contractSecurityCi": false,
+    "contractSecurityCi": true,
     "agentTypecheckBuildRuntime": true,
     "windowsArtifactIntegrityInstallLaunch": true,
     "browserSemanticE2E": true,
@@ -47,6 +49,8 @@
   },
   "notes": [
     "Windows Option-A run 158 passed artifact acquisition, SHA-256, Authenticode, installation, browser launch, semantic Playwright E2E, native Windows E2E, runtime component integration suite, and agent overlay integrity.",
+    "Contract Gate run 134 passed required file, extension manifest, security, immutable-pinning and fail-closed readiness checks.",
+    "Agent CI run 58 passed typecheck, build, all 22 runtime tests, and SBOM generation.",
     "The Windows runtime component suite is executable evidence for extraction, workspace-confined files, image processing, workflow recovery and update/rollback logic; it is not a substitute for real external-provider acceptance.",
     "MCP authorization is tested locally, but full external MCP-client E2E remains open.",
     "PDF merge/split is implemented; OCR remains provider-backed and unverified.",
