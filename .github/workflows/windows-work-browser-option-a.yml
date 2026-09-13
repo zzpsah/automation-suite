@@ -82,7 +82,7 @@ jobs:
           "INSTALL_DIR=$installDir" | Out-File -FilePath $env:GITHUB_ENV -Append
           if (-not (Test-Path $installDir)) { throw "Expected BrowserOS install directory was not found: $installDir" }
 
-      - name: Locate and launch installed browser
+      - name: Launch and verify browser/CDP smoke
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
@@ -100,21 +100,34 @@ jobs:
           $hash = (Get-FileHash -Algorithm SHA256 -Path $browser).Hash.ToLowerInvariant()
           $profile = Join-Path $env:RUNNER_TEMP 'windows-work-browser-profile'
           New-Item -ItemType Directory -Force -Path $profile | Out-Null
-          $proc = Start-Process -FilePath $browser -ArgumentList '--new-window', 'about:blank', "--user-data-dir=$profile", '--no-first-run', '--no-default-browser-check' -PassThru
-          Start-Sleep -Seconds 8
-          $running = -not $proc.HasExited
-          if ($running) { Stop-Process -Id $proc.Id -Force }
-          [ordered]@{
-            artifact = $env:ARTIFACT_NAME
-            artifact_sha256 = $env:EXPECTED_SHA256
-            installed_browser = $browser
-            installed_browser_sha256 = $hash
-            install_dir = $env:INSTALL_DIR
-            launched = $true
-            observed_running = $running
-            process_id = $proc.Id
-          } | ConvertTo-Json | Set-Content (Join-Path $evidence 'browser-launch.json')
-          if (-not $running) { throw 'Installed BrowserOS did not remain running during launch smoke test.' }
+          $port = 9222
+          $proc = Start-Process -FilePath $browser -ArgumentList '--new-window', 'https://example.com', "--user-data-dir=$profile", "--remote-debugging-port=$port", '--no-first-run', '--no-default-browser-check' -PassThru
+          try {
+            $cdp = $null
+            for ($i = 0; $i -lt 20 -and -not $cdp; $i++) {
+              Start-Sleep -Seconds 1
+              try { $cdp = Invoke-RestMethod -Uri "http://127.0.0.1:$port/json/version" -TimeoutSec 2 } catch {}
+            }
+            if (-not $cdp) { throw 'Browser did not expose a CDP endpoint within 20 seconds.' }
+            $tabs = Invoke-RestMethod -Uri "http://127.0.0.1:$port/json/list" -TimeoutSec 5
+            $target = @($tabs) | Where-Object { $_.url -like 'https://example.com*' } | Select-Object -First 1
+            if (-not $target) { throw 'CDP endpoint responded, but the expected example.com tab was not observed.' }
+            [ordered]@{
+              artifact = $env:ARTIFACT_NAME
+              artifact_sha256 = $env:EXPECTED_SHA256
+              installed_browser = $browser
+              installed_browser_sha256 = $hash
+              install_dir = $env:INSTALL_DIR
+              launched = $true
+              observed_running = -not $proc.HasExited
+              cdp_version = $cdp.Browser
+              cdp_websocket = $cdp.webSocketDebuggerUrl
+              observed_url = $target.url
+              target_type = $target.type
+            } | ConvertTo-Json | Set-Content (Join-Path $evidence 'browser-launch.json')
+          } finally {
+            try { Stop-Process -Id $proc.Id -Force -ErrorAction SilentlyContinue } catch {}
+          }
 
       - name: Upload verification evidence
         if: always()
