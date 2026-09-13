@@ -8,8 +8,8 @@ public static class TableExtraction
     {
         if (string.IsNullOrWhiteSpace(json)) return Array.Empty<IReadOnlyList<string>>();
         var rows = JsonSerializer.Deserialize<List<List<string>>>(json);
-        return rows?.Select(row => (IReadOnlyList<string>)row).ToList()
-            ?? Array.Empty<IReadOnlyList<string>>();
+        if (rows is null) return Array.Empty<IReadOnlyList<string>>();
+        return rows.Select(row => (IReadOnlyList<string>)row).ToList();
     }
 
     public static string ToCsv(IReadOnlyList<IReadOnlyList<string>> rows)
