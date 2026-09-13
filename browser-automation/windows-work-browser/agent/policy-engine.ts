@@ -5,10 +5,16 @@ export type PolicyDecision =
   | { allowed: false; requiresApproval: true; reason: string };
 
 const APPROVAL_REQUIRED_RISKS: Risk[] = ["destructive", "sensitive"];
+const APPROVAL_REQUIRED_CAPABILITIES = new Set<AutomationAction["capability"]>([
+  "communication.send",
+  "browser.upload",
+  "desktop.print",
+]);
 
 /**
  * Deterministic policy gate between an AI plan and an executor.
- * Unknown capabilities must be rejected by the caller's schema validation.
+ * External side effects are approval-bound even if a malformed caller claims
+ * otherwise in the action payload.
  */
 export function evaluateAction(action: AutomationAction): PolicyDecision {
   if (!action.id || !action.reason) {
@@ -23,15 +29,11 @@ export function evaluateAction(action: AutomationAction): PolicyDecision {
     };
   }
 
-  if (
-    action.capability === "communication.send" ||
-    action.capability === "browser.upload" ||
-    action.capability === "desktop.print"
-  ) {
+  if (APPROVAL_REQUIRED_CAPABILITIES.has(action.capability)) {
     return {
       allowed: true,
-      requiresApproval: requiresApproval(action),
-      reason: "External side effect requires an explicit policy decision/approval according to workspace policy.",
+      requiresApproval: true,
+      reason: `Capability '${action.capability}' requires explicit approval before its external side effect.`,
     };
   }
 
