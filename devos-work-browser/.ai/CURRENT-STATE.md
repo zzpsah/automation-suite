@@ -14,10 +14,10 @@ Status: DEVOS Work Browser core v0.1 is code-complete and machine-verified end t
 - The browser shell exposes a DEVOS command bar, `Ctrl+Space` focus, visible status/output and approval prompts.
 - The packaged **Test Portal** fixture contains 100 synthetic student records.
 - `process synthetic portal` runs a real adapter-driven workflow: open/read each record, checkpoint after every record, resume from the saved record, and export JSON + CSV.
-- The packaged EXE now exposes an isolated `--self-test` mode using a temporary DEVOS state/profile root so automated acceptance does not depend on or mutate ordinary browser task state.
+- The packaged EXE exposes an isolated `--self-test` mode using a temporary DEVOS state/profile root so automated acceptance does not depend on or mutate ordinary browser task state.
 
 ## End-to-end packaged browser acceptance
-CI run `34790342697` on head `4b6539bc43c247e323fd141b57735c71df1328de` completed successfully.
+Final exact-head CI run `34790571244` on head `0fbfe4dec813668250388562eb7aaf521272df3f` completed successfully.
 - Restore: success.
 - Build: success.
 - Unit/regression tests: success.
@@ -27,8 +27,8 @@ CI run `34790342697` on head `4b6539bc43c247e323fd141b57735c71df1328de` complete
 - The self-test launched the packaged WPF/WebView2 application, loaded the bundled portal, verified real adapter click/read behavior, processed records 1-47, persisted the 47→48 checkpoint boundary, resumed with a fresh workflow instance at record 48, completed through record 100, and verified 100-record JSON + CSV exports.
 - Normal packaged EXE startup smoke: success.
 - Artifact upload: success.
-- Artifact: `DEVOS-Work-Browser-win-x64`, artifact id `10328625708`, size `72304354` bytes.
-- Artifact digest: `sha256:9411ada2affa0ca31dee1683b41ccd6405182ba1041dc1de63773b97220fc2ed`.
+- Artifact: `DEVOS-Work-Browser-win-x64`, artifact id `10328730397`, size `72304335` bytes.
+- Artifact digest: `sha256:717bd1c0adec88773fb7a07f21af13332ed5fe204cd1432bab4a441cbe0fedeb`.
 
 ## Remaining acceptance boundary
 No material machine-verifiable core behavior remains untested in the v0.1 scope. The only remaining gate is human visual/interaction acceptance on a real Windows desktop using `ACCEPTANCE.md` (layout quality, perceived responsiveness, and hands-on UX). That gate must not be represented as completed by CI.
