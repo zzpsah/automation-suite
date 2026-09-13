@@ -1,6 +1,6 @@
 {
   "name": "windows-work-browser-agent",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "type": "commonjs",
   "engines": { "node": ">=20" },
@@ -8,6 +8,9 @@
     "build": "tsc",
     "typecheck": "tsc --noEmit",
     "test": "npm run build && node --test dist/runtime/*.test.js"
+  },
+  "dependencies": {
+    "playwright-core": "1.63.0"
   },
   "devDependencies": {
     "@types/node": "^24.3.0",
