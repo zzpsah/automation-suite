@@ -13,6 +13,12 @@ async function submitTask(goal, tabId) {
 }
 
 chrome.runtime.onMessage.addListener((message, sender) => {
+  if (message?.type === 'WWB_OPEN_AGENT') {
+    const tabId = Number.isInteger(message.tabId) ? message.tabId : sender.tab?.id;
+    if (tabId) chrome.sidePanel.open({ tabId }).catch(() => {});
+    return;
+  }
+
   if (message?.type !== 'WWB_TASK') return;
 
   const goal = typeof message.goal === 'string' ? message.goal.trim() : '';
