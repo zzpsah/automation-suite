@@ -1,3 +1,10 @@
+## 2026-09-13 — fix notifier CI test environment and pytest execution
+- Commit: 44735cb1449084de0a05b7c1455830804876e1fc
+- Author: PRASHANT KUMAR SAH
+- Classification: meaningful
+- Changed files:
+- `.github/workflows/global-document-telegram-notifier.yml`
+
 ## 2026-09-13 — use targeted notifier for document dispatch
 - Commit: 7c0577be5c383e4653fbca462f2f84ff2d4684ef
 - Author: PRASHANT KUMAR SAH

@@ -16,7 +16,7 @@ Last verified: 2026-09-13
 - External/production mutations require explicit authorization.
 
 ## Last automated change
-- Commit: 7c0577be5c383e4653fbca462f2f84ff2d4684ef
-- Change: use targeted notifier for document dispatch
+- Commit: 44735cb1449084de0a05b7c1455830804876e1fc
+- Change: fix notifier CI test environment and pytest execution
 - Date: 2026-09-13
 - Durable context synchronization: completed
