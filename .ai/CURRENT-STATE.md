@@ -16,7 +16,7 @@ Last verified: 2026-09-13
 - External/production mutations require explicit authorization.
 
 ## Last automated change
-- Commit: aae30b1652e681831dde8f94ba5ace4870a62652
-- Change: fix(scanner): apply flash changes without camera rebind
-- Date: 2026-09-13
+- Commit: 9b403ac919155d414d5ba53692fbea9abb093a06
+- Change: chore: remove failed Windows Work Browser prototype
+- Date: 2026-09-14
 - Durable context synchronization: completed
