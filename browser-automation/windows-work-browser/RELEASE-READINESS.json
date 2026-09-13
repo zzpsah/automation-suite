@@ -10,9 +10,8 @@
     "agentExtensionSha256": "d1074b2d4ec15b9a6305090be5006222a150d336a7b0ebebfcdb414d7b9847cf"
   },
   "evidence": {
-    "windowsOptionARun": 121,
-    "windowsOptionARunId": 34761487885,
-    "windowsEvidenceArtifactId": 10319725163,
+    "windowsOptionARun": 134,
+    "windowsOptionARunId": 34763099878,
     "agentCiRun": 58,
     "agentCiRunId": 34763099860
   },
@@ -46,13 +45,12 @@
     "releaseSbomAndNotices": false,
     "finalWindowsAcceptance": false
   },
-  "promotionRule": "releaseReady becomes true only after every mandatory gate is proven by retained executable evidence.",
   "notes": [
-    "Windows run 121 completed successfully with real browser navigation, type, click, verify and extract operations through the Work Browser PlaywrightController over CDP.",
-    "The same run completed the bounded Windows native smoke and agent overlay integrity checks.",
-    "Agent CI run 58 passed typecheck, build, runtime tests, and SBOM generation.",
-    "Local component suite now exercises MCP authorization, extraction, local files, PDF merge/split, image processing, communication approval, workflow recovery and update/rollback logic.",
-    "Test mode may use synthetic localhost fixtures only; it never disables the production policy boundary or grants arbitrary native execution."
+    "Windows run 134 completed successfully with artifact acquisition, SHA-256, Authenticode, installation, browser launch, CDP/browser control, semantic Work Browser E2E, native smoke, and agent overlay integrity.",
+    "Agent CI run 58 passed typecheck, build, all 22 runtime tests, and SBOM generation.",
+    "Local component integration coverage exercises MCP authorization, extraction, local files, PDF merge/split, image processing, communication approval, workflow recovery, policy behavior and update/rollback logic.",
+    "Production promotion remains blocked until the explicitly listed runtime/provider/signing/acceptance gates have retained executable evidence.",
+    "DEVOS_TEST_MODE is restricted to synthetic localhost fixtures and never disables production policy or arbitrary native execution."
   ],
   "lastUpdated": "2026-09-13"
 }
