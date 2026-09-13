@@ -59,8 +59,15 @@ export class DeterministicWorkflowService implements WorkflowService {
       const outcomes = saved?.outcomes ?? [];
       while (index < workflow.steps.length) {
         const current = this.tasks.get(taskId);
-        if (!current || current.status === "cancelled") return;
-        if (current.status === "paused") return;
+        if (!current) return;
+        if (current.status === "cancelled") {
+          current.executing = false;
+          return;
+        }
+        if (current.status === "paused") {
+          current.executing = false;
+          return;
+        }
         const step = workflow.steps[index];
         if (!step) throw new Error(`Workflow step ${index} is missing.`);
         const result = await step.run(current.input);
@@ -82,6 +89,8 @@ export class DeterministicWorkflowService implements WorkflowService {
     if (!task) throw new Error(`Unknown task: ${taskId}`);
     if (task.status === "completed" || task.status === "cancelled") return;
     task.status = "paused";
+    // If a step is not currently in flight, the executor can be restarted by resume().
+    if (!task.executing) return;
   }
 
   async resume(taskId: string): Promise<void> {
@@ -89,8 +98,6 @@ export class DeterministicWorkflowService implements WorkflowService {
     if (!task) throw new Error(`Unknown task: ${taskId}`);
     if (task.status === "cancelled" || task.status === "completed") throw new Error(`Task ${taskId} cannot be resumed.`);
     task.status = "running";
-    // If the original executor is still suspended inside a step, changing the
-    // state is sufficient; starting another executor would duplicate actions.
     if (!task.executing) {
       task.executing = true;
       void this.execute(taskId);
