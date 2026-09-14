@@ -86,6 +86,11 @@ try {
     Start-Sleep -Milliseconds 500
     Invoke-WinApp -Arguments @("ui", "invoke", "CloseTabButton", "-a", "$($process.Id)") | Out-Null
 
+    # Stage 2: prove natural-language navigation executes through the visible command bar.
+    Invoke-WinApp -Arguments @("ui", "set-value", "CommandBox", "open example.com", "-a", "$($process.Id)") | Out-Null
+    Invoke-WinApp -Arguments @("ui", "invoke", "RunCommandButton", "-a", "$($process.Id)") | Out-Null
+    $addressAfterOpen = Wait-ControlValue -Selector "AddressBox" -Pattern "(?i)example\.com" -ProcessId $process.Id -TimeoutSeconds 15
+
     Invoke-WinApp -Arguments @("ui", "invoke", "TestPortalButton", "-a", "$($process.Id)") | Out-Null
     Invoke-WinApp -Arguments @("ui", "screenshot", "-a", "$($process.Id)", "-o", (Join-Path $OutputDirectory "02-test-portal.png")) | Out-Null
 
@@ -108,6 +113,7 @@ try {
         "ProcessId: $($process.Id)",
         "Stable child AutomationIds: PASS",
         "Open/close tab controls: PASS",
+        "Natural-language open command: PASS ($addressAfterOpen)",
         "Bundled Test Portal navigation: PASS",
         "Command bar wait/read through visible CommandStatus: PASS",
         "Approval dialog blocks committing command: PASS",
