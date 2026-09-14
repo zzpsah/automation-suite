@@ -1,3 +1,10 @@
+## 2026-09-14 — Use UMVInputBot token for progress-message edits
+- Commit: f9e6b3922d2c7bd488313cb09159f2b51076e00c
+- Author: PRASHANT KUMAR SAH
+- Classification: meaningful
+- Changed files:
+- `.github/workflows/global-document-telegram-notifier.yml`
+
 ## 2026-09-14 — Fix Stage 10 progress updater to edit UMVInputBot message
 - Commit: 90aa0004d67d8ff006d12d6bf38a3fde043229fe
 - Author: PRASHANT KUMAR SAH

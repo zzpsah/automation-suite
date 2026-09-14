@@ -24,7 +24,7 @@ Last verified: 2026-09-14
 - External/production mutations require explicit authorization.
 
 ## Last automated change
-- Commit: 90aa0004d67d8ff006d12d6bf38a3fde043229fe
-- Change: Fix Stage 10 progress updater to edit UMVInputBot message
+- Commit: f9e6b3922d2c7bd488313cb09159f2b51076e00c
+- Change: Use UMVInputBot token for progress-message edits
 - Date: 2026-09-14
 - Durable context synchronization: completed
