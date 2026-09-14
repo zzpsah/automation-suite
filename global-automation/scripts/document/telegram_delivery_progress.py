@@ -79,56 +79,54 @@ def progress_text(doc: dict, delivery: dict) -> str:
 
 
 def target_rows():
-    document_filter = "&document_id=eq." + quote(DOCUMENT_ID, safe="") if DOCUMENT_ID else ""
+    if not DOCUMENT_ID:
+        raise RuntimeError("DOCUMENT_ID is required for a targeted delivery-progress update")
     return db_get(
         "telegram_publication_deliveries?select=document_id,chat_id,status,attempts,message_id,document_message_id,"
-        "last_error,filename,sent_at,documents(id,source_message_id,display_filename,original_filename)&limit=100"
-        + document_filter
-        + "&order=updated_at.desc"
+        "last_error,filename,sent_at&limit=1&document_id=eq."
+        + quote(DOCUMENT_ID, safe="")
     )
 
 
-def intake_for_source(source_id: str):
-    if not source_id:
-        return []
+def intake_for_document(document_id: str):
     return db_get(
-        "telegram_intake?select=id,telegram_chat_id,progress_message_id,status&limit=1&id=eq."
-        + quote(str(source_id), safe="")
+        "telegram_intake?select=id,telegram_chat_id,progress_message_id,status,document_id&limit=1&document_id=eq."
+        + quote(document_id, safe="")
     )
 
 
 def main() -> int:
     rows = target_rows()
-    updated = failed = skipped = 0
-    for row in rows:
-        doc = row.get("documents") or {}
-        intake_rows = intake_for_source(doc.get("source_message_id"))
-        if not intake_rows:
-            skipped += 1
-            continue
-        intake = intake_rows[0]
-        chat_id = str(intake.get("telegram_chat_id") or row.get("chat_id") or "").strip()
-        message_id = intake.get("progress_message_id")
-        if not chat_id or not message_id:
-            skipped += 1
-            continue
-        try:
-            telegram(
-                "editMessageText",
-                {
-                    "chat_id": chat_id,
-                    "message_id": message_id,
-                    "text": progress_text(doc, row),
-                    "parse_mode": "HTML",
-                    "disable_web_page_preview": "true",
-                },
-            )
-            updated += 1
-        except Exception as exc:
-            failed += 1
-            print(f"Progress update failed document={row.get('document_id')} chat={chat_id}: {exc}")
-    print(f"Telegram delivery progress: updated={updated}, failed={failed}, skipped={skipped}")
-    return 1 if failed else 0
+    if not rows:
+        raise RuntimeError(f"No durable eLetters delivery row found for document={DOCUMENT_ID}")
+    intake_rows = intake_for_document(DOCUMENT_ID)
+    if not intake_rows:
+        raise RuntimeError(f"No Telegram intake row found for document={DOCUMENT_ID}")
+
+    intake = intake_rows[0]
+    row = rows[0]
+    chat_id = str(intake.get("telegram_chat_id") or row.get("chat_id") or "").strip()
+    message_id = intake.get("progress_message_id")
+    if not chat_id or not message_id:
+        raise RuntimeError(
+            f"Missing progress target for document={DOCUMENT_ID}: chat_id={chat_id!r}, message_id={message_id!r}"
+        )
+
+    result = telegram(
+        "editMessageText",
+        {
+            "chat_id": chat_id,
+            "message_id": message_id,
+            "text": progress_text({"display_filename": row.get("filename")}, row),
+            "parse_mode": "HTML",
+            "disable_web_page_preview": "true",
+        },
+    )
+    print(
+        f"UMVInputBot progress updated: document={DOCUMENT_ID} chat_id={chat_id} "
+        f"message_id={message_id} delivery_status={row.get('status')} result_message_id={(result or {}).get('message_id')}"
+    )
+    return 0
 
 
 if __name__ == "__main__":
