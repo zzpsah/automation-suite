@@ -68,10 +68,9 @@ def main() -> int:
     message = base.format_message(doc)
     sent = skipped = locked = 0
     for chat_id in targets:
-        if base.already_sent(DOCUMENT_ID, chat_id):
-            base.mark_legacy_sent(DOCUMENT_ID, chat_id)
-            skipped += 1
-            continue
+        # Durable DB claim is the sole idempotency gate.  Do not use a
+        # read-then-send audit pre-check here: concurrent notifier runs could
+        # both observe "not yet audited" and race into Telegram.
         result = base.deliver_one(doc, chat_id, message, delivery, source_sha, delivery_sha)
         if result == "sent":
             sent += 1
