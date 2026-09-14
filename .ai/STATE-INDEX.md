@@ -6,8 +6,8 @@ Generated automatically by Development OS.
 
 ## Repository
 - Branch: main
-- HEAD: aefc42aa4f758b412249f1a781c12f0e04848c1c
-- Last commit: fix: make targeted eLetters delivery claim-only
+- HEAD: c4b84d0dd3da736829e2cbe6eb9f6634f9f5b30a
+- Last commit: fix: remove duplicate publication notifier trigger
 - Last commit date: 2026-09-14
 - Last commit author: PRASHANT KUMAR SAH
 

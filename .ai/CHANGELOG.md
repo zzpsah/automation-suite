@@ -1,3 +1,10 @@
+## 2026-09-14 — fix: remove duplicate publication notifier trigger
+- Commit: c4b84d0dd3da736829e2cbe6eb9f6634f9f5b30a
+- Author: PRASHANT KUMAR SAH
+- Classification: meaningful
+- Changed files:
+- `.github/workflows/global-document-telegram-notifier.yml`
+
 ## 2026-09-14 — fix: make targeted eLetters delivery claim-only
 - Commit: aefc42aa4f758b412249f1a781c12f0e04848c1c
 - Author: PRASHANT KUMAR SAH

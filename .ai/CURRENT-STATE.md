@@ -24,7 +24,7 @@ Last verified: 2026-09-14
 - External/production mutations require explicit authorization.
 
 ## Last automated change
-- Commit: aefc42aa4f758b412249f1a781c12f0e04848c1c
-- Change: fix: make targeted eLetters delivery claim-only
+- Commit: c4b84d0dd3da736829e2cbe6eb9f6634f9f5b30a
+- Change: fix: remove duplicate publication notifier trigger
 - Date: 2026-09-14
 - Durable context synchronization: completed
