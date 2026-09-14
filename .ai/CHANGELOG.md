@@ -1,3 +1,10 @@
+## 2026-09-14 — docs: document Stage 10 eLetters durable delivery
+- Commit: cbdd3cd30ac35011b419141ed81e98728d2d9211
+- Author: PRASHANT KUMAR SAH
+- Classification: meaningful
+- Changed files:
+- `docs/STAGE_10_ELETTERS_DURABLE_DELIVERY.md`
+
 ## 2026-09-14 — feat: align targeted eLettersBot delivery with Stage 10 state machine
 - Commit: caf61a729a5729e7f8580255878047376179990d
 - Author: PRASHANT KUMAR SAH

@@ -24,7 +24,7 @@ Last verified: 2026-09-14
 - External/production mutations require explicit authorization.
 
 ## Last automated change
-- Commit: caf61a729a5729e7f8580255878047376179990d
-- Change: feat: align targeted eLettersBot delivery with Stage 10 state machine
+- Commit: cbdd3cd30ac35011b419141ed81e98728d2d9211
+- Change: docs: document Stage 10 eLetters durable delivery
 - Date: 2026-09-14
 - Durable context synchronization: completed
