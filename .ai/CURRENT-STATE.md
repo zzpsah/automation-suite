@@ -24,7 +24,7 @@ Last verified: 2026-09-14
 - External/production mutations require explicit authorization.
 
 ## Last automated change
-- Commit: 70baceb59deb71f760d40ffa9e9b07dd8261d2ba
-- Change: Document permanent scanner beta quality gate
+- Commit: 7eda4c91227c5cd2bee939ad0bb6b559d2fe4ae2
+- Change: feat: add durable eLettersBot delivery state table
 - Date: 2026-09-14
 - Durable context synchronization: completed
