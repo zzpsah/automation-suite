@@ -1,3 +1,10 @@
+## 2026-09-14 — restore: recover complete durable eLetters notifier implementation
+- Commit: ef1a554fced4e0b0f86993eca8c06d71400e11db
+- Author: PRASHANT KUMAR SAH
+- Classification: meaningful
+- Changed files:
+- `global-automation/scripts/document/telegram_publication_notifier_v3.py`
+
 ## 2026-09-14 — fix: update UMVInputBot progress from durable eLetters notifier
 - Commit: 651062a1bc8aaccb99e2ccdbf448bde6c25be72a
 - Author: PRASHANT KUMAR SAH

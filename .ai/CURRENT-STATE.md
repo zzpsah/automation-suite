@@ -24,7 +24,7 @@ Last verified: 2026-09-14
 - External/production mutations require explicit authorization.
 
 ## Last automated change
-- Commit: 651062a1bc8aaccb99e2ccdbf448bde6c25be72a
-- Change: fix: update UMVInputBot progress from durable eLetters notifier
+- Commit: ef1a554fced4e0b0f86993eca8c06d71400e11db
+- Change: restore: recover complete durable eLetters notifier implementation
 - Date: 2026-09-14
 - Durable context synchronization: completed
