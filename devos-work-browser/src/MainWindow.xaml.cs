@@ -45,7 +45,8 @@ public partial class MainWindow : Window
         Closing += (_, _) => SessionStateStore.Save(CaptureSession());
     }
 
-    private WebView2? ActiveView => BrowserTabs.SelectedItem is TabItem tab && _views.TryGetValue(tab, out var view) ? view : null;
+    private WebView2? ActiveView =>
+        BrowserTabs.SelectedItem is TabItem tab && _views.TryGetValue(tab, out var view) ? view : null;
 
     private async void MainWindow_Loaded(object sender, RoutedEventArgs e)
     {
@@ -59,7 +60,10 @@ public partial class MainWindow : Window
             {
                 foreach (var url in session.Tabs)
                 {
-                    if (Uri.TryCreate(url, UriKind.Absolute, out var uri)) await CreateTabAsync(uri);
+                    if (Uri.TryCreate(url, UriKind.Absolute, out var uri))
+                    {
+                        await CreateTabAsync(uri);
+                    }
                 }
 
                 if (BrowserTabs.Items.Count > 0)
@@ -94,31 +98,72 @@ public partial class MainWindow : Window
     private async Task CreateTabAsync(Uri uri)
     {
         _environment ??= await CoreWebView2Environment.CreateAsync(userDataFolder: _profilePath);
-        var view = new WebView2();
-        await view.EnsureCoreWebView2Async(_environment);
 
-        var tab = new TabItem { Header = "New Tab", Content = view };
+        // Important WPF/WebView2 lifecycle ordering:
+        // first attach the control to a live visual tree, then wait for Loaded,
+        // then initialize CoreWebView2. Some real Windows machines can hang when
+        // EnsureCoreWebView2Async runs before the control has an HWND/visual host.
+        var view = new WebView2();
+        var tab = new TabItem { Header = "Loading…", Content = view };
         _views[tab] = view;
         BrowserTabs.Items.Add(tab);
         BrowserTabs.SelectedItem = tab;
 
-        view.CoreWebView2.DocumentTitleChanged += (_, _) => tab.Header = string.IsNullOrWhiteSpace(view.CoreWebView2.DocumentTitle) ? "Tab" : view.CoreWebView2.DocumentTitle;
-        view.NavigationStarting += (_, args) =>
+        try
         {
-            if (ReferenceEquals(view, ActiveView)) AddressBox.Text = args.Uri ?? AddressBox.Text;
+            await WaitForLoadedAsync(view);
+            await view.EnsureCoreWebView2Async(_environment);
+
+            view.CoreWebView2.DocumentTitleChanged += (_, _) =>
+                tab.Header = string.IsNullOrWhiteSpace(view.CoreWebView2.DocumentTitle)
+                    ? "Tab"
+                    : view.CoreWebView2.DocumentTitle;
+            view.NavigationStarting += (_, args) =>
+            {
+                if (ReferenceEquals(view, ActiveView)) AddressBox.Text = args.Uri ?? AddressBox.Text;
+            };
+            view.NavigationCompleted += (_, _) => UpdateNavigationState();
+            view.CoreWebView2.DownloadStarting += (_, args) => ConfigureDownload(args);
+
+            tab.Header = "New Tab";
+            view.Source = uri;
+            UpdateNavigationState();
+        }
+        catch
+        {
+            _views.Remove(tab);
+            BrowserTabs.Items.Remove(tab);
+            view.Dispose();
+            throw;
+        }
+    }
+
+    private static Task WaitForLoadedAsync(FrameworkElement element)
+    {
+        if (element.IsLoaded) return Task.CompletedTask;
+
+        var completion = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        RoutedEventHandler? handler = null;
+        handler = (_, _) =>
+        {
+            element.Loaded -= handler;
+            completion.TrySetResult(true);
         };
-        view.NavigationCompleted += (_, _) => UpdateNavigationState();
-        view.CoreWebView2.DownloadStarting += (_, args) => ConfigureDownload(args);
-        view.Source = uri;
-        UpdateNavigationState();
+        element.Loaded += handler;
+        return completion.Task;
     }
 
     private static void ConfigureDownload(CoreWebView2DownloadStartingEventArgs args)
     {
-        var downloads = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Downloads", "DEVOS");
+        var downloads = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
+            "Downloads", "DEVOS");
         Directory.CreateDirectory(downloads);
         var fileName = Path.GetFileName(args.ResultFilePath);
-        if (string.IsNullOrWhiteSpace(fileName)) fileName = $"download-{DateTimeOffset.UtcNow:yyyyMMddHHmmss}";
+        if (string.IsNullOrWhiteSpace(fileName))
+        {
+            fileName = $"download-{DateTimeOffset.UtcNow:yyyyMMddHHmmss}";
+        }
         args.ResultFilePath = Path.Combine(downloads, fileName);
     }
 
@@ -160,7 +205,12 @@ public partial class MainWindow : Window
     }
 
     private void Reload_Click(object sender, RoutedEventArgs e) => ActiveView?.Reload();
-    private void Home_Click(object sender, RoutedEventArgs e) { if (ActiveView is not null) ActiveView.Source = HomeUri; }
+
+    private void Home_Click(object sender, RoutedEventArgs e)
+    {
+        if (ActiveView is not null) ActiveView.Source = HomeUri;
+    }
+
     private async void NewTab_Click(object sender, RoutedEventArgs e) => await CreateTabAsync(HomeUri);
 
     private async void CloseTab_Click(object sender, RoutedEventArgs e)
@@ -305,7 +355,8 @@ public partial class MainWindow : Window
         await _browserReady.Task.WaitAsync(TimeSpan.FromSeconds(30), cancellationToken);
         await NavigateToTestPortalAsync();
 
-        var adapter = CreateAutomationAdapter() ?? throw new InvalidOperationException("Self-test browser adapter is unavailable.");
+        var adapter = CreateAutomationAdapter()
+            ?? throw new InvalidOperationException("Self-test browser adapter is unavailable.");
         if (!await adapter.WaitForSelectorAsync("#students", TimeSpan.FromSeconds(15)))
         {
             throw new TimeoutException("Self-test portal did not become ready.");
@@ -339,7 +390,8 @@ public partial class MainWindow : Window
         var interrupted = await firstRun.RunAsync(outputDirectory, stopAfterRecord: 47, cancellationToken);
         if (interrupted.Completed || interrupted.ProcessedCount != 47)
         {
-            throw new InvalidOperationException($"Expected self-test interruption at record 47; got {interrupted.ProcessedCount}.");
+            throw new InvalidOperationException(
+                $"Expected self-test interruption at record 47; got {interrupted.ProcessedCount}.");
         }
 
         var checkpoint = _syntheticPortalCheckpoints.Load();
@@ -352,22 +404,27 @@ public partial class MainWindow : Window
         var completed = await resumedRun.RunAsync(outputDirectory, cancellationToken: cancellationToken);
         if (!completed.Completed || completed.ProcessedCount != SyntheticPortalWorkflow.RecordCount)
         {
-            throw new InvalidOperationException($"Self-test recovery completed {completed.ProcessedCount} records instead of 100.");
+            throw new InvalidOperationException(
+                $"Self-test recovery completed {completed.ProcessedCount} records instead of 100.");
         }
 
-        if (completed.JsonPath is null || completed.CsvPath is null || !File.Exists(completed.JsonPath) || !File.Exists(completed.CsvPath))
+        if (completed.JsonPath is null || completed.CsvPath is null ||
+            !File.Exists(completed.JsonPath) || !File.Exists(completed.CsvPath))
         {
             throw new InvalidOperationException("Self-test JSON/CSV export files are missing.");
         }
 
-        var records = JsonSerializer.Deserialize<List<SyntheticStudentRecord>>(await File.ReadAllTextAsync(completed.JsonPath, cancellationToken));
+        var records = JsonSerializer.Deserialize<List<SyntheticStudentRecord>>(
+            await File.ReadAllTextAsync(completed.JsonPath, cancellationToken));
         if (records?.Count != 100 || records[0].Id != 1 || records[^1].Id != 100)
         {
             throw new InvalidOperationException("Self-test JSON export does not contain records 1 through 100.");
         }
 
         var csvLines = await File.ReadAllLinesAsync(completed.CsvPath, cancellationToken);
-        if (csvLines.Length != 101 || !csvLines[1].StartsWith("1,", StringComparison.Ordinal) || !csvLines[^1].StartsWith("100,", StringComparison.Ordinal))
+        if (csvLines.Length != 101 ||
+            !csvLines[1].StartsWith("1,", StringComparison.Ordinal) ||
+            !csvLines[^1].StartsWith("100,", StringComparison.Ordinal))
         {
             throw new InvalidOperationException("Self-test CSV export does not contain the expected 100 records.");
         }
@@ -445,8 +502,8 @@ public partial class MainWindow : Window
         }
     }
 
-    private static bool RequestApproval(string summary, string title)
-        => MessageBox.Show(
+    private static bool RequestApproval(string summary, string title) =>
+        MessageBox.Show(
             $"DEVOS wants to perform a committing action:\n\n{summary}\n\nApprove this action?",
             title,
             MessageBoxButton.YesNo,
@@ -467,5 +524,6 @@ public partial class MainWindow : Window
         if (view?.Source is not null) AddressBox.Text = view.Source.ToString();
     }
 
-    internal BrowserAutomationAdapter? CreateAutomationAdapter() => ActiveView?.CoreWebView2 is { } core ? new BrowserAutomationAdapter(core) : null;
+    internal BrowserAutomationAdapter? CreateAutomationAdapter() =>
+        ActiveView?.CoreWebView2 is { } core ? new BrowserAutomationAdapter(core) : null;
 }
