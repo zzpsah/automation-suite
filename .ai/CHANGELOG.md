@@ -1,3 +1,10 @@
+## 2026-09-14 — Strengthen scanner build smoke test
+- Commit: ae6c7309200d5e6e34c6f996282424bc41332815
+- Author: PRASHANT KUMAR SAH
+- Classification: meaningful
+- Changed files:
+- `.github/workflows/android-document-scanner-build.yml`
+
 ## 2026-09-14 — Add Android emulator install smoke test
 - Commit: 377d0bdd9bc26346bff1dc23b91e9b944d16ee09
 - Author: PRASHANT KUMAR SAH
