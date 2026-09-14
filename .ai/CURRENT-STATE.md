@@ -24,7 +24,7 @@ Last verified: 2026-09-14
 - External/production mutations require explicit authorization.
 
 ## Last automated change
-- Commit: a10e74ba6e2a0afacd95d90189ced64277613b56
-- Change: fix: keep notifier compatible with progress reconciliation
+- Commit: f38621c74149ec73439191e5e5dee2f5019eaea8
+- Change: test: reconcile Telegram progress automatically on notifier code changes
 - Date: 2026-09-14
 - Durable context synchronization: completed

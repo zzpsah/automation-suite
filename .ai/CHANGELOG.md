@@ -1,3 +1,10 @@
+## 2026-09-14 — test: reconcile Telegram progress automatically on notifier code changes
+- Commit: f38621c74149ec73439191e5e5dee2f5019eaea8
+- Author: PRASHANT KUMAR SAH
+- Classification: meaningful
+- Changed files:
+- `.github/workflows/global-document-telegram-notifier.yml`
+
 ## 2026-09-14 — fix: keep notifier compatible with progress reconciliation
 - Commit: a10e74ba6e2a0afacd95d90189ced64277613b56
 - Author: PRASHANT KUMAR SAH
