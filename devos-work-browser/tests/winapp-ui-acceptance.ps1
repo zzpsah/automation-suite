@@ -36,8 +36,6 @@ function Assert-Selector {
 
 $process = Start-Process -FilePath $ExePath -PassThru
 try {
-    # In process-scoped WinApp UI queries the top-level window is the scope root,
-    # so wait on a stable child AutomationId rather than searching for the root itself.
     Invoke-WinApp -Arguments @("ui", "wait-for", "AddressBox", "-a", "$($process.Id)", "-t", "30000") | Out-Null
 
     $requiredSelectors = @(
@@ -68,12 +66,13 @@ try {
     Invoke-WinApp -Arguments @("ui", "invoke", "CloseTabButton", "-a", "$($process.Id)") | Out-Null
 
     Invoke-WinApp -Arguments @("ui", "invoke", "TestPortalButton", "-a", "$($process.Id)") | Out-Null
-    Start-Sleep -Milliseconds 750
     Invoke-WinApp -Arguments @("ui", "screenshot", "-a", "$($process.Id)", "-o", (Join-Path $OutputDirectory "02-test-portal.png")) | Out-Null
 
-    Invoke-WinApp -Arguments @("ui", "set-value", "CommandBox", "read #status", "-a", "$($process.Id)") | Out-Null
+    # Do not rely on an arbitrary fixed sleep after navigation. Exercise the visible
+    # command path and let the deterministic browser runtime wait for DOM readiness.
+    Invoke-WinApp -Arguments @("ui", "set-value", "CommandBox", "wait for #status; read #status", "-a", "$($process.Id)") | Out-Null
     Invoke-WinApp -Arguments @("ui", "invoke", "RunCommandButton", "-a", "$($process.Id)") | Out-Null
-    Invoke-WinApp -Arguments @("ui", "wait-for", "ready", "-a", "$($process.Id)", "-t", "10000") | Out-Null
+    Invoke-WinApp -Arguments @("ui", "wait-for", "ready", "-a", "$($process.Id)", "-t", "15000") | Out-Null
     $readStatus = (Invoke-WinApp -Arguments @("ui", "get-value", "CommandStatus", "-a", "$($process.Id)") | Out-String).Trim()
     if ($readStatus -notmatch "(?i)ready") {
         throw "Command bar did not surface expected portal status. Output: $readStatus"
@@ -99,7 +98,7 @@ try {
         "Stable child AutomationIds: PASS",
         "Open/close tab controls: PASS",
         "Bundled Test Portal navigation: PASS",
-        "Command bar read through real UI: PASS",
+        "Command bar wait/read through real UI: PASS",
         "Approval dialog blocks committing command: PASS",
         "Decline path leaves visible status: PASS"
     ) | Set-Content -Encoding UTF8 (Join-Path $OutputDirectory "summary.txt")
