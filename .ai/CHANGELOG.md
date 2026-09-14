@@ -1,3 +1,10 @@
+## 2026-09-14 — Add Android emulator install smoke test
+- Commit: 377d0bdd9bc26346bff1dc23b91e9b944d16ee09
+- Author: PRASHANT KUMAR SAH
+- Classification: meaningful
+- Changed files:
+- `.github/workflows/android-document-scanner-build.yml`
+
 ## 2026-09-14 — Fix AndroidView scanner camera binding
 - Commit: 9489b74a8a6da741d5e52971c851de2901dec0ec
 - Author: PRASHANT KUMAR SAH
