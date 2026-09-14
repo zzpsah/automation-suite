@@ -16,17 +16,15 @@ on:
         type: string
   repository_dispatch:
     types: [document-publication-notify]
-  workflow_run:
-    workflows: ["Global Document Publication"]
-    types: [completed]
   schedule:
     - cron: '*/5 * * * *'
 
 concurrency:
   # Keep unrelated document deliveries independent. A repository_dispatch is
-  # keyed to its document, while scheduled/manual/workflow-run fallbacks use
-  # their own bounded groups so a newly arrived document is not silently
-  # cancelled behind another delivery.
+  # keyed to its document; scheduled/manual runs use separate bounded groups.
+  # The workflow_run trigger was intentionally removed because publication
+  # already dispatches document-publication-notify and the second trigger can
+  # create duplicate delivery runners for the same document.
   group: >-
     ${{
       github.event_name == 'repository_dispatch'
@@ -40,7 +38,6 @@ concurrency:
 jobs:
   notify:
     name: Published document → eLettersBot validated delivery
-    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
