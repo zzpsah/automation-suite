@@ -128,22 +128,25 @@ public sealed class BrowserAutomationAdapter : IAutomationAdapter
     public async Task<string?> GetElementDescriptorAsync(string cssSelector)
     {
         var selector = JsonSerializer.Serialize(cssSelector);
-        var result = await _core.ExecuteScriptAsync($"""
-(() => {{
-  const el = document.querySelector({selector});
+        var script = """
+(() => {
+  const el = document.querySelector(
+""" + selector + """
+  );
   if (!el) return null;
   const clean = value => (value ?? '').toString().replace(/\s+/g, ' ').trim();
   return [
-    `tag=${{el.tagName.toLowerCase()}}`,
-    `type=${{clean(el.getAttribute('type')).toLowerCase()}}`,
-    `text=${{clean(el.innerText || el.textContent).slice(0, 180)}}`,
-    `aria=${{clean(el.getAttribute('aria-label')).slice(0, 120)}}`,
-    `title=${{clean(el.getAttribute('title')).slice(0, 120)}}`,
-    `name=${{clean(el.getAttribute('name')).slice(0, 100)}}`,
-    `role=${{clean(el.getAttribute('role')).slice(0, 80)}}`
+    'tag=' + el.tagName.toLowerCase(),
+    'type=' + clean(el.getAttribute('type')).toLowerCase(),
+    'text=' + clean(el.innerText || el.textContent).slice(0, 180),
+    'aria=' + clean(el.getAttribute('aria-label')).slice(0, 120),
+    'title=' + clean(el.getAttribute('title')).slice(0, 120),
+    'name=' + clean(el.getAttribute('name')).slice(0, 100),
+    'role=' + clean(el.getAttribute('role')).slice(0, 80)
   ].join(' ');
-}})()
-""");
+})()
+""";
+        var result = await _core.ExecuteScriptAsync(script);
         if (string.Equals(result, "null", StringComparison.OrdinalIgnoreCase)) return null;
         return JsonSerializer.Deserialize<string>(result);
     }
