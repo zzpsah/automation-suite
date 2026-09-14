@@ -264,6 +264,11 @@ def mark_legacy_sent(document_id, chat_id):
     )
 
 
+def update_input_progress(doc, delivery_state):
+    """Compatibility hook; the notifier workflow performs the authoritative progress edit."""
+    return False
+
+
 def deliver_one(doc, chat_id, message, delivery, source_sha256, delivery_sha256):
     state = claim_delivery(doc["id"], chat_id)
     if state is None:
@@ -412,21 +417,8 @@ def main():
             try:
                 if already_sent(doc["id"], chat_id):
                     mark_legacy_sent(doc["id"], chat_id)
-                    update_input_progress(doc, db_get(
-                        "telegram_publication_deliveries?select=status,attempts,document_message_id,filename,sent_at,last_error&document_id=eq."
-                        + quote(doc["id"], safe="") + "&chat_id=eq." + quote(chat_id, safe="") + "&limit=1"
-                    )[0])
                     continue
                 result = deliver_one(doc, chat_id, message, delivery, source_sha256, delivery_sha256)
-                state_rows = db_get(
-                    "telegram_publication_deliveries?select=status,attempts,document_message_id,filename,sent_at,last_error&document_id=eq."
-                    + quote(doc["id"], safe="") + "&chat_id=eq." + quote(chat_id, safe="") + "&limit=1"
-                )
-                if state_rows:
-                    try:
-                        update_input_progress(doc, state_rows[0])
-                    except Exception as progress_exc:
-                        print(f"Input-bot progress update failed document={doc['id']}: {progress_exc}")
                 if result == "sent":
                     sent += 1
                 elif result == "locked":
