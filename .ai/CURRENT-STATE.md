@@ -24,7 +24,7 @@ Last verified: 2026-09-14
 - External/production mutations require explicit authorization.
 
 ## Last automated change
-- Commit: cbdd3cd30ac35011b419141ed81e98728d2d9211
-- Change: docs: document Stage 10 eLetters durable delivery
+- Commit: e77ab320a5fdfcaebcec0c3f0d09c6b6e7cf0b35
+- Change: feat: update Telegram progress after eLetters delivery
 - Date: 2026-09-14
 - Durable context synchronization: completed
