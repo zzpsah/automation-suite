@@ -24,7 +24,7 @@ Last verified: 2026-09-14
 - External/production mutations require explicit authorization.
 
 ## Last automated change
-- Commit: ef1a554fced4e0b0f86993eca8c06d71400e11db
-- Change: restore: recover complete durable eLetters notifier implementation
+- Commit: a10e74ba6e2a0afacd95d90189ced64277613b56
+- Change: fix: keep notifier compatible with progress reconciliation
 - Date: 2026-09-14
 - Durable context synchronization: completed

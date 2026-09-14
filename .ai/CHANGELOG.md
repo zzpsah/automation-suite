@@ -1,3 +1,10 @@
+## 2026-09-14 — fix: keep notifier compatible with progress reconciliation
+- Commit: a10e74ba6e2a0afacd95d90189ced64277613b56
+- Author: PRASHANT KUMAR SAH
+- Classification: meaningful
+- Changed files:
+- `global-automation/scripts/document/telegram_publication_notifier_v3.py`
+
 ## 2026-09-14 — restore: recover complete durable eLetters notifier implementation
 - Commit: ef1a554fced4e0b0f86993eca8c06d71400e11db
 - Author: PRASHANT KUMAR SAH
