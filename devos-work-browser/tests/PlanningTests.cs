@@ -6,6 +6,19 @@ namespace Devos.WorkBrowser.Tests;
 
 public sealed class PlanningTests
 {
+    [Theory]
+    [InlineData("open example.com")]
+    [InlineData("go to example.com")]
+    [InlineData("navigate example.com")]
+    public void Planner_MapsNavigationWithoutApproval(string command)
+    {
+        var plan = new NaturalLanguagePlanner().Plan(command);
+        Assert.False(plan.RequiresApproval);
+        Assert.Single(plan.Actions);
+        Assert.Equal(BrowserActionKind.Navigate, plan.Actions[0].Kind);
+        Assert.Equal("example.com", plan.Actions[0].Target);
+    }
+
     [Fact]
     public void Planner_MapsReadWithoutApproval()
     {
