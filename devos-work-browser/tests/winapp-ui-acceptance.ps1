@@ -13,10 +13,7 @@ $ExePath = (Resolve-Path $ExePath).Path
 $env:WINAPP_UI_WORKFLOW_ID = [guid]::NewGuid().ToString()
 
 function Invoke-WinApp {
-    param(
-        [Parameter(Mandatory = $true, Position = 0, ValueFromRemainingArguments = $true)]
-        [string[]]$Arguments
-    )
+    param([Parameter(Mandatory = $true)][string[]]$Arguments)
     $output = & winapp @Arguments 2>&1
     $exit = $LASTEXITCODE
     if ($exit -ne 0) {
@@ -39,7 +36,7 @@ function Assert-Selector {
 
 $process = Start-Process -FilePath $ExePath -PassThru
 try {
-    Invoke-WinApp ui wait-for MainWindow -a $process.Id -t 30000 | Out-Null
+    Invoke-WinApp -Arguments @("ui", "wait-for", "MainWindow", "-a", "$($process.Id)", "-t", "30000") | Out-Null
 
     $requiredSelectors = @(
         "MainWindow",
@@ -62,38 +59,38 @@ try {
         Assert-Selector -Selector $selector -ProcessId $process.Id
     }
 
-    Invoke-WinApp ui inspect -a $process.Id --json | Set-Content -Encoding UTF8 (Join-Path $OutputDirectory "initial-tree.json")
-    Invoke-WinApp ui screenshot -a $process.Id -o (Join-Path $OutputDirectory "01-launch.png") | Out-Null
+    Invoke-WinApp -Arguments @("ui", "inspect", "-a", "$($process.Id)", "--json") | Set-Content -Encoding UTF8 (Join-Path $OutputDirectory "initial-tree.json")
+    Invoke-WinApp -Arguments @("ui", "screenshot", "-a", "$($process.Id)", "-o", (Join-Path $OutputDirectory "01-launch.png")) | Out-Null
 
-    Invoke-WinApp ui invoke NewTabButton -a $process.Id | Out-Null
+    Invoke-WinApp -Arguments @("ui", "invoke", "NewTabButton", "-a", "$($process.Id)") | Out-Null
     Start-Sleep -Milliseconds 500
-    Invoke-WinApp ui invoke CloseTabButton -a $process.Id | Out-Null
+    Invoke-WinApp -Arguments @("ui", "invoke", "CloseTabButton", "-a", "$($process.Id)") | Out-Null
 
-    Invoke-WinApp ui invoke TestPortalButton -a $process.Id | Out-Null
+    Invoke-WinApp -Arguments @("ui", "invoke", "TestPortalButton", "-a", "$($process.Id)") | Out-Null
     Start-Sleep -Milliseconds 750
-    Invoke-WinApp ui screenshot -a $process.Id -o (Join-Path $OutputDirectory "02-test-portal.png") | Out-Null
+    Invoke-WinApp -Arguments @("ui", "screenshot", "-a", "$($process.Id)", "-o", (Join-Path $OutputDirectory "02-test-portal.png")) | Out-Null
 
-    Invoke-WinApp ui set-value CommandBox "read #status" -a $process.Id | Out-Null
-    Invoke-WinApp ui invoke RunCommandButton -a $process.Id | Out-Null
-    Invoke-WinApp ui wait-for "ready" -a $process.Id -t 10000 | Out-Null
-    $readStatus = (Invoke-WinApp ui get-text CommandStatus -a $process.Id | Out-String).Trim()
+    Invoke-WinApp -Arguments @("ui", "set-value", "CommandBox", "read #status", "-a", "$($process.Id)") | Out-Null
+    Invoke-WinApp -Arguments @("ui", "invoke", "RunCommandButton", "-a", "$($process.Id)") | Out-Null
+    Invoke-WinApp -Arguments @("ui", "wait-for", "ready", "-a", "$($process.Id)", "-t", "10000") | Out-Null
+    $readStatus = (Invoke-WinApp -Arguments @("ui", "get-text", "CommandStatus", "-a", "$($process.Id)") | Out-String).Trim()
     if ($readStatus -notmatch "(?i)ready") {
         throw "Command bar did not surface expected portal status. Output: $readStatus"
     }
 
-    Invoke-WinApp ui set-value CommandBox "submit #next" -a $process.Id | Out-Null
-    Invoke-WinApp ui invoke RunCommandButton -a $process.Id | Out-Null
-    Invoke-WinApp ui wait-for "DEVOS approval required" -a $process.Id -t 10000 | Out-Null
-    Invoke-WinApp ui screenshot -a $process.Id --capture-screen -o (Join-Path $OutputDirectory "03-approval-dialog.png") | Out-Null
-    Invoke-WinApp ui invoke "No" -a $process.Id | Out-Null
-    Invoke-WinApp ui wait-for "Approval declined" -a $process.Id -t 10000 | Out-Null
-    $approvalStatus = (Invoke-WinApp ui get-text CommandStatus -a $process.Id | Out-String).Trim()
+    Invoke-WinApp -Arguments @("ui", "set-value", "CommandBox", "submit #next", "-a", "$($process.Id)") | Out-Null
+    Invoke-WinApp -Arguments @("ui", "invoke", "RunCommandButton", "-a", "$($process.Id)") | Out-Null
+    Invoke-WinApp -Arguments @("ui", "wait-for", "DEVOS approval required", "-a", "$($process.Id)", "-t", "10000") | Out-Null
+    Invoke-WinApp -Arguments @("ui", "screenshot", "-a", "$($process.Id)", "--capture-screen", "-o", (Join-Path $OutputDirectory "03-approval-dialog.png")) | Out-Null
+    Invoke-WinApp -Arguments @("ui", "invoke", "No", "-a", "$($process.Id)") | Out-Null
+    Invoke-WinApp -Arguments @("ui", "wait-for", "Approval declined", "-a", "$($process.Id)", "-t", "10000") | Out-Null
+    $approvalStatus = (Invoke-WinApp -Arguments @("ui", "get-text", "CommandStatus", "-a", "$($process.Id)") | Out-String).Trim()
     if ($approvalStatus -notmatch "(?i)approval declined") {
         throw "Declined approval did not leave the expected visible status. Output: $approvalStatus"
     }
 
-    Invoke-WinApp ui focus CommandBox -a $process.Id | Out-Null
-    Invoke-WinApp ui screenshot -a $process.Id -o (Join-Path $OutputDirectory "04-final.png") | Out-Null
+    Invoke-WinApp -Arguments @("ui", "focus", "CommandBox", "-a", "$($process.Id)") | Out-Null
+    Invoke-WinApp -Arguments @("ui", "screenshot", "-a", "$($process.Id)", "-o", (Join-Path $OutputDirectory "04-final.png")) | Out-Null
 
     @(
         "DEVOS Work Browser WinApp UI Acceptance: PASS",
