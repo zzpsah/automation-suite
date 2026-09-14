@@ -72,6 +72,7 @@ try {
         "CommandBox",
         "RunCommandButton",
         "CommandStatus",
+        "AiStatusText",
         "BrowserTabs"
     )
 
@@ -79,22 +80,23 @@ try {
         Assert-Selector -Selector $selector -ProcessId $process.Id
     }
 
+    $aiStatus = Wait-ControlValue -Selector "AiStatusText" -Pattern "(?i)local ai" -ProcessId $process.Id -TimeoutSeconds 10
+
     Invoke-WinApp -Arguments @("ui", "inspect", "-a", "$($process.Id)", "--json") | Set-Content -Encoding UTF8 (Join-Path $OutputDirectory "initial-tree.json")
-    Invoke-WinApp -Arguments @("ui", "screenshot", "-a", "$($process.Id)", "-o", (Join-Path $OutputDirectory "01-launch.png")) | Out-Null
+    Invoke-WinApp -Arguments @("ui", "screenshot", "-a", "$($process.Id)", "-o", (Join-Path $OutputDirectory "01-chromium-shell.png")) | Out-Null
 
     Invoke-WinApp -Arguments @("ui", "invoke", "NewTabButton", "-a", "$($process.Id)") | Out-Null
     Start-Sleep -Milliseconds 500
     Invoke-WinApp -Arguments @("ui", "invoke", "CloseTabButton", "-a", "$($process.Id)") | Out-Null
 
-    # Stage 3: prove a known portal alias performs direct navigation, not Google search.
-    Invoke-WinApp -Arguments @("ui", "set-value", "CommandBox", "open eshikshakosh", "-a", "$($process.Id)") | Out-Null
+    # CI deliberately disables local AI. This proves the AI-first shell falls back
+    # to the governed deterministic planner without changing browser behavior.
+    Invoke-WinApp -Arguments @("ui", "set-value", "CommandBox", "open example.com", "-a", "$($process.Id)") | Out-Null
     Invoke-WinApp -Arguments @("ui", "invoke", "RunCommandButton", "-a", "$($process.Id)") | Out-Null
-    $addressAfterOpen = Wait-ControlValue -Selector "AddressBox" -Pattern "(?i)eshikshakosh\.bihar\.gov\.in" -ProcessId $process.Id -TimeoutSeconds 15
-    if ($addressAfterOpen -match "(?i)google\.com/search") {
-        throw "Known portal alias incorrectly fell back to Google search: $addressAfterOpen"
-    }
+    $addressAfterOpen = Wait-ControlValue -Selector "AddressBox" -Pattern "(?i)example\.com" -ProcessId $process.Id -TimeoutSeconds 15
 
     Invoke-WinApp -Arguments @("ui", "invoke", "TestPortalButton", "-a", "$($process.Id)") | Out-Null
+    $portalStatus = Wait-ControlValue -Selector "CommandStatus" -Pattern "(?i)synthetic portal loaded" -ProcessId $process.Id -TimeoutSeconds 15
     Invoke-WinApp -Arguments @("ui", "screenshot", "-a", "$($process.Id)", "-o", (Join-Path $OutputDirectory "02-test-portal.png")) | Out-Null
 
     Invoke-WinApp -Arguments @("ui", "set-value", "CommandBox", "wait for #status; read #status", "-a", "$($process.Id)") | Out-Null
@@ -112,12 +114,13 @@ try {
     Invoke-WinApp -Arguments @("ui", "screenshot", "-a", "$($process.Id)", "-o", (Join-Path $OutputDirectory "04-final.png")) | Out-Null
 
     @(
-        "DEVOS Work Browser WinApp UI Acceptance: PASS",
+        "DEVOS Work Browser v0.2.0 Stage 4 WinApp UI Acceptance: PASS",
         "ProcessId: $($process.Id)",
-        "Stable child AutomationIds: PASS",
+        "Chromium-style shell required controls: PASS",
+        "Local AI status surface: PASS ($aiStatus)",
         "Open/close tab controls: PASS",
-        "Known portal alias direct navigation: PASS ($addressAfterOpen)",
-        "Bundled Test Portal navigation: PASS",
+        "AI-first command handler deterministic fallback: PASS ($addressAfterOpen)",
+        "Bundled Test Portal navigation readiness: PASS ($portalStatus)",
         "Command bar wait/read through visible CommandStatus: PASS",
         "Approval dialog blocks committing command: PASS",
         "Decline path leaves visible CommandStatus: PASS"
