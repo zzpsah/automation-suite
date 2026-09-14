@@ -13,6 +13,9 @@ permissions:
 jobs:
   build-test-publish:
     runs-on: windows-latest
+    env:
+      # CI must be deterministic and must never depend on a runner-local model.
+      DEVOS_DISABLE_LOCAL_AI: '1'
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-dotnet@v4
@@ -77,34 +80,47 @@ jobs:
             throw "DEVOS Work Browser exited during startup smoke with code $($process.ExitCode)."
           }
           Stop-Process -Id $process.Id -Force
-      - name: Prepare tested Stage 3 patch
+      - name: Prepare tested v0.2.0 Stage 4 patch
         shell: pwsh
         run: |
-          $patch = 'devos-work-browser/artifacts/v0.1.3-stage3-patch'
+          $patch = 'devos-work-browser/artifacts/v0.2.0-stage4-patch'
           New-Item -ItemType Directory -Force -Path $patch | Out-Null
           Copy-Item 'devos-work-browser/artifacts/win-x64/DEVOS.WorkBrowser.dll' "$patch/DEVOS.WorkBrowser.dll"
           @'
-          DEVOS Work Browser v0.1.3 — Stage 3 direct-open patch
+          DEVOS Work Browser v0.2.0 — Stage 4 Local AI + Chromium shell
 
           STATUS: CI TESTED BEFORE PUBLISH
 
-          Replace only DEVOS.WorkBrowser.dll in your existing DEVOS Work Browser folder.
-          Close DEVOS Work Browser before replacing the DLL.
+          INSTALL
+          1. Close DEVOS Work Browser.
+          2. Replace only DEVOS.WorkBrowser.dll in your existing extracted DEVOS Work Browser folder.
+          3. Start DEVOS Work Browser again.
 
-          Stage 3 changes command navigation semantics:
-          - open/go to/navigate are DIRECT NAVIGATION commands, not Google search.
-          - open eshikshakosh -> https://eshikshakosh.bihar.gov.in/
-          - full domains such as example.com navigate directly.
-          - unknown bare site names now show a clear error instead of silently searching Google.
+          WHAT CHANGED
+          - Chromium-style compact browser shell.
+          - DEVOS AI goal box is now the primary command surface.
+          - Local-first AI planner using an Ollama-compatible localhost endpoint.
+          - No OpenAI API key is required.
+          - Deterministic DEVOS grammar remains as an offline fallback.
+          - Page snapshots exclude typed input values/password contents.
+          - DEVOS still blocks CAPTCHA/OTP automation and keeps local approval gates for committing UI actions.
+          - Direct portal alias support remains available, including: open eshikshakosh.
 
-          The normal address bar still keeps its regular URL-or-Google-search behavior.
-          Do not replace any other dependency in this stage.
+          LOCAL AI SETUP (FREE / OPTIONAL)
+          - Install Ollama on Windows yourself from its official installer.
+          - Run: ollama pull qwen3:4b
+          - Keep Ollama running on its default localhost endpoint: http://127.0.0.1:11434
+          - DEVOS will show: LOCAL AI · qwen3:4b when ready.
+          - To use another installed model, set DEVOS_LOCAL_MODEL before starting DEVOS.
+          - To use another compatible local endpoint, set DEVOS_LOCAL_AI_ENDPOINT.
+
+          If Local AI is not installed/running, DEVOS keeps working with its deterministic browser commands.
           '@ | Set-Content -Path "$patch/PATCH-README.txt" -Encoding UTF8
           $count = (Get-ChildItem -File $patch).Count
-          if ($count -ne 2) { throw "Stage 3 patch must contain exactly 2 files; found $count." }
-      - name: Upload tested v0.1.3 Stage 3 patch
+          if ($count -ne 2) { throw "Stage 4 patch must contain exactly 2 files; found $count." }
+      - name: Upload tested DEVOS Work Browser v0.2.0 Stage 4 patch
         uses: actions/upload-artifact@v4
         with:
-          name: DEVOS-Work-Browser-v0.1.3-stage3-direct-open-patch
-          path: devos-work-browser/artifacts/v0.1.3-stage3-patch/
+          name: DEVOS-Work-Browser-v0.2.0-stage4-local-ai-chromium-patch
+          path: devos-work-browser/artifacts/v0.2.0-stage4-patch/
           if-no-files-found: error
