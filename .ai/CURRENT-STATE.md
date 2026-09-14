@@ -24,7 +24,7 @@ Last verified: 2026-09-14
 - External/production mutations require explicit authorization.
 
 ## Last automated change
-- Commit: f9e6b3922d2c7bd488313cb09159f2b51076e00c
-- Change: Use UMVInputBot token for progress-message edits
+- Commit: aa7a247b18cab4ae00a3fc8188dfa22e47363fba
+- Change: fix: harden UMVInputBot delivery progress update
 - Date: 2026-09-14
 - Durable context synchronization: completed

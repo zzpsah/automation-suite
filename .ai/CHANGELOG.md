@@ -1,3 +1,10 @@
+## 2026-09-14 — fix: harden UMVInputBot delivery progress update
+- Commit: aa7a247b18cab4ae00a3fc8188dfa22e47363fba
+- Author: PRASHANT KUMAR SAH
+- Classification: meaningful
+- Changed files:
+- `global-automation/scripts/document/telegram_delivery_progress.py`
+
 ## 2026-09-14 — Use UMVInputBot token for progress-message edits
 - Commit: f9e6b3922d2c7bd488313cb09159f2b51076e00c
 - Author: PRASHANT KUMAR SAH
