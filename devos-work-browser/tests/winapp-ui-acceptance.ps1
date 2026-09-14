@@ -13,7 +13,10 @@ $ExePath = (Resolve-Path $ExePath).Path
 $env:WINAPP_UI_WORKFLOW_ID = [guid]::NewGuid().ToString()
 
 function Invoke-WinApp {
-    param([Parameter(ValueFromRemainingArguments = $true)][string[]]$Arguments)
+    param(
+        [Parameter(Mandatory = $true, Position = 0, ValueFromRemainingArguments = $true)]
+        [string[]]$Arguments
+    )
     $output = & winapp @Arguments 2>&1
     $exit = $LASTEXITCODE
     if ($exit -ne 0) {
