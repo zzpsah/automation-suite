@@ -63,30 +63,43 @@ public sealed class LocalAiAgentTests
     [Fact]
     public async Task LocalAgent_UsesOllamaCompatibleJsonChatContract()
     {
-        var handler = new StubHandler(request =>
+        var previousDisableValue = Environment.GetEnvironmentVariable("DEVOS_DISABLE_LOCAL_AI");
+        try
         {
-            if (request.RequestUri!.AbsolutePath.EndsWith("/api/tags", StringComparison.Ordinal))
+            // The GitHub workflow deliberately disables runner-local AI so normal
+            // packaged tests never depend on Ollama. This unit test uses a fake
+            // localhost-compatible transport, so isolate it from that process flag.
+            Environment.SetEnvironmentVariable("DEVOS_DISABLE_LOCAL_AI", null);
+
+            var handler = new StubHandler(request =>
             {
-                return Json(HttpStatusCode.OK, "{\"models\":[{\"name\":\"qwen3:4b\"}]}");
-            }
+                if (request.RequestUri!.AbsolutePath.EndsWith("/api/tags", StringComparison.Ordinal))
+                {
+                    return Json(HttpStatusCode.OK, "{\"models\":[{\"name\":\"qwen3:4b\"}]}");
+                }
 
-            if (request.RequestUri.AbsolutePath.EndsWith("/api/chat", StringComparison.Ordinal))
-            {
-                return Json(HttpStatusCode.OK,
-                    "{\"message\":{\"content\":\"{\\\"done\\\":false,\\\"message\\\":\\\"Click next\\\",\\\"description\\\":\\\"click next page\\\",\\\"action\\\":{\\\"kind\\\":\\\"Click\\\",\\\"target\\\":\\\"#next\\\",\\\"value\\\":null}}\"}}");
-            }
+                if (request.RequestUri.AbsolutePath.EndsWith("/api/chat", StringComparison.Ordinal))
+                {
+                    return Json(HttpStatusCode.OK,
+                        "{\"message\":{\"content\":\"{\\\"done\\\":false,\\\"message\\\":\\\"Click next\\\",\\\"description\\\":\\\"click next page\\\",\\\"action\\\":{\\\"kind\\\":\\\"Click\\\",\\\"target\\\":\\\"#next\\\",\\\"value\\\":null}}\"}}");
+                }
 
-            return Json(HttpStatusCode.NotFound, "{}");
-        });
-        var http = new HttpClient(handler) { BaseAddress = new Uri("http://127.0.0.1:11434/") };
-        var agent = new LocalAiAgent(http, "qwen3:4b");
+                return Json(HttpStatusCode.NotFound, "{}");
+            });
+            var http = new HttpClient(handler) { BaseAddress = new Uri("http://127.0.0.1:11434/") };
+            var agent = new LocalAiAgent(http, "qwen3:4b");
 
-        Assert.True(await agent.IsAvailableAsync());
-        var decision = await agent.GetNextStepAsync("go next", "{\"elements\":[]}", null);
+            Assert.True(await agent.IsAvailableAsync());
+            var decision = await agent.GetNextStepAsync("go next", "{\"elements\":[]}", null);
 
-        Assert.False(decision.Done);
-        Assert.Equal(BrowserActionKind.Click, decision.Action!.Kind);
-        Assert.Equal("#next", decision.Action.Target);
+            Assert.False(decision.Done);
+            Assert.Equal(BrowserActionKind.Click, decision.Action!.Kind);
+            Assert.Equal("#next", decision.Action.Target);
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("DEVOS_DISABLE_LOCAL_AI", previousDisableValue);
+        }
     }
 
     private static HttpResponseMessage Json(HttpStatusCode code, string json)
