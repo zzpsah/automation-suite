@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Reflect durable eLetters delivery state in the existing Telegram progress message."""
+"""Reflect durable eLetters delivery state in the existing UMVInputBot progress message."""
 from __future__ import annotations
 
 import html
@@ -11,7 +11,7 @@ import requests
 
 SUPABASE_URL = os.environ["SUPABASE_URL"].rstrip("/")
 SUPABASE_KEY = os.environ["SUPABASE_SERVICE_ROLE_KEY"]
-TELEGRAM_TOKEN = os.environ["TELEGRAM_OUTPUT_BOT_TOKEN"]
+TELEGRAM_INPUT_TOKEN = os.environ["TELEGRAM_BOT_TOKEN"]
 DOCUMENT_ID = str(os.environ.get("DOCUMENT_ID") or "").strip()
 HEADERS = {"apikey": SUPABASE_KEY, "Authorization": f"Bearer {SUPABASE_KEY}"}
 
@@ -24,7 +24,7 @@ def db_get(path: str):
 
 def telegram(method: str, payload: dict):
     response = requests.post(
-        f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/{method}",
+        f"https://api.telegram.org/bot{TELEGRAM_INPUT_TOKEN}/{method}",
         data=payload,
         timeout=30,
     )
@@ -79,10 +79,7 @@ def progress_text(doc: dict, delivery: dict) -> str:
 
 
 def target_rows():
-    if DOCUMENT_ID:
-        document_filter = "&document_id=eq." + quote(DOCUMENT_ID, safe="")
-    else:
-        document_filter = ""
+    document_filter = "&document_id=eq." + quote(DOCUMENT_ID, safe="") if DOCUMENT_ID else ""
     return db_get(
         "telegram_publication_deliveries?select=document_id,chat_id,status,attempts,message_id,document_message_id,"
         "last_error,filename,sent_at,documents(id,source_message_id,display_filename,original_filename)&limit=100"
