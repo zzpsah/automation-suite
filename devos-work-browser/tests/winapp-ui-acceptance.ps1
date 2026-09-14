@@ -34,6 +34,27 @@ function Assert-Selector {
     }
 }
 
+function Wait-ControlValue {
+    param(
+        [string]$Selector,
+        [string]$Pattern,
+        [int]$ProcessId,
+        [int]$TimeoutSeconds = 15
+    )
+
+    $deadline = (Get-Date).AddSeconds($TimeoutSeconds)
+    $lastValue = ""
+    while ((Get-Date) -lt $deadline) {
+        $lastValue = (Invoke-WinApp -Arguments @("ui", "get-value", $Selector, "-a", "$ProcessId") | Out-String).Trim()
+        if ($lastValue -match $Pattern) {
+            return $lastValue
+        }
+        Start-Sleep -Milliseconds 250
+    }
+
+    throw "Control '$Selector' did not match '$Pattern' within ${TimeoutSeconds}s. Last value: $lastValue"
+}
+
 $process = Start-Process -FilePath $ExePath -PassThru
 try {
     Invoke-WinApp -Arguments @("ui", "wait-for", "AddressBox", "-a", "$($process.Id)", "-t", "30000") | Out-Null
@@ -68,26 +89,16 @@ try {
     Invoke-WinApp -Arguments @("ui", "invoke", "TestPortalButton", "-a", "$($process.Id)") | Out-Null
     Invoke-WinApp -Arguments @("ui", "screenshot", "-a", "$($process.Id)", "-o", (Join-Path $OutputDirectory "02-test-portal.png")) | Out-Null
 
-    # Do not rely on an arbitrary fixed sleep after navigation. Exercise the visible
-    # command path and let the deterministic browser runtime wait for DOM readiness.
     Invoke-WinApp -Arguments @("ui", "set-value", "CommandBox", "wait for #status; read #status", "-a", "$($process.Id)") | Out-Null
     Invoke-WinApp -Arguments @("ui", "invoke", "RunCommandButton", "-a", "$($process.Id)") | Out-Null
-    Invoke-WinApp -Arguments @("ui", "wait-for", "ready", "-a", "$($process.Id)", "-t", "15000") | Out-Null
-    $readStatus = (Invoke-WinApp -Arguments @("ui", "get-value", "CommandStatus", "-a", "$($process.Id)") | Out-String).Trim()
-    if ($readStatus -notmatch "(?i)ready") {
-        throw "Command bar did not surface expected portal status. Output: $readStatus"
-    }
+    $readStatus = Wait-ControlValue -Selector "CommandStatus" -Pattern "(?i)ready" -ProcessId $process.Id -TimeoutSeconds 15
 
     Invoke-WinApp -Arguments @("ui", "set-value", "CommandBox", "submit #next", "-a", "$($process.Id)") | Out-Null
     Invoke-WinApp -Arguments @("ui", "invoke", "RunCommandButton", "-a", "$($process.Id)") | Out-Null
     Invoke-WinApp -Arguments @("ui", "wait-for", "DEVOS approval required", "-a", "$($process.Id)", "-t", "10000") | Out-Null
     Invoke-WinApp -Arguments @("ui", "screenshot", "-a", "$($process.Id)", "--capture-screen", "-o", (Join-Path $OutputDirectory "03-approval-dialog.png")) | Out-Null
     Invoke-WinApp -Arguments @("ui", "invoke", "No", "-a", "$($process.Id)") | Out-Null
-    Invoke-WinApp -Arguments @("ui", "wait-for", "Approval declined", "-a", "$($process.Id)", "-t", "10000") | Out-Null
-    $approvalStatus = (Invoke-WinApp -Arguments @("ui", "get-value", "CommandStatus", "-a", "$($process.Id)") | Out-String).Trim()
-    if ($approvalStatus -notmatch "(?i)approval declined") {
-        throw "Declined approval did not leave the expected visible status. Output: $approvalStatus"
-    }
+    $approvalStatus = Wait-ControlValue -Selector "CommandStatus" -Pattern "(?i)approval declined" -ProcessId $process.Id -TimeoutSeconds 10
 
     Invoke-WinApp -Arguments @("ui", "focus", "CommandBox", "-a", "$($process.Id)") | Out-Null
     Invoke-WinApp -Arguments @("ui", "screenshot", "-a", "$($process.Id)", "-o", (Join-Path $OutputDirectory "04-final.png")) | Out-Null
@@ -98,9 +109,9 @@ try {
         "Stable child AutomationIds: PASS",
         "Open/close tab controls: PASS",
         "Bundled Test Portal navigation: PASS",
-        "Command bar wait/read through real UI: PASS",
+        "Command bar wait/read through visible CommandStatus: PASS",
         "Approval dialog blocks committing command: PASS",
-        "Decline path leaves visible status: PASS"
+        "Decline path leaves visible CommandStatus: PASS"
     ) | Set-Content -Encoding UTF8 (Join-Path $OutputDirectory "summary.txt")
 }
 finally {
