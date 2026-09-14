@@ -24,7 +24,7 @@ Last verified: 2026-09-14
 - External/production mutations require explicit authorization.
 
 ## Last automated change
-- Commit: 25731ad20854cd2f686522e539a942b995546939
-- Change: fix: support scheduled all-document progress reconciliation
+- Commit: 651062a1bc8aaccb99e2ccdbf448bde6c25be72a
+- Change: fix: update UMVInputBot progress from durable eLetters notifier
 - Date: 2026-09-14
 - Durable context synchronization: completed

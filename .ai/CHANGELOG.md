@@ -1,3 +1,10 @@
+## 2026-09-14 — fix: update UMVInputBot progress from durable eLetters notifier
+- Commit: 651062a1bc8aaccb99e2ccdbf448bde6c25be72a
+- Author: PRASHANT KUMAR SAH
+- Classification: meaningful
+- Changed files:
+- `global-automation/scripts/document/telegram_publication_notifier_v3.py`
+
 ## 2026-09-14 — fix: support scheduled all-document progress reconciliation
 - Commit: 25731ad20854cd2f686522e539a942b995546939
 - Author: PRASHANT KUMAR SAH
