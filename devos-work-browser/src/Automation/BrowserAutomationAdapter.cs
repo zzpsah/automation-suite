@@ -1,4 +1,5 @@
 using System.Text.Json;
+using Devos.WorkBrowser.Browser;
 using Devos.WorkBrowser.Runtime;
 using Microsoft.Web.WebView2.Core;
 
@@ -11,6 +12,13 @@ public sealed class BrowserAutomationAdapter : IAutomationAdapter
     public BrowserAutomationAdapter(CoreWebView2 core) => _core = core;
 
     public Task<string> ExecuteScriptAsync(string script) => _core.ExecuteScriptAsync(script);
+
+    public Task NavigateAsync(string target)
+    {
+        var uri = UrlResolver.Resolve(target);
+        _core.Navigate(uri.ToString());
+        return Task.CompletedTask;
+    }
 
     public async Task ClickAsync(string cssSelector)
     {
