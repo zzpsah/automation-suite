@@ -72,7 +72,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: DEVOS-Work-Browser-WinAppUI
+          name: DEVOS-Work-Browser-v0.1.2-WinAppUI
           path: devos-work-browser/artifacts/winapp-ui/
           if-no-files-found: warn
       - name: Launch packaged app smoke
@@ -88,6 +88,6 @@ jobs:
       - name: Upload Windows artifact
         uses: actions/upload-artifact@v4
         with:
-          name: DEVOS-Work-Browser-win-x64
+          name: DEVOS-Work-Browser-v0.1.2-win-x64
           path: devos-work-browser/artifacts/win-x64/
           if-no-files-found: error
