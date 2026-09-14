@@ -9,6 +9,10 @@
     <RootNamespace>Devos.WorkBrowser</RootNamespace>
     <PlatformTarget>x64</PlatformTarget>
     <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <Version>0.1.2</Version>
+    <AssemblyVersion>0.1.2.0</AssemblyVersion>
+    <FileVersion>0.1.2.0</FileVersion>
+    <InformationalVersion>0.1.2</InformationalVersion>
   </PropertyGroup>
 
   <ItemGroup>
@@ -22,13 +26,6 @@
     </Content>
   </ItemGroup>
 
-  <!--
-    WebView2Loader.dll is native and architecture-specific. In some dotnet publish
-    layouts the WebView2 SDK targets do not surface the loader in the publish root,
-    which can leave the WPF shell running while WebView2 silently fails to initialize
-    on user machines. Force the x64 loader into the distributable root and fail the
-    publish if the NuGet package layout cannot be resolved.
-  -->
   <Target Name="ResolveDevosWebView2Loader" BeforeTargets="Publish">
     <PropertyGroup>
       <_DevosWebView2Loader Condition="Exists('$(PkgMicrosoft_Web_WebView2)\runtimes\win-x64\native\WebView2Loader.dll')">$(PkgMicrosoft_Web_WebView2)\runtimes\win-x64\native\WebView2Loader.dll</_DevosWebView2Loader>
