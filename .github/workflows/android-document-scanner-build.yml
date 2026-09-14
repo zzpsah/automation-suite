@@ -19,11 +19,28 @@ jobs:
           java-version: '17'
       - uses: android-actions/setup-android@v3
       - name: Install Android SDK
-        run: sdkmanager "platform-tools" "platforms;android-35" "build-tools;35.0.0"
+        run: sdkmanager "platform-tools" "platforms;android-35" "build-tools;35.0.0" "emulator" "system-images;android-35;google_apis;x86_64"
       - name: Build debug and release APKs
         run: gradle --no-daemon assembleDebug assembleRelease
       - name: Run unit tests
         run: gradle --no-daemon test
+      - name: Verify APK signing
+        run: "$ANDROID_HOME/build-tools/35.0.0/apksigner verify --verbose app/build/outputs/apk/debug/app-debug.apk"
+      - name: Install and launch debug APK on Android emulator
+        run: |
+          echo "no" | avdmanager create avd --force --name scanner-api35 --package "system-images;android-35;google_apis;x86_64" --device "pixel_2"
+          nohup emulator -avd scanner-api35 -no-window -no-audio -no-boot-anim -gpu swiftshader_indirect >/tmp/scanner-emulator.log 2>&1 &
+          adb wait-for-device
+          for i in {1..60}; do
+            boot=$(adb shell getprop sys.boot_completed 2>/dev/null | tr -d '\r')
+            if [ "$boot" = "1" ]; then break; fi
+            sleep 2
+          done
+          test "$(adb shell getprop sys.boot_completed | tr -d '\r')" = "1"
+          adb install -r app/build/outputs/apk/debug/app-debug.apk
+          adb shell am start -n com.devos.docscanner/.MainActivity
+          sleep 5
+          adb shell pidof com.devos.docscanner
       - name: Upload APKs
         uses: actions/upload-artifact@v4
         with:
