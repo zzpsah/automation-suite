@@ -6,8 +6,8 @@ Generated automatically by Development OS.
 
 ## Repository
 - Branch: main
-- HEAD: ce8ec17655000d6a3bcd26fa637d92cef13123ec
-- Last commit: fix: prevent notifier runs from cancelling each other
+- HEAD: 25731ad20854cd2f686522e539a942b995546939
+- Last commit: fix: support scheduled all-document progress reconciliation
 - Last commit date: 2026-09-14
 - Last commit author: PRASHANT KUMAR SAH
 

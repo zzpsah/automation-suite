@@ -24,7 +24,7 @@ Last verified: 2026-09-14
 - External/production mutations require explicit authorization.
 
 ## Last automated change
-- Commit: ce8ec17655000d6a3bcd26fa637d92cef13123ec
-- Change: fix: prevent notifier runs from cancelling each other
+- Commit: 25731ad20854cd2f686522e539a942b995546939
+- Change: fix: support scheduled all-document progress reconciliation
 - Date: 2026-09-14
 - Durable context synchronization: completed
