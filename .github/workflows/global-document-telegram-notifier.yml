@@ -16,7 +16,18 @@ on:
     - cron: '*/5 * * * *'
 
 concurrency:
-  group: global-document-telegram-notifier
+  # Keep unrelated document deliveries independent. A repository_dispatch is
+  # keyed to its document, while scheduled/manual/workflow-run fallbacks use
+  # their own bounded groups so a newly arrived document is not silently
+  # cancelled behind another delivery.
+  group: >-
+    ${{
+      github.event_name == 'repository_dispatch'
+      && format('global-document-telegram-notifier-{0}', github.event.client_payload.document_id || github.run_id)
+      || github.event_name == 'schedule'
+      && 'global-document-telegram-notifier-schedule'
+      || format('global-document-telegram-notifier-run-{0}', github.run_id)
+    }}
   cancel-in-progress: false
 
 jobs:
@@ -27,12 +38,15 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v5
+
       - name: Install system conversion tools
         run: |
           sudo apt-get update
           sudo apt-get install -y libreoffice
+
       - name: Install Python dependencies
         run: python -m pip install --disable-pip-version-check requests boto3 pypdf Pillow pytest
+
       - name: Run file delivery regression tests
         env:
           PYTHONPATH: global-automation/scripts/document
@@ -40,6 +54,7 @@ jobs:
           SUPABASE_SERVICE_ROLE_KEY: test-only
           TELEGRAM_OUTPUT_BOT_TOKEN: test-only
         run: python -m pytest -q global-automation/scripts/document/test_*.py
+
       - name: Send published document notifications
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
@@ -57,6 +72,7 @@ jobs:
           else
             python global-automation/scripts/document/telegram_publication_notifier_v3.py
           fi
+
       - name: Update existing Telegram progress message with delivery state
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
