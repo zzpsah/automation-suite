@@ -74,7 +74,7 @@ try {
     Invoke-WinApp -Arguments @("ui", "set-value", "CommandBox", "read #status", "-a", "$($process.Id)") | Out-Null
     Invoke-WinApp -Arguments @("ui", "invoke", "RunCommandButton", "-a", "$($process.Id)") | Out-Null
     Invoke-WinApp -Arguments @("ui", "wait-for", "ready", "-a", "$($process.Id)", "-t", "10000") | Out-Null
-    $readStatus = (Invoke-WinApp -Arguments @("ui", "get-text", "CommandStatus", "-a", "$($process.Id)") | Out-String).Trim()
+    $readStatus = (Invoke-WinApp -Arguments @("ui", "get-value", "CommandStatus", "-a", "$($process.Id)") | Out-String).Trim()
     if ($readStatus -notmatch "(?i)ready") {
         throw "Command bar did not surface expected portal status. Output: $readStatus"
     }
@@ -85,7 +85,7 @@ try {
     Invoke-WinApp -Arguments @("ui", "screenshot", "-a", "$($process.Id)", "--capture-screen", "-o", (Join-Path $OutputDirectory "03-approval-dialog.png")) | Out-Null
     Invoke-WinApp -Arguments @("ui", "invoke", "No", "-a", "$($process.Id)") | Out-Null
     Invoke-WinApp -Arguments @("ui", "wait-for", "Approval declined", "-a", "$($process.Id)", "-t", "10000") | Out-Null
-    $approvalStatus = (Invoke-WinApp -Arguments @("ui", "get-text", "CommandStatus", "-a", "$($process.Id)") | Out-String).Trim()
+    $approvalStatus = (Invoke-WinApp -Arguments @("ui", "get-value", "CommandStatus", "-a", "$($process.Id)") | Out-String).Trim()
     if ($approvalStatus -notmatch "(?i)approval declined") {
         throw "Declined approval did not leave the expected visible status. Output: $approvalStatus"
     }
