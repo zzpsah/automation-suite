@@ -24,7 +24,7 @@ Last verified: 2026-09-14
 - External/production mutations require explicit authorization.
 
 ## Last automated change
-- Commit: aa7a247b18cab4ae00a3fc8188dfa22e47363fba
-- Change: fix: harden UMVInputBot delivery progress update
+- Commit: ce8ec17655000d6a3bcd26fa637d92cef13123ec
+- Change: fix: prevent notifier runs from cancelling each other
 - Date: 2026-09-14
 - Durable context synchronization: completed

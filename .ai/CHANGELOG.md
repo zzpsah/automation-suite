@@ -1,3 +1,10 @@
+## 2026-09-14 — fix: prevent notifier runs from cancelling each other
+- Commit: ce8ec17655000d6a3bcd26fa637d92cef13123ec
+- Author: PRASHANT KUMAR SAH
+- Classification: meaningful
+- Changed files:
+- `.github/workflows/global-document-telegram-notifier.yml`
+
 ## 2026-09-14 — fix: harden UMVInputBot delivery progress update
 - Commit: aa7a247b18cab4ae00a3fc8188dfa22e47363fba
 - Author: PRASHANT KUMAR SAH
