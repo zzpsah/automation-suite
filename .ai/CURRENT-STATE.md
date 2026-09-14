@@ -24,7 +24,7 @@ Last verified: 2026-09-14
 - External/production mutations require explicit authorization.
 
 ## Last automated change
-- Commit: 6f7bae428f909d6298005323ce31e34f216ee860
-- Change: feat: add atomic eLettersBot delivery claim
+- Commit: 64a9fd1174fd3ed2beb3a46f0e8a20844932f814
+- Change: feat: harden eLettersBot durable delivery
 - Date: 2026-09-14
 - Durable context synchronization: completed

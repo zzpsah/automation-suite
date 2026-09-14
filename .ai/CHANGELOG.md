@@ -1,3 +1,10 @@
+## 2026-09-14 — feat: harden eLettersBot durable delivery
+- Commit: 64a9fd1174fd3ed2beb3a46f0e8a20844932f814
+- Author: PRASHANT KUMAR SAH
+- Classification: meaningful
+- Changed files:
+- `global-automation/scripts/document/telegram_publication_notifier_v3.py`
+
 ## 2026-09-14 — feat: add atomic eLettersBot delivery claim
 - Commit: 6f7bae428f909d6298005323ce31e34f216ee860
 - Author: PRASHANT KUMAR SAH
