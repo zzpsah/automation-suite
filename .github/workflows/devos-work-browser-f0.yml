@@ -77,32 +77,38 @@ jobs:
             throw "DEVOS Work Browser exited during startup smoke with code $($process.ExitCode)."
           }
           Stop-Process -Id $process.Id -Force
-      - name: Prepare tested Stage 1 patch
+      - name: Prepare tested Stage 2 patch
         shell: pwsh
         run: |
-          $patch = 'devos-work-browser/artifacts/v0.1.3-stage1-patch'
+          $patch = 'devos-work-browser/artifacts/v0.1.3-stage2-patch'
           New-Item -ItemType Directory -Force -Path $patch | Out-Null
           Copy-Item 'devos-work-browser/artifacts/win-x64/DEVOS.WorkBrowser.dll' "$patch/DEVOS.WorkBrowser.dll"
           @'
-          DEVOS Work Browser v0.1.3 — Stage 1 browser-init patch
+          DEVOS Work Browser v0.1.3 — Stage 2 natural-navigation patch
 
           STATUS: CI TESTED BEFORE PUBLISH
 
-          Replace only DEVOS.WorkBrowser.dll in your existing v0.1.2 extracted folder.
+          Replace only DEVOS.WorkBrowser.dll in your existing v0.1.2/v0.1.3 Stage-1 extracted folder.
           Close DEVOS Work Browser before replacing the DLL.
 
-          Stage 1 fix:
-          - Attach WebView2 to the live WPF visual tree first.
-          - Wait until the WebView2 control is Loaded.
-          - Only then call EnsureCoreWebView2Async.
+          Stage 2 adds command-bar navigation:
+          - open <site or text>
+          - go to <site or text>
+          - navigate <site or text>
 
+          Examples:
+          - open example.com
+          - open eshikshakosh
+          - go to https://example.com
+
+          Text without a hostname/domain uses the normal DEVOS address resolver/search behavior.
           Do not replace any other dependency in this stage.
           '@ | Set-Content -Path "$patch/PATCH-README.txt" -Encoding UTF8
           $count = (Get-ChildItem -File $patch).Count
-          if ($count -ne 2) { throw "Stage 1 patch must contain exactly 2 files; found $count." }
-      - name: Upload tested v0.1.3 Stage 1 patch
+          if ($count -ne 2) { throw "Stage 2 patch must contain exactly 2 files; found $count." }
+      - name: Upload tested v0.1.3 Stage 2 patch
         uses: actions/upload-artifact@v4
         with:
-          name: DEVOS-Work-Browser-v0.1.3-stage1-browser-init-patch
-          path: devos-work-browser/artifacts/v0.1.3-stage1-patch/
+          name: DEVOS-Work-Browser-v0.1.3-stage2-natural-navigation-patch
+          path: devos-work-browser/artifacts/v0.1.3-stage2-patch/
           if-no-files-found: error
