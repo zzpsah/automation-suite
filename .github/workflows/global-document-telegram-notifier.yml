@@ -1,6 +1,13 @@
 name: Global Document Telegram Notifier
 
 on:
+  push:
+    branches: [main]
+    paths:
+      - 'global-automation/scripts/document/telegram_delivery_progress.py'
+      - 'global-automation/scripts/document/telegram_publication_notifier_v3.py'
+      - 'global-automation/scripts/document/telegram_publication_notifier_targeted.py'
+      - '.github/workflows/global-document-telegram-notifier.yml'
   workflow_dispatch:
     inputs:
       document_id:
