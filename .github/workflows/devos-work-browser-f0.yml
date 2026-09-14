@@ -30,6 +30,14 @@ jobs:
         run: dotnet test devos-work-browser/tests/Devos.WorkBrowser.Tests.csproj -c Release --no-build --verbosity normal
       - name: Publish Windows x64
         run: dotnet publish devos-work-browser/src/Devos.WorkBrowser.csproj -c Release -r win-x64 --self-contained true -o devos-work-browser/artifacts/win-x64
+      - name: Verify packaged WebView2 loader
+        shell: pwsh
+        run: |
+          $loader = 'devos-work-browser/artifacts/win-x64/WebView2Loader.dll'
+          if (-not (Test-Path $loader)) {
+            throw "Packaged x64 WebView2Loader.dll is missing: $loader"
+          }
+          Write-Host "WebView2 loader present: $loader"
       - name: Verify packaged synthetic portal
         shell: pwsh
         run: |
