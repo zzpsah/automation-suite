@@ -6,8 +6,8 @@ Generated automatically by Development OS.
 
 ## Repository
 - Branch: main
-- HEAD: ae6c7309200d5e6e34c6f996282424bc41332815
-- Last commit: Strengthen scanner build smoke test
+- HEAD: 70baceb59deb71f760d40ffa9e9b07dd8261d2ba
+- Last commit: Document permanent scanner beta quality gate
 - Last commit date: 2026-09-14
 - Last commit author: PRASHANT KUMAR SAH
 

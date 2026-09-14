@@ -24,7 +24,7 @@ Last verified: 2026-09-14
 - External/production mutations require explicit authorization.
 
 ## Last automated change
-- Commit: ae6c7309200d5e6e34c6f996282424bc41332815
-- Change: Strengthen scanner build smoke test
+- Commit: 70baceb59deb71f760d40ffa9e9b07dd8261d2ba
+- Change: Document permanent scanner beta quality gate
 - Date: 2026-09-14
 - Durable context synchronization: completed

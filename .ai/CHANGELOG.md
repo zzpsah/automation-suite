@@ -1,3 +1,10 @@
+## 2026-09-14 — Document permanent scanner beta quality gate
+- Commit: 70baceb59deb71f760d40ffa9e9b07dd8261d2ba
+- Author: PRASHANT KUMAR SAH
+- Classification: meaningful
+- Changed files:
+- `android-document-scanner/README.md`
+
 ## 2026-09-14 — Strengthen scanner build smoke test
 - Commit: ae6c7309200d5e6e34c6f996282424bc41332815
 - Author: PRASHANT KUMAR SAH
