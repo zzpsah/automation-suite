@@ -15,7 +15,7 @@ public sealed class BrowserAutomationAdapter : IAutomationAdapter
 
     public Task NavigateAsync(string target)
     {
-        var uri = UrlResolver.Resolve(target);
+        var uri = CommandNavigationResolver.Resolve(target);
         _core.Navigate(uri.ToString());
         return Task.CompletedTask;
     }
