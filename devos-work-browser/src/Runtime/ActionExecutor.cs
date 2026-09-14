@@ -42,6 +42,9 @@ public sealed class ActionExecutor
     {
         switch (action.Kind)
         {
+            case BrowserActionKind.Navigate:
+                await _adapter.NavigateAsync(action.Target);
+                return action.Target;
             case BrowserActionKind.Click:
                 await _adapter.ClickAsync(action.Target);
                 return null;
