@@ -34,6 +34,25 @@ public sealed class NaturalLanguagePlanner
     private PlannedCommand PlanSingle(string text)
     {
         var lower = text.ToLowerInvariant();
+
+        if (lower.StartsWith("open "))
+        {
+            var target = RequireTarget(text[5..], "open");
+            return Build(new[] { new BrowserAction(BrowserActionKind.Navigate, target) }, OperationKind.Navigate, $"Open {target}");
+        }
+
+        if (lower.StartsWith("go to "))
+        {
+            var target = RequireTarget(text[6..], "go to");
+            return Build(new[] { new BrowserAction(BrowserActionKind.Navigate, target) }, OperationKind.Navigate, $"Go to {target}");
+        }
+
+        if (lower.StartsWith("navigate "))
+        {
+            var target = RequireTarget(text[9..], "navigate");
+            return Build(new[] { new BrowserAction(BrowserActionKind.Navigate, target) }, OperationKind.Navigate, $"Navigate to {target}");
+        }
+
         if (lower.StartsWith("read "))
         {
             var target = RequireTarget(text[5..], "read");
