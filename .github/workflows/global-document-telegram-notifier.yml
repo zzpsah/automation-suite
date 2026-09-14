@@ -57,3 +57,10 @@ jobs:
           else
             python global-automation/scripts/document/telegram_publication_notifier_v3.py
           fi
+      - name: Update existing Telegram progress message with delivery state
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          TELEGRAM_OUTPUT_BOT_TOKEN: ${{ secrets.TELEGRAM_OUTPUT_BOT_TOKEN }}
+          DOCUMENT_ID: ${{ github.event.client_payload.document_id || github.event.inputs.document_id }}
+        run: python global-automation/scripts/document/telegram_delivery_progress.py
