@@ -24,7 +24,7 @@ Last verified: 2026-09-14
 - External/production mutations require explicit authorization.
 
 ## Last automated change
-- Commit: f67eed4af9c7865db4b0c1c9d763faace1ce61d3
-- Change: docs: establish 2026-09-14 pipeline baseline
+- Commit: 8190614735ea5e5500febf94fe568e16c0ea5adc
+- Change: docs: lock Stage 10 to 2026-09-14 baseline
 - Date: 2026-09-14
 - Durable context synchronization: completed
