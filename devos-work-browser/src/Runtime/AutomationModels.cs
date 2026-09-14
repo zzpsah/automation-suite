@@ -2,6 +2,7 @@ namespace Devos.WorkBrowser.Runtime;
 
 public enum BrowserActionKind
 {
+    Navigate,
     Click,
     Type,
     ReadText,
@@ -19,6 +20,8 @@ public sealed record ActionResult(bool Success, string? Output, int Attempts, st
 
 public interface IAutomationAdapter
 {
+    Task NavigateAsync(string target)
+        => Task.FromException(new NotSupportedException("Navigation is not supported by this adapter."));
     Task ClickAsync(string target);
     Task TypeAsync(string target, string value);
     Task<string?> ReadTextAsync(string target);
