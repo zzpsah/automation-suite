@@ -36,10 +36,11 @@ function Assert-Selector {
 
 $process = Start-Process -FilePath $ExePath -PassThru
 try {
-    Invoke-WinApp -Arguments @("ui", "wait-for", "MainWindow", "-a", "$($process.Id)", "-t", "30000") | Out-Null
+    # In process-scoped WinApp UI queries the top-level window is the scope root,
+    # so wait on a stable child AutomationId rather than searching for the root itself.
+    Invoke-WinApp -Arguments @("ui", "wait-for", "AddressBox", "-a", "$($process.Id)", "-t", "30000") | Out-Null
 
     $requiredSelectors = @(
-        "MainWindow",
         "BackButton",
         "ForwardButton",
         "ReloadButton",
@@ -95,7 +96,7 @@ try {
     @(
         "DEVOS Work Browser WinApp UI Acceptance: PASS",
         "ProcessId: $($process.Id)",
-        "Stable AutomationIds: PASS",
+        "Stable child AutomationIds: PASS",
         "Open/close tab controls: PASS",
         "Bundled Test Portal navigation: PASS",
         "Command bar read through real UI: PASS",
