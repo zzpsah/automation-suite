@@ -1,3 +1,10 @@
+## 2026-09-14 — fix: make targeted eLetters delivery claim-only
+- Commit: aefc42aa4f758b412249f1a781c12f0e04848c1c
+- Author: PRASHANT KUMAR SAH
+- Classification: meaningful
+- Changed files:
+- `global-automation/scripts/document/telegram_publication_notifier_targeted.py`
+
 ## 2026-09-14 — test: reconcile Telegram progress automatically on notifier code changes
 - Commit: f38621c74149ec73439191e5e5dee2f5019eaea8
 - Author: PRASHANT KUMAR SAH

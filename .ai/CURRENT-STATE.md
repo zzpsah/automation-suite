@@ -24,7 +24,7 @@ Last verified: 2026-09-14
 - External/production mutations require explicit authorization.
 
 ## Last automated change
-- Commit: f38621c74149ec73439191e5e5dee2f5019eaea8
-- Change: test: reconcile Telegram progress automatically on notifier code changes
+- Commit: aefc42aa4f758b412249f1a781c12f0e04848c1c
+- Change: fix: make targeted eLetters delivery claim-only
 - Date: 2026-09-14
 - Durable context synchronization: completed
