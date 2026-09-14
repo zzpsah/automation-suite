@@ -6,6 +6,8 @@ namespace Devos.WorkBrowser;
 
 public partial class App : Application
 {
+    private static readonly TimeSpan BrowserStartupTimeout = TimeSpan.FromSeconds(10);
+
     protected override async void OnStartup(StartupEventArgs e)
     {
         base.OnStartup(e);
@@ -36,38 +38,62 @@ public partial class App : Application
 
             var window = new MainWindow();
             window.Show();
+            if (await WaitForBrowserAsync(window, BrowserStartupTimeout)) return;
 
-            // The outer WPF shell can remain alive even when WebView2 initialization
-            // fails. Verify that a real CoreWebView2-backed adapter becomes available,
-            // otherwise surface the failure instead of leaving apparently dead buttons.
-            var deadline = DateTimeOffset.UtcNow + TimeSpan.FromSeconds(20);
-            while (DateTimeOffset.UtcNow < deadline && window.IsVisible)
+            // A valid runtime/loader with a hanging EnsureCoreWebView2Async is commonly
+            // caused by a damaged or locked user-data folder. Retry once with a brand-new
+            // isolated state/profile root rather than leaving a live but unusable shell.
+            try
             {
-                if (window.CreateAutomationAdapter() is not null) return;
-                await Task.Delay(250);
+                window.Close();
+            }
+            catch
+            {
+                // Recovery should continue even if the failed WebView instance resists close.
             }
 
-            if (window.IsVisible && window.CreateAutomationAdapter() is null)
+            var recoveryRoot = Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                "DEVOS", "WorkBrowser-Recovery",
+                DateTimeOffset.UtcNow.ToString("yyyyMMdd-HHmmss"));
+            Directory.CreateDirectory(recoveryRoot);
+
+            var recoveryWindow = new MainWindow(recoveryRoot, enableRecoveryPrompts: false)
             {
-                diagnostic = BrowserRuntimeDiagnostics.Probe();
-                diagnosticPath = BrowserRuntimeDiagnostics.WriteLog(stateRoot, diagnostic);
+                Title = "DEVOS Work Browser v0.1.2 — Recovery Profile"
+            };
+            recoveryWindow.Show();
+
+            if (await WaitForBrowserAsync(recoveryWindow, BrowserStartupTimeout))
+            {
                 MessageBox.Show(
-                    $"The DEVOS window opened, but the embedded WebView2 browser did not initialize within 20 seconds.\n\n" +
-                    $"Loader present: {diagnostic.LoaderPresent}\n" +
-                    $"WebView2 Runtime: {diagnostic.RuntimeVersion ?? "not detected"}\n\n" +
-                    $"Diagnostic log:\n{diagnosticPath}\n\n" +
-                    "Please send this diagnostic log when reporting the issue.",
-                    "DEVOS Work Browser — Browser initialization failed",
+                    "The normal DEVOS browser profile did not initialize, but a fresh recovery profile started successfully.\n\n" +
+                    "You can use the browser now. DEVOS will keep this recovery profile isolated from the damaged/locked profile.",
+                    "DEVOS Work Browser — Browser recovered",
                     MessageBoxButton.OK,
-                    MessageBoxImage.Warning);
+                    MessageBoxImage.Information);
+                return;
             }
+
+            diagnostic = BrowserRuntimeDiagnostics.Probe();
+            diagnosticPath = BrowserRuntimeDiagnostics.WriteLog(stateRoot, diagnostic);
+            MessageBox.Show(
+                $"The embedded WebView2 browser failed with both the normal profile and a fresh recovery profile.\n\n" +
+                $"Loader present: {diagnostic.LoaderPresent}\n" +
+                $"WebView2 Runtime: {diagnostic.RuntimeVersion ?? "not detected"}\n" +
+                $"Recovery profile: {recoveryRoot}\n\n" +
+                $"Diagnostic log:\n{diagnosticPath}\n\n" +
+                "Please send this diagnostic log when reporting the issue.",
+                "DEVOS Work Browser v0.1.2 — Browser initialization failed",
+                MessageBoxButton.OK,
+                MessageBoxImage.Warning);
             return;
         }
 
         var selfTestRoot = Path.Combine(Path.GetTempPath(), "devos-work-browser-selftest", Guid.NewGuid().ToString("N"));
         var windowForSelfTest = new MainWindow(selfTestRoot, enableRecoveryPrompts: false)
         {
-            Title = "DEVOS Work Browser — Self Test"
+            Title = "DEVOS Work Browser v0.1.2 — Self Test"
         };
 
         windowForSelfTest.Show();
@@ -96,5 +122,17 @@ public partial class App : Application
         }
 
         Shutdown(exitCode);
+    }
+
+    private static async Task<bool> WaitForBrowserAsync(MainWindow window, TimeSpan timeout)
+    {
+        var deadline = DateTimeOffset.UtcNow + timeout;
+        while (DateTimeOffset.UtcNow < deadline && window.IsVisible)
+        {
+            if (window.CreateAutomationAdapter() is not null) return true;
+            await Task.Delay(250);
+        }
+
+        return window.IsVisible && window.CreateAutomationAdapter() is not null;
     }
 }
