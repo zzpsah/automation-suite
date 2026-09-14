@@ -1,72 +1,297 @@
 <Window x:Class="Devos.WorkBrowser.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="DEVOS Work Browser"
+        Title="DEVOS Work Browser v0.2.0"
         AutomationProperties.AutomationId="MainWindow"
         Width="1280"
         Height="820"
         MinWidth="900"
         MinHeight="600"
+        Background="#F1F3F4"
+        FontFamily="Segoe UI"
         WindowStartupLocation="CenterScreen"
-        PreviewKeyDown="Window_PreviewKeyDown">
-    <DockPanel LastChildFill="True">
-        <StackPanel DockPanel.Dock="Top">
-            <Grid Margin="10,10,10,6">
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="Auto" />
-                    <ColumnDefinition Width="Auto" />
-                    <ColumnDefinition Width="Auto" />
-                    <ColumnDefinition Width="Auto" />
-                    <ColumnDefinition Width="*" />
-                    <ColumnDefinition Width="Auto" />
-                    <ColumnDefinition Width="Auto" />
-                    <ColumnDefinition Width="Auto" />
-                    <ColumnDefinition Width="Auto" />
-                </Grid.ColumnDefinitions>
-                <Button x:Name="BackButton" AutomationProperties.AutomationId="BackButton" Grid.Column="0" Width="38" Height="34" Margin="0,0,6,0" Content="←" Click="Back_Click" />
-                <Button x:Name="ForwardButton" AutomationProperties.AutomationId="ForwardButton" Grid.Column="1" Width="38" Height="34" Margin="0,0,6,0" Content="→" Click="Forward_Click" />
-                <Button AutomationProperties.AutomationId="ReloadButton" Grid.Column="2" Width="38" Height="34" Margin="0,0,6,0" Content="⟳" Click="Reload_Click" />
-                <Button AutomationProperties.AutomationId="HomeButton" Grid.Column="3" Width="48" Height="34" Margin="0,0,8,0" Content="Home" Click="Home_Click" />
-                <TextBox x:Name="AddressBox" AutomationProperties.AutomationId="AddressBox" Grid.Column="4" Height="34" VerticalContentAlignment="Center" Padding="10,0" FontSize="14" KeyDown="AddressBox_KeyDown" />
-                <Button AutomationProperties.AutomationId="GoButton" Grid.Column="5" Width="58" Height="34" Margin="8,0,0,0" Content="Go" Click="Go_Click" />
-                <Button AutomationProperties.AutomationId="NewTabButton" Grid.Column="6" Width="72" Height="34" Margin="8,0,0,0" Content="+ Tab" Click="NewTab_Click" />
-                <Button AutomationProperties.AutomationId="CloseTabButton" Grid.Column="7" Width="72" Height="34" Margin="8,0,0,0" Content="× Tab" Click="CloseTab_Click" />
-                <Button AutomationProperties.AutomationId="TestPortalButton" Grid.Column="8" Width="92" Height="34" Margin="8,0,0,0" Content="Test Portal" Click="TestPortal_Click" />
-            </Grid>
+        Loaded="AgentShell_Loaded"
+        PreviewKeyDown="Window_AgentPreviewKeyDown">
+    <Window.Resources>
+        <Style x:Key="ChromeIconButton" TargetType="Button">
+            <Setter Property="Width" Value="34" />
+            <Setter Property="Height" Value="34" />
+            <Setter Property="Margin" Value="2,0" />
+            <Setter Property="Padding" Value="0" />
+            <Setter Property="FontSize" Value="17" />
+            <Setter Property="Foreground" Value="#3C4043" />
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Root" Background="{TemplateBinding Background}" CornerRadius="17">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Root" Property="Background" Value="#E2E5E9" />
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="Root" Property="Background" Value="#D4D8DD" />
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter Property="Opacity" Value="0.38" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
 
-            <Border Margin="10,0,10,8" Padding="8" BorderThickness="1" BorderBrush="#D6D6D6" CornerRadius="6">
-                <Grid>
+        <Style x:Key="ChromePillButton" TargetType="Button">
+            <Setter Property="Height" Value="32" />
+            <Setter Property="Padding" Value="13,0" />
+            <Setter Property="Margin" Value="4,0" />
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Foreground" Value="#3C4043" />
+            <Setter Property="Background" Value="#FFFFFF" />
+            <Setter Property="BorderBrush" Value="#DADCE0" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Root"
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="16">
+                            <ContentPresenter Margin="{TemplateBinding Padding}" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Root" Property="Background" Value="#F8F9FA" />
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="Root" Property="Background" Value="#E8EAED" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style TargetType="TabItem">
+            <Setter Property="MinWidth" Value="150" />
+            <Setter Property="MaxWidth" Value="240" />
+            <Setter Property="Height" Value="34" />
+            <Setter Property="Margin" Value="2,3,0,0" />
+            <Setter Property="Padding" Value="14,0" />
+            <Setter Property="Foreground" Value="#3C4043" />
+            <Setter Property="Background" Value="#E8EAED" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="TabItem">
+                        <Border x:Name="TabBorder" Background="{TemplateBinding Background}" CornerRadius="9,9,0,0">
+                            <ContentPresenter ContentSource="Header"
+                                              Margin="{TemplateBinding Padding}"
+                                              HorizontalAlignment="Left"
+                                              VerticalAlignment="Center"
+                                              TextElement.FontSize="12" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsSelected" Value="True">
+                                <Setter TargetName="TabBorder" Property="Background" Value="#FFFFFF" />
+                                <Setter Property="FontWeight" Value="SemiBold" />
+                            </Trigger>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="TabBorder" Property="Background" Value="#F5F6F7" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </Window.Resources>
+
+    <Grid Background="#F1F3F4">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <Border Grid.Row="0" Background="#F1F3F4" Padding="8,7,8,6">
+            <StackPanel>
+                <Grid Margin="3,0,3,6">
                     <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto" />
                         <ColumnDefinition Width="*" />
                         <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+
+                    <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
+                        <Border Width="28" Height="28" CornerRadius="8" Background="#1A73E8" Margin="0,0,8,0">
+                            <TextBlock Text="D" Foreground="White" FontWeight="Bold" FontSize="15" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        </Border>
+                        <StackPanel>
+                            <TextBlock Text="DEVOS Work Browser" FontWeight="SemiBold" FontSize="13" Foreground="#202124" />
+                            <TextBlock Text="AI work browser for Windows" FontSize="10" Foreground="#80868B" />
+                        </StackPanel>
+                    </StackPanel>
+
+                    <Border Grid.Column="1" HorizontalAlignment="Center" VerticalAlignment="Center" Background="#E6F4EA" CornerRadius="12" Padding="9,4">
+                        <TextBlock x:Name="AiStatusText"
+                                   AutomationProperties.AutomationId="AiStatusText"
+                                   Text="LOCAL AI CHECKING"
+                                   Foreground="#137333"
+                                   FontSize="10"
+                                   FontWeight="SemiBold" />
+                    </Border>
+
+                    <StackPanel Grid.Column="2" Orientation="Horizontal">
+                        <Button AutomationProperties.AutomationId="TestPortalButton"
+                                Style="{StaticResource ChromePillButton}"
+                                Content="Test Portal"
+                                Click="TestPortalAgent_Click" />
+                        <Button AutomationProperties.AutomationId="NewTabButton"
+                                Style="{StaticResource ChromePillButton}"
+                                Content="＋ Tab"
+                                Click="NewTab_Click" />
+                        <Button AutomationProperties.AutomationId="CloseTabButton"
+                                Style="{StaticResource ChromePillButton}"
+                                Content="× Tab"
+                                Click="CloseTab_Click" />
+                    </StackPanel>
+                </Grid>
+
+                <Grid Margin="0,0,0,6">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="*" />
                         <ColumnDefinition Width="Auto" />
                     </Grid.ColumnDefinitions>
-                    <TextBox x:Name="CommandBox"
-                             AutomationProperties.AutomationId="CommandBox"
-                             Grid.Column="0"
-                             Height="34"
-                             Padding="10,0"
-                             VerticalContentAlignment="Center"
-                             FontSize="14"
-                             ToolTip="DEVOS command. Ctrl+Space focuses here. Use semicolons for bounded sequences. Acceptance command: process synthetic portal" />
-                    <Button x:Name="RunCommandButton"
-                            AutomationProperties.AutomationId="RunCommandButton"
+
+                    <Button x:Name="BackButton"
+                            AutomationProperties.AutomationId="BackButton"
+                            Grid.Column="0"
+                            Style="{StaticResource ChromeIconButton}"
+                            Content="←"
+                            Click="Back_Click" />
+                    <Button x:Name="ForwardButton"
+                            AutomationProperties.AutomationId="ForwardButton"
                             Grid.Column="1"
-                            Width="88"
-                            Height="34"
-                            Margin="8,0,0,0"
-                            Content="Run"
-                            Click="RunCommand_Click" />
-                    <TextBlock x:Name="CommandStatus"
-                               AutomationProperties.AutomationId="CommandStatus"
-                               Grid.Column="2"
-                               MinWidth="210"
-                               Margin="12,0,0,0"
-                               VerticalAlignment="Center"
-                               Text="Ready" />
+                            Style="{StaticResource ChromeIconButton}"
+                            Content="→"
+                            Click="Forward_Click" />
+                    <Button AutomationProperties.AutomationId="ReloadButton"
+                            Grid.Column="2"
+                            Style="{StaticResource ChromeIconButton}"
+                            Content="↻"
+                            Click="Reload_Click" />
+                    <Button AutomationProperties.AutomationId="HomeButton"
+                            Grid.Column="3"
+                            Style="{StaticResource ChromeIconButton}"
+                            Content="⌂"
+                            Click="Home_Click" />
+
+                    <Border Grid.Column="4"
+                            Height="38"
+                            Margin="6,0"
+                            Background="#FFFFFF"
+                            BorderBrush="#DADCE0"
+                            BorderThickness="1"
+                            CornerRadius="19">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Grid.Column="0" Text="⌕" Foreground="#5F6368" FontSize="15" Margin="13,0,2,1" VerticalAlignment="Center" />
+                            <TextBox x:Name="AddressBox"
+                                     AutomationProperties.AutomationId="AddressBox"
+                                     Grid.Column="1"
+                                     BorderThickness="0"
+                                     Background="Transparent"
+                                     Padding="7,0,12,0"
+                                     FontSize="13"
+                                     Foreground="#202124"
+                                     VerticalContentAlignment="Center"
+                                     KeyDown="AddressBox_KeyDown" />
+                        </Grid>
+                    </Border>
+
+                    <Button AutomationProperties.AutomationId="GoButton"
+                            Grid.Column="5"
+                            Style="{StaticResource ChromeIconButton}"
+                            Content="↵"
+                            Click="Go_Click" />
                 </Grid>
-            </Border>
-        </StackPanel>
-        <TabControl x:Name="BrowserTabs" AutomationProperties.AutomationId="BrowserTabs" SelectionChanged="BrowserTabs_SelectionChanged" />
-    </DockPanel>
+
+                <Border Background="#FFFFFF"
+                        BorderBrush="#DADCE0"
+                        BorderThickness="1"
+                        CornerRadius="12"
+                        Padding="7"
+                        Margin="2,0">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+
+                        <Border Grid.Column="0" Background="#E8F0FE" CornerRadius="9" Padding="9,5" Margin="0,0,7,0">
+                            <TextBlock Text="DEVOS AI" Foreground="#1967D2" FontWeight="Bold" FontSize="10" VerticalAlignment="Center" />
+                        </Border>
+
+                        <TextBox x:Name="CommandBox"
+                                 AutomationProperties.AutomationId="CommandBox"
+                                 Grid.Column="1"
+                                 Height="34"
+                                 BorderThickness="0"
+                                 Background="Transparent"
+                                 Padding="7,0"
+                                 VerticalContentAlignment="Center"
+                                 FontSize="13"
+                                 Foreground="#202124"
+                                 ToolTip="Tell DEVOS what you want done in the browser. Ctrl+Space focuses here." />
+
+                        <Button x:Name="RunCommandButton"
+                                AutomationProperties.AutomationId="RunCommandButton"
+                                Grid.Column="2"
+                                Style="{StaticResource ChromePillButton}"
+                                Background="#1A73E8"
+                                BorderBrush="#1A73E8"
+                                Foreground="White"
+                                Content="Run goal"
+                                Click="RunAgentCommand_Click" />
+
+                        <TextBlock x:Name="CommandStatus"
+                                   AutomationProperties.AutomationId="CommandStatus"
+                                   Grid.Column="3"
+                                   MinWidth="250"
+                                   MaxWidth="380"
+                                   Margin="10,0,3,0"
+                                   VerticalAlignment="Center"
+                                   TextTrimming="CharacterEllipsis"
+                                   Foreground="#5F6368"
+                                   FontSize="11"
+                                   Text="Ready" />
+                    </Grid>
+                </Border>
+            </StackPanel>
+        </Border>
+
+        <TabControl x:Name="BrowserTabs"
+                    AutomationProperties.AutomationId="BrowserTabs"
+                    Grid.Row="1"
+                    Margin="7,0,7,7"
+                    Background="#FFFFFF"
+                    BorderBrush="#DADCE0"
+                    BorderThickness="1"
+                    SelectionChanged="BrowserTabs_SelectionChanged" />
+    </Grid>
 </Window>
