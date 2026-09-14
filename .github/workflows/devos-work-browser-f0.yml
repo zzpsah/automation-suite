@@ -77,38 +77,34 @@ jobs:
             throw "DEVOS Work Browser exited during startup smoke with code $($process.ExitCode)."
           }
           Stop-Process -Id $process.Id -Force
-      - name: Prepare tested Stage 2 patch
+      - name: Prepare tested Stage 3 patch
         shell: pwsh
         run: |
-          $patch = 'devos-work-browser/artifacts/v0.1.3-stage2-patch'
+          $patch = 'devos-work-browser/artifacts/v0.1.3-stage3-patch'
           New-Item -ItemType Directory -Force -Path $patch | Out-Null
           Copy-Item 'devos-work-browser/artifacts/win-x64/DEVOS.WorkBrowser.dll' "$patch/DEVOS.WorkBrowser.dll"
           @'
-          DEVOS Work Browser v0.1.3 — Stage 2 natural-navigation patch
+          DEVOS Work Browser v0.1.3 — Stage 3 direct-open patch
 
           STATUS: CI TESTED BEFORE PUBLISH
 
-          Replace only DEVOS.WorkBrowser.dll in your existing v0.1.2/v0.1.3 Stage-1 extracted folder.
+          Replace only DEVOS.WorkBrowser.dll in your existing DEVOS Work Browser folder.
           Close DEVOS Work Browser before replacing the DLL.
 
-          Stage 2 adds command-bar navigation:
-          - open <site or text>
-          - go to <site or text>
-          - navigate <site or text>
+          Stage 3 changes command navigation semantics:
+          - open/go to/navigate are DIRECT NAVIGATION commands, not Google search.
+          - open eshikshakosh -> https://eshikshakosh.bihar.gov.in/
+          - full domains such as example.com navigate directly.
+          - unknown bare site names now show a clear error instead of silently searching Google.
 
-          Examples:
-          - open example.com
-          - open eshikshakosh
-          - go to https://example.com
-
-          Text without a hostname/domain uses the normal DEVOS address resolver/search behavior.
+          The normal address bar still keeps its regular URL-or-Google-search behavior.
           Do not replace any other dependency in this stage.
           '@ | Set-Content -Path "$patch/PATCH-README.txt" -Encoding UTF8
           $count = (Get-ChildItem -File $patch).Count
-          if ($count -ne 2) { throw "Stage 2 patch must contain exactly 2 files; found $count." }
-      - name: Upload tested v0.1.3 Stage 2 patch
+          if ($count -ne 2) { throw "Stage 3 patch must contain exactly 2 files; found $count." }
+      - name: Upload tested v0.1.3 Stage 3 patch
         uses: actions/upload-artifact@v4
         with:
-          name: DEVOS-Work-Browser-v0.1.3-stage2-natural-navigation-patch
-          path: devos-work-browser/artifacts/v0.1.3-stage2-patch/
+          name: DEVOS-Work-Browser-v0.1.3-stage3-direct-open-patch
+          path: devos-work-browser/artifacts/v0.1.3-stage3-patch/
           if-no-files-found: error
