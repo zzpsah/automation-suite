@@ -262,12 +262,13 @@ public static class AgentSafetyPolicy
     {
         if (action.Kind is not (BrowserActionKind.Click or BrowserActionKind.Type)) return false;
         var text = $"{description} {elementDescriptor} {action.Target}".ToLowerInvariant();
-        return CommitKeywords.Any(text.Contains) || text.Contains("type=submit", StringComparison.Ordinal);
+        return CommitKeywords.Any(keyword => text.Contains(keyword, StringComparison.Ordinal)) ||
+               text.Contains("type=submit", StringComparison.Ordinal);
     }
 
     public static bool RequiresHumanInteraction(string? description, string? elementDescriptor)
     {
         var text = $"{description} {elementDescriptor}".ToLowerInvariant();
-        return HumanOnlyKeywords.Any(text.Contains);
+        return HumanOnlyKeywords.Any(keyword => text.Contains(keyword, StringComparison.Ordinal));
     }
 }
