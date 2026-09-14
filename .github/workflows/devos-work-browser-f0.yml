@@ -18,6 +18,10 @@ jobs:
       - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '8.0.x'
+      - name: Setup WinApp CLI
+        uses: microsoft/setup-WinAppCli@v0.1
+      - name: Verify WinApp CLI
+        run: winapp --help
       - name: Restore
         run: dotnet restore devos-work-browser/Devos.WorkBrowser.sln
       - name: Build
@@ -50,6 +54,19 @@ jobs:
           if ($process.ExitCode -ne 0) {
             throw "DEVOS Work Browser end-to-end self-test failed with exit code $($process.ExitCode)."
           }
+      - name: Run WinApp UI desktop acceptance
+        shell: pwsh
+        run: |
+          ./devos-work-browser/tests/winapp-ui-acceptance.ps1 `
+            -ExePath 'devos-work-browser/artifacts/win-x64/DEVOS.WorkBrowser.exe' `
+            -OutputDirectory 'devos-work-browser/artifacts/winapp-ui'
+      - name: Upload WinApp UI evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: DEVOS-Work-Browser-WinAppUI
+          path: devos-work-browser/artifacts/winapp-ui/
+          if-no-files-found: warn
       - name: Launch packaged app smoke
         shell: pwsh
         run: |
