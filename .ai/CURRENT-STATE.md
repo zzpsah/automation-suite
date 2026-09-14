@@ -24,7 +24,7 @@ Last verified: 2026-09-14
 - External/production mutations require explicit authorization.
 
 ## Last automated change
-- Commit: c4b84d0dd3da736829e2cbe6eb9f6634f9f5b30a
-- Change: fix: remove duplicate publication notifier trigger
+- Commit: f67eed4af9c7865db4b0c1c9d763faace1ce61d3
+- Change: docs: establish 2026-09-14 pipeline baseline
 - Date: 2026-09-14
 - Durable context synchronization: completed
