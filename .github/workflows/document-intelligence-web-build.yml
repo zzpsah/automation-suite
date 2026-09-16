@@ -1,0 +1,30 @@
+name: Document Intelligence Web Build
+
+on:
+  push:
+    paths:
+      - 'document-intelligence/**'
+      - '.github/workflows/document-intelligence-web-build.yml'
+  pull_request:
+    paths:
+      - 'document-intelligence/**'
+      - '.github/workflows/document-intelligence-web-build.yml'
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: document-intelligence
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: document-intelligence/package.json
+      - name: Install dependencies
+        run: npm install
+      - name: Type-check and build
+        run: npx tsc --noEmit && npm run build
