@@ -18,7 +18,7 @@ export async function POST(request: Request) {
     if (!Number.isFinite(size) || size <= 0 || size > maxBytes) return NextResponse.json({ error: 'Maximum upload size is 25 MB' }, { status: 413 })
     const safeName = filename.replace(/[^a-zA-Z0-9._-]/g, '_')
     const key = `original/${new Date().toISOString().slice(0, 10)}/${randomUUID()}-${safeName}`
-    const url = await getSignedUrl(r2Client(), new PutObjectCommand({ Bucket: bucket(), Key: key, ContentType: contentType }), { expiresIn: 900 })
+    const url = await getSignedUrl(r2Client(), new PutObjectCommand({ Bucket: bucket(), Key: key, ContentType: contentType, ContentLength: size }), { expiresIn: 900 })
     return NextResponse.json({ url, key })
   } catch (error) {
     return NextResponse.json({ error: error instanceof Error ? error.message : 'Unable to prepare upload' }, { status: 500 })
