@@ -3,6 +3,7 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import subprocess
 import tempfile
 from pathlib import Path
 
@@ -15,8 +16,7 @@ from ai_enrichment import enrich
 
 def env(name: str) -> str:
     value = os.getenv(name)
-    if not value:
-        raise RuntimeError(f"Missing environment variable: {name}")
+    if not value: raise RuntimeError(f"Missing environment variable: {name}")
     return value
 
 
@@ -31,6 +31,14 @@ def claim(db):
     return result.data[0] if result.data else None
 
 
+def evidence_images(source: Path, tmp: str) -> list[str]:
+    if not os.getenv("GEMINI_API_KEY") or source.suffix.lower() != ".pdf": return []
+    maximum = max(1, min(3, int(os.getenv("GEMINI_EVIDENCE_PAGES", "2"))))
+    prefix = Path(tmp) / "ai-page"
+    subprocess.run(["pdftoppm", "-f", "1", "-l", str(maximum), "-r", "160", "-jpeg", str(source), str(prefix)], check=True, capture_output=True, timeout=120)
+    return [str(path) for path in sorted(Path(tmp).glob("ai-page-*.jpg"))]
+
+
 def process_one(db, s3, row):
     document_id, key, filename = row["id"], row["source_key"], row["original_filename"]
     with tempfile.TemporaryDirectory() as tmp:
@@ -43,7 +51,7 @@ def process_one(db, s3, row):
         ai = None
         if os.getenv("GEMINI_API_KEY"):
             try:
-                ai = enrich(result.get("text", ""), metadata)
+                ai = enrich(result.get("text", ""), metadata, evidence_images(source, tmp))
             except Exception as exc:
                 db.table("document_audit").insert({"document_id": document_id, "event_type": "ai_enrichment_failed", "details": {"error_type": type(exc).__name__}}).execute()
         low_confidence = any((p.get("confidence") is not None and float(p["confidence"]) < 70) or not p.get("text", "").strip() for p in pages if p.get("extraction_method", "").startswith("ocr:"))
@@ -62,16 +70,12 @@ def process_one(db, s3, row):
 
 
 def main():
-    db, s3 = clients()
-    maximum = max(1, int(os.getenv("MAX_DOCUMENTS_PER_RUN", "5")))
-    processed = 0
+    db, s3 = clients(); maximum = max(1, int(os.getenv("MAX_DOCUMENTS_PER_RUN", "5"))); processed = 0
     for _ in range(maximum):
         row = claim(db)
         if not row: break
         try:
-            process_one(db, s3, row)
-            processed += 1
-            print(json.dumps({"processed": row["id"]}))
+            process_one(db, s3, row); processed += 1; print(json.dumps({"processed": row["id"]}))
         except Exception as exc:
             db.table("documents").update({"status": "failed"}).eq("id", row["id"]).execute()
             db.table("document_audit").insert({"document_id": row["id"], "event_type": "ocr_failed", "details": {"error_type": type(exc).__name__}}).execute()
@@ -79,5 +83,4 @@ def main():
     print(json.dumps({"batch_processed": processed, "batch_limit": maximum}))
 
 
-if __name__ == "__main__":
-    main()
+if __name__ == "__main__": main()
