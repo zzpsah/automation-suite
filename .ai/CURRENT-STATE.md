@@ -24,7 +24,7 @@ Last verified: 2026-09-14
 - External/production mutations require explicit authorization.
 
 ## Last automated change
-- Commit: 7786147eaa75c200c88b28dbf6df1737cf207377
-- Change: Add offline Wi-Fi print hotspot local test
+- Commit: 3eb6c8836cbc82f08fe30979dd64a2c3e1c3f383
+- Change: Build native offline print hotspot EXE
 - Date: 2026-09-17
 - Durable context synchronization: completed

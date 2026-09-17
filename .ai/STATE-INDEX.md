@@ -6,8 +6,8 @@ Generated automatically by Development OS.
 
 ## Repository
 - Branch: main
-- HEAD: 7786147eaa75c200c88b28dbf6df1737cf207377
-- Last commit: Add offline Wi-Fi print hotspot local test
+- HEAD: 3eb6c8836cbc82f08fe30979dd64a2c3e1c3f383
+- Last commit: Build native offline print hotspot EXE
 - Last commit date: 2026-09-17
 - Last commit author: PRASHANT KUMAR SAH
 

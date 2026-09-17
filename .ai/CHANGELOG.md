@@ -1,3 +1,13 @@
+## 2026-09-17 — Build native offline print hotspot EXE
+- Commit: 3eb6c8836cbc82f08fe30979dd64a2c3e1c3f383
+- Author: PRASHANT KUMAR SAH
+- Classification: meaningful
+- Changed files:
+- `.github/workflows/build-offline-print-hotspot.yml`
+- `phone-printer/offline-hotspot/native/DevosPrintHotspot.csproj`
+- `phone-printer/offline-hotspot/native/Program.cs`
+- `phone-printer/offline-hotspot/native/README.md`
+
 ## 2026-09-17 — Add offline Wi-Fi print hotspot local test
 - Commit: 7786147eaa75c200c88b28dbf6df1737cf207377
 - Author: PRASHANT KUMAR SAH
