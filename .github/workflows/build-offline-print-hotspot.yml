@@ -1,0 +1,35 @@
+name: Build Offline Print Hotspot
+
+on:
+  push:
+    paths:
+      - 'phone-printer/offline-hotspot/native/**'
+      - '.github/workflows/build-offline-print-hotspot.yml'
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+      - name: Publish standalone EXE
+        shell: pwsh
+        run: |
+          dotnet publish phone-printer/offline-hotspot/native/DevosPrintHotspot.csproj `
+            -c Release `
+            -r win-x64 `
+            --self-contained true `
+            -p:PublishSingleFile=true `
+            -p:PublishTrimmed=false `
+            -o phone-printer/offline-hotspot/native/dist
+      - name: Show build output
+        shell: pwsh
+        run: Get-ChildItem phone-printer/offline-hotspot/native/dist | Format-Table Name,Length
+      - uses: actions/upload-artifact@v4
+        with:
+          name: DEVOS-Print-Hotspot-Windows-x64
+          path: phone-printer/offline-hotspot/native/dist/DevosPrintHotspot.exe
+          if-no-files-found: error
