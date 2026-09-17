@@ -1,0 +1,126 @@
+name: DEVOS Work Browser Core
+
+on:
+  pull_request:
+    paths:
+      - 'devos-work-browser/**'
+      - '.github/workflows/devos-work-browser-f0.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-test-publish:
+    runs-on: windows-latest
+    env:
+      # CI must be deterministic and must never depend on a runner-local model.
+      DEVOS_DISABLE_LOCAL_AI: '1'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+      - name: Setup WinApp CLI
+        uses: microsoft/setup-WinAppCli@v0.1
+      - name: Verify WinApp CLI
+        run: winapp --help
+      - name: Restore
+        run: dotnet restore devos-work-browser/Devos.WorkBrowser.sln
+      - name: Build
+        run: dotnet build devos-work-browser/Devos.WorkBrowser.sln -c Release --no-restore
+      - name: Test
+        run: dotnet test devos-work-browser/tests/Devos.WorkBrowser.Tests.csproj -c Release --no-build --verbosity normal
+      - name: Publish Windows x64 for testing
+        run: dotnet publish devos-work-browser/src/Devos.WorkBrowser.csproj -c Release -r win-x64 --self-contained true -o devos-work-browser/artifacts/win-x64
+      - name: Verify packaged WebView2 loader
+        shell: pwsh
+        run: |
+          $loader = 'devos-work-browser/artifacts/win-x64/WebView2Loader.dll'
+          if (-not (Test-Path $loader)) {
+            throw "Packaged x64 WebView2Loader.dll is missing: $loader"
+          }
+      - name: Verify packaged synthetic portal
+        shell: pwsh
+        run: |
+          $portal = 'devos-work-browser/artifacts/win-x64/test-portal/index.html'
+          if (-not (Test-Path $portal)) {
+            throw "Packaged synthetic portal fixture is missing: $portal"
+          }
+      - name: Run packaged end-to-end browser self-test
+        shell: pwsh
+        run: |
+          $exe = (Resolve-Path 'devos-work-browser/artifacts/win-x64/DEVOS.WorkBrowser.exe').Path
+          $process = Start-Process -FilePath $exe -ArgumentList '--self-test' -PassThru
+          $deadline = (Get-Date).AddSeconds(120)
+          while (-not $process.HasExited -and (Get-Date) -lt $deadline) {
+            Start-Sleep -Milliseconds 500
+            $process.Refresh()
+          }
+          if (-not $process.HasExited) {
+            Stop-Process -Id $process.Id -Force
+            throw 'DEVOS Work Browser end-to-end self-test timed out after 120 seconds.'
+          }
+          if ($process.ExitCode -ne 0) {
+            throw "DEVOS Work Browser end-to-end self-test failed with exit code $($process.ExitCode)."
+          }
+      - name: Run WinApp UI desktop acceptance
+        shell: pwsh
+        run: |
+          ./devos-work-browser/tests/winapp-ui-acceptance.ps1 `
+            -ExePath 'devos-work-browser/artifacts/win-x64/DEVOS.WorkBrowser.exe' `
+            -OutputDirectory 'devos-work-browser/artifacts/winapp-ui'
+      - name: Launch packaged app smoke
+        shell: pwsh
+        run: |
+          $exe = Resolve-Path 'devos-work-browser/artifacts/win-x64/DEVOS.WorkBrowser.exe'
+          $process = Start-Process -FilePath $exe -PassThru
+          Start-Sleep -Seconds 8
+          if ($process.HasExited) {
+            throw "DEVOS Work Browser exited during startup smoke with code $($process.ExitCode)."
+          }
+          Stop-Process -Id $process.Id -Force
+      - name: Prepare tested v0.2.0 Stage 4 patch
+        shell: pwsh
+        run: |
+          $patch = 'devos-work-browser/artifacts/v0.2.0-stage4-patch'
+          New-Item -ItemType Directory -Force -Path $patch | Out-Null
+          Copy-Item 'devos-work-browser/artifacts/win-x64/DEVOS.WorkBrowser.dll' "$patch/DEVOS.WorkBrowser.dll"
+          @'
+          DEVOS Work Browser v0.2.0 — Stage 4 Local AI + Chromium shell
+
+          STATUS: CI TESTED BEFORE PUBLISH
+
+          INSTALL
+          1. Close DEVOS Work Browser.
+          2. Replace only DEVOS.WorkBrowser.dll in your existing extracted DEVOS Work Browser folder.
+          3. Start DEVOS Work Browser again.
+
+          WHAT CHANGED
+          - Chromium-style compact browser shell.
+          - DEVOS AI goal box is now the primary command surface.
+          - Local-first AI planner using an Ollama-compatible localhost endpoint.
+          - No OpenAI API key is required.
+          - Deterministic DEVOS grammar remains as an offline fallback.
+          - Page snapshots exclude typed input values/password contents.
+          - DEVOS still blocks CAPTCHA/OTP automation and keeps local approval gates for committing UI actions.
+          - Direct portal alias support remains available, including: open eshikshakosh.
+
+          LOCAL AI SETUP (FREE / OPTIONAL)
+          - Install Ollama on Windows yourself from its official installer.
+          - Run: ollama pull qwen3:4b
+          - Keep Ollama running on its default localhost endpoint: http://127.0.0.1:11434
+          - DEVOS will show: LOCAL AI · qwen3:4b when ready.
+          - To use another installed model, set DEVOS_LOCAL_MODEL before starting DEVOS.
+          - To use another compatible local endpoint, set DEVOS_LOCAL_AI_ENDPOINT.
+
+          If Local AI is not installed/running, DEVOS keeps working with its deterministic browser commands.
+          '@ | Set-Content -Path "$patch/PATCH-README.txt" -Encoding UTF8
+          $count = (Get-ChildItem -File $patch).Count
+          if ($count -ne 2) { throw "Stage 4 patch must contain exactly 2 files; found $count." }
+      - name: Upload tested DEVOS Work Browser v0.2.0 Stage 4 patch
+        uses: actions/upload-artifact@v4
+        with:
+          name: DEVOS-Work-Browser-v0.2.0-stage4-local-ai-chromium-patch
+          path: devos-work-browser/artifacts/v0.2.0-stage4-patch/
+          if-no-files-found: error

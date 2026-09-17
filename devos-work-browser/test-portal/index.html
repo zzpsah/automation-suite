@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>DEVOS Synthetic Student Portal</title>
+  <style>
+    body { font-family: Segoe UI, sans-serif; margin: 24px; }
+    table { border-collapse: collapse; width: 100%; }
+    th, td { border: 1px solid #ccc; padding: 8px; text-align: left; }
+    button { margin: 4px; padding: 6px 10px; }
+    #detail { margin-top: 16px; padding: 12px; border: 1px solid #aaa; }
+  </style>
+</head>
+<body>
+  <h1>DEVOS Synthetic Student Portal</h1>
+  <p id="status">ready</p>
+  <table id="students">
+    <thead><tr><th>ID</th><th>Name</th><th>Status</th><th>Action</th></tr></thead>
+    <tbody></tbody>
+  </table>
+  <div>
+    <button id="prev">Previous</button>
+    <span id="page"></span>
+    <button id="next">Next</button>
+  </div>
+  <div id="detail">Select a record.</div>
+  <script>
+    const records = Array.from({length: 100}, (_, i) => ({
+      id: i + 1,
+      name: `Student ${String(i + 1).padStart(3, '0')}`,
+      status: (i + 1) % 9 === 0 ? 'Needs Review' : 'Ready'
+    }));
+    const pageSize = 10;
+    let pageIndex = 0;
+    const tbody = document.querySelector('#students tbody');
+    const detail = document.querySelector('#detail');
+    function render() {
+      tbody.innerHTML = '';
+      const start = pageIndex * pageSize;
+      records.slice(start, start + pageSize).forEach(r => {
+        const tr = document.createElement('tr');
+        tr.dataset.recordId = r.id;
+        tr.innerHTML = `<td>${r.id}</td><td>${r.name}</td><td>${r.status}</td><td><button class="open" data-id="${r.id}">Open</button></td>`;
+        tbody.appendChild(tr);
+      });
+      document.querySelector('#page').textContent = `Page ${pageIndex + 1} of ${Math.ceil(records.length / pageSize)}`;
+      document.querySelector('#prev').disabled = pageIndex === 0;
+      document.querySelector('#next').disabled = pageIndex >= Math.ceil(records.length / pageSize) - 1;
+    }
+    document.querySelector('#prev').addEventListener('click', () => { pageIndex--; render(); });
+    document.querySelector('#next').addEventListener('click', () => { pageIndex++; render(); });
+    tbody.addEventListener('click', e => {
+      if (!e.target.matches('button.open')) return;
+      const r = records.find(x => x.id === Number(e.target.dataset.id));
+      detail.textContent = `${r.id} | ${r.name} | ${r.status}`;
+      document.querySelector('#status').textContent = `opened-${r.id}`;
+    });
+    render();
+  </script>
+</body>
+</html>
