@@ -1,3 +1,12 @@
+## 2026-09-17 — Add offline Wi-Fi print hotspot local test
+- Commit: 7786147eaa75c200c88b28dbf6df1737cf207377
+- Author: PRASHANT KUMAR SAH
+- Classification: meaningful
+- Changed files:
+- `phone-printer/offline-hotspot/README.md`
+- `phone-printer/offline-hotspot/Start-DevosPrintHotspot.cmd`
+- `phone-printer/offline-hotspot/Start-DevosPrintHotspot.ps1`
+
 ## 2026-09-14 — docs: lock Stage 10 to 2026-09-14 baseline
 - Commit: 8190614735ea5e5500febf94fe568e16c0ea5adc
 - Author: PRASHANT KUMAR SAH
