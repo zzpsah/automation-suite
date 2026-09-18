@@ -1,3 +1,13 @@
+## 2026-09-18 — feat: add Windows GUI for UDISE student profile automation
+- Commit: eb79805a6e52804224a6bbf852184c4807c7b6bd
+- Author: PRASHANT KUMAR SAH
+- Classification: meaningful
+- Changed files:
+- `browser-portal-automation/udise/student-profile/README.md`
+- `browser-portal-automation/udise/student-profile/gui.py`
+- `browser-portal-automation/udise/student-profile/run_gui.bat`
+- `browser-portal-automation/udise/student-profile/tests/test_gui_import.py`
+
 ## 2026-09-18 — feat: add UDISE student GP EP FP automation scaffold
 - Commit: c1a23cd1af4e6afb208963268c2f7a3e3d553126
 - Author: PRASHANT KUMAR SAH
