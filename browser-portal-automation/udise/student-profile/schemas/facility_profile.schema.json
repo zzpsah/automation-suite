@@ -1,0 +1,6 @@
+{
+  "profile_type": "facility",
+  "status": "DISCOVERY_REQUIRED",
+  "fields": [],
+  "notes": "Populate only from observed UDISE+ Facility Profile fields. Never infer a benefit/facility value from another student."
+}
