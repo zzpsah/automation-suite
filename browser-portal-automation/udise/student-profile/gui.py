@@ -97,13 +97,19 @@ class StudentProfileApp(tk.Tk):
         self.output.insert("end", text.rstrip() + "\n")
         self.output.see("end")
 
+    def _thread_log(self, text: str) -> None:
+        self.after(0, self._log, text)
+
+    def _thread_status(self, text: str) -> None:
+        self.after(0, self.status_var.set, text)
+
     def _python_cmd(self, *args: str) -> list[str]:
         return [sys.executable, str(RUNNER), *args]
 
     def _run_capture(self, args: list[str], label: str) -> None:
         def worker() -> None:
-            self.status_var.set(label)
-            self._log(f"> {' '.join(args)}")
+            self._thread_status(label)
+            self._thread_log(f"> {' '.join(args)}")
             try:
                 proc = subprocess.run(
                     args,
@@ -114,14 +120,14 @@ class StudentProfileApp(tk.Tk):
                     check=False,
                 )
                 if proc.stdout:
-                    self._log(proc.stdout)
+                    self._thread_log(proc.stdout)
                 if proc.stderr:
-                    self._log(proc.stderr)
-                self._log(f"Exit code: {proc.returncode}")
+                    self._thread_log(proc.stderr)
+                self._thread_log(f"Exit code: {proc.returncode}")
             except Exception as exc:
-                self._log(f"ERROR: {exc}")
+                self._thread_log(f"ERROR: {exc}")
             finally:
-                self.status_var.set("Ready")
+                self._thread_status("Ready")
 
         threading.Thread(target=worker, daemon=True).start()
 
@@ -152,15 +158,9 @@ class StudentProfileApp(tk.Tk):
 
         if os.name == "nt":
             # Discovery is interactive, so open a real console window for index prompts.
-            quoted = subprocess.list2cmdline(cmd)
-            ps = [
-                "powershell.exe",
-                "-NoExit",
-                "-Command",
-                f"& {quoted}",
-            ]
+            interactive = ["cmd.exe", "/k", subprocess.list2cmdline(cmd)]
             try:
-                subprocess.Popen(ps, cwd=str(HERE), shell=False)
+                subprocess.Popen(interactive, cwd=str(HERE), shell=False)
                 self._log("Interactive discovery PowerShell opened.")
                 self._log("Us window me current BrowserAct state index enter karein.")
                 self.status_var.set("Discovery running in PowerShell")
