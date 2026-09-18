@@ -1,0 +1,6 @@
+{
+  "profile_type": "general",
+  "status": "DISCOVERY_REQUIRED",
+  "fields": [],
+  "notes": "Populate only from observed UDISE+ General Profile fields. Do not guess labels or selectors."
+}

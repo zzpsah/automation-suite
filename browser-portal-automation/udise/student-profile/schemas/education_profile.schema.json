@@ -1,0 +1,12 @@
+{
+  "profile_type": "education",
+  "status": "DISCOVERY_REQUIRED",
+  "fields": [],
+  "source_priority_for_class_xi": [
+    "OFSS",
+    "e-Shiksha Kosh",
+    "UDISE current status",
+    "Siwan Dropbox fallback/history"
+  ],
+  "notes": "Populate only from observed UDISE+ Education Profile fields. Do not guess labels or selectors."
+}

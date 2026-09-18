@@ -1,30 +1,46 @@
 # Current State
 
-Last verified: 2026-09-14
+Last verified: 2026-09-18
 
 ## Verified repository state
 - Default branch: `main`.
-- Onboarding baseline HEAD: `d570775c0a07278ab0380246f3728c94caf85998`.
-- Baseline commit message: `fix(scanner): import Compose setContent`.
-- Root includes `.claude/`, `CLAUDE.md`, `.github/workflows/`, and multiple independent automation/application modules.
-- Observed modules include `android-document-scanner/`, `browser-portal-automation/`, `global-automation/`, `paint-gemini-app/`, `phone-printer/`, and `school-document-pipeline/`.
-- DevOS `.ai/` is being added without replacing module-specific documentation.
+- Active implementation branch for UDISE student-profile automation: `feature/udise-student-profile-automation`.
+- Root contains multiple independent modules including `browser-portal-automation/`.
+- The existing reusable BrowserAct portal pattern remains the browser-control baseline for authenticated government/school portals.
+- No production deployment or merge to `main` has been performed for this feature branch.
 
-## DevOS / Windows Work Browser retirement
-- The previous Windows Work Browser / Browser Automation prototype was declared a failed implementation and retired.
-- Its source tree, dedicated CI/release workflows, and project-specific files were removed from `main`.
-- All old development branches associated with that prototype were subsequently removed; final branch audit found no matching Work Browser branches.
-- The old preview release/tag was also manually removed by the repository owner.
-- Do not reuse, revive, or silently depend on that retired prototype architecture.
-- A future DEVOS browser project must start from a clean architecture: custom DEVOS application shell and UX, Chromium only as an underlying browser engine where appropriate, built-in command/agent runtime, browser + Windows desktop automation, workflow/checkpoint/recovery, file/PDF/image tooling, and MCP integration.
+## UDISE Student Profile automation
+A new module exists at:
+
+```text
+browser-portal-automation/udise/student-profile/
+```
+
+Scope is **individual student profiles**, specifically:
+- General Profile (GP)
+- Education Profile (EP)
+- Facility Profile (FP)
+
+The first implementation is read-only first:
+- `doctor`: verify BrowserAct/session reachability.
+- `discover-one`: guided discovery for exactly one test student after manual authentication.
+- captures fresh BrowserAct state before every click so stale state indexes are never reused.
+- captures GP/EP/FP page state + Markdown evidence.
+- writes private runtime checkpoints and audit metadata under a Git-ignored runtime directory.
+- `compare`: compares extracted portal values with an approved source JSON.
+- `preview`: produces proposed changes without writing to the portal.
+- `apply` and `submit` are intentionally blocked in this first phase.
 
 ## Safety
-- Identify module scope before changes.
-- Keep credentials/private school documents out of public repository context.
-- External/production mutations require explicit authorization.
+- Login, password, CAPTCHA, OTP/MFA and security confirmations remain human-completed.
+- No security-control bypass is implemented.
+- No passwords, cookies, session tokens, OTPs, private browser profiles or student exports may be committed.
+- Runtime evidence/checkpoints are Git-ignored.
+- Source snapshots are treated as immutable.
+- Any future APPLY/SUBMIT support must use explicit approval gates and separate submit authorization.
 
-## Last automated change
-- Commit: 3eb6c8836cbc82f08fe30979dd64a2c3e1c3f383
-- Change: Build native offline print hotspot EXE
-- Date: 2026-09-17
-- Durable context synchronization: completed
+## Next verification
+- Run the module in an authenticated UDISE+ session.
+- Inspect one real test student read-only.
+- Populate the GP/EP/FP field schemas only from observed portal fields and stable locators.
+- Validate navigation behavior and field extraction before considering write-enabled automation.
