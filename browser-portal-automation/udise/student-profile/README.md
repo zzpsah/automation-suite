@@ -154,3 +154,38 @@ At present, the CLI rejects `apply` and `submit` commands on purpose.
 - No private values are committed.
 - Keep runtime evidence/checkpoints outside Git.
 - Update DevOS semantic context when this workflow materially changes.
+
+
+## Windows GUI
+
+A lightweight Tkinter GUI is available:
+
+```text
+browser-portal-automation/udise/student-profile/gui.py
+browser-portal-automation/udise/student-profile/run_gui.bat
+```
+
+On Windows, double-click:
+
+```text
+run_gui.bat
+```
+
+or run:
+
+```powershell
+python browser-portal-automation/udise/student-profile/gui.py
+```
+
+GUI flow:
+
+1. Complete UDISE login/CAPTCHA/OTP manually in the BrowserAct-controlled Chrome session.
+2. Keep the default session name `udise-profile` or enter the session you are using.
+3. Click **Check Connection**.
+4. Enter a test student label.
+5. Click **Start GP/EP/FP Discovery**.
+6. A console window opens for the interactive BrowserAct state-index prompts.
+7. Use **Open Runtime Folder** to inspect captured evidence/checkpoints.
+8. Use **Compare Portal vs Source** and **Create Preview** for read-only review.
+
+`APPLY` and `SUBMIT` remain visibly disabled in the GUI until live portal selectors and explicit write approval gates are implemented.

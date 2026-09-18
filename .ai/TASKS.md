@@ -6,7 +6,7 @@
 - Validate `browser-portal-automation/udise/student-profile/` against one authenticated UDISE+ test student in read-only mode.
 - Capture exact General Profile, Education Profile and Facility Profile structures.
 - Populate schema files only from observed fields/selectors.
-- Verify checkpoint/recovery and read-only evidence capture.
+- Verify checkpoint/recovery and read-only evidence capture.\n- Validate the new Windows Tkinter GUI on a real Windows machine with BrowserAct installed.
 
 ## Planned
 - Add schema-driven extraction after field discovery.

@@ -29,7 +29,7 @@ The first implementation is read-only first:
 - writes private runtime checkpoints and audit metadata under a Git-ignored runtime directory.
 - `compare`: compares extracted portal values with an approved source JSON.
 - `preview`: produces proposed changes without writing to the portal.
-- `apply` and `submit` are intentionally blocked in this first phase.
+- `apply` and `submit` are intentionally blocked in this first phase.\n- A Windows Tkinter GUI (`gui.py` + `run_gui.bat`) now wraps connection check, guided discovery, compare, preview, and runtime-folder access.
 
 ## Safety
 - Login, password, CAPTCHA, OTP/MFA and security confirmations remain human-completed.
