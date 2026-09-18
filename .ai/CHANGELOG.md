@@ -1,3 +1,22 @@
+## 2026-09-18 — feat: add UDISE student GP EP FP automation scaffold
+- Commit: c1a23cd1af4e6afb208963268c2f7a3e3d553126
+- Author: PRASHANT KUMAR SAH
+- Classification: meaningful
+- Changed files:
+- `browser-portal-automation/udise/student-profile/.gitignore`
+- `browser-portal-automation/udise/student-profile/README.md`
+- `browser-portal-automation/udise/student-profile/audit.py`
+- `browser-portal-automation/udise/student-profile/browseract_adapter.py`
+- `browser-portal-automation/udise/student-profile/checkpoint.py`
+- `browser-portal-automation/udise/student-profile/compare.py`
+- `browser-portal-automation/udise/student-profile/discovery.py`
+- `browser-portal-automation/udise/student-profile/models.py`
+- `browser-portal-automation/udise/student-profile/runner.py`
+- `browser-portal-automation/udise/student-profile/schemas/education_profile.schema.json`
+- `browser-portal-automation/udise/student-profile/schemas/facility_profile.schema.json`
+- `browser-portal-automation/udise/student-profile/schemas/general_profile.schema.json`
+- `browser-portal-automation/udise/student-profile/tests/test_compare.py`
+
 ## 2026-09-17 — Build native offline print hotspot EXE
 - Commit: 3eb6c8836cbc82f08fe30979dd64a2c3e1c3f383
 - Author: PRASHANT KUMAR SAH
